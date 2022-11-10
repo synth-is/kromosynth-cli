@@ -1,0 +1,32 @@
+{
+  "name": "kromosynth-cli",
+  "version": "1.0.0",
+  "description": "Command-line interface to neuro-evolution of pattern producing networks and audio signal paths for audio waveform breeding with quality diversity search.",
+  "main": "kromosynth.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "audio",
+    "synthesis",
+    "neuro-evolution",
+    "quality-diversity",
+    "cppn",
+    "neat"
+  ],
+  "author": "Björn Þór Jónsson <bangsi@bthj.is> (synth.is)",
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "kromosynth": "file:../kromosynth",
+    "meow": "^11.0.0",
+    "node-web-audio-api": "file:../../vendor/node-web-audio-api",
+    "virtual-audio-graph": "file:../../vendor/virtual-audio-graph"
+  },
+  "bin": {
+    "kromosynth": "./kromosynth.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "type": "module"
+}
