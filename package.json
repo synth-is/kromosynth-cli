@@ -20,6 +20,7 @@
     "kromosynth": "file:../kromosynth",
     "meow": "^11.0.0",
     "node-web-audio-api": "file:../../vendor/node-web-audio-api",
+    "ulid": "^2.3.0",
     "virtual-audio-graph": "file:../../vendor/virtual-audio-graph"
   },
   "bin": {

@@ -1,18 +1,21 @@
 #!/usr/bin/env node
 import meow from 'meow';
 import NodeWebAudioAPI from 'node-web-audio-api';
-const { AudioContext, OfflineAudioContext, OscillatorNode, GainNode, AudioNode } = NodeWebAudioAPI;
+const { AudioContext, OfflineAudioContext } = NodeWebAudioAPI;
+import {ulid} from 'ulid';
 import {
 	getNewAudioSynthesisGenome,
-  getNewAudioSynthesisGenomeByMutation,
-  renderAudio,
-	wireUpAudioGraphForPatchAndWaveNetwork
+	getNewAudioSynthesisGenomeByMutation,
+	getGenomeFromGenomeString,
+	wireUpAudioGraphForPatchAndWaveNetwork,
+	normalizeAudioBuffer,
+	getAudioBufferFromGenomeAndMeta
 } from 'kromosynth';
-
-import createVirtualAudioGraph from 'virtual-audio-graph';
 
 let audioCtx;
 let audioBufferSourceNode;
+
+const SAMPLE_RATE = 48000;
 
 const cli = meow(`
 	Usage
@@ -81,17 +84,24 @@ const cli = meow(`
 			type: 'boolean',
 			alias: 'r',
 			default: false
+		},
+		mutationCount: {
+			type: 'number',
+			alias: 'mc',
+			default: 1
+		},
+		probabilityMutatingWaveNetwork: {
+			type: 'number',
+			alias: 'pmwn',
+			default: 0.5
+		},
+		probabilityMutatingPatch: {
+			type: 'number',
+			alias: 'pmp',
+			default: 0.5
 		}
 	}
 });
-/*
-{
-	input: ['unicorns'],
-	flags: {rainbow: true},
-	...
-}
-*/
-
 
 function executeEvolutionTask() {
   const command = cli.input[0];
@@ -99,11 +109,14 @@ function executeEvolutionTask() {
   // console.log("cli.flags", cli.flags);
   switch (command) {
     case "new-genome":
-      newGenome();
-      break;
+		newGenome();
+		break;
+	case "genome-from-url":
+		genomeFromUrl();
+		break;
     case "mutate-genome":
-      mutateGenome();
-      break;
+		mutateGenome();
+		break;
 	case "render-audio":
 		renderAudioFromGenome();
 		break;
@@ -128,15 +141,41 @@ function newGenome() {
   process.exit();
 }
 
+function genomeFromUrl() {
+	console.log("cli.input", cli.input);
+}
+
 async function mutateGenome() {
-  // console.log("mutateGenome");
+	// console.log("mutateGenome");
 	let inputGenome;
 	if( cli.flags.readFromInput ) { // TODO: detect if input is incoming and then opt for this flag's functionality?
 		inputGenome = await getInput();
 	} else if( cli.flags.readFromFile ) {
 
 	}
-	console.log(inputGenome);
+	console.log("inputGenome", inputGenome);
+	if( inputGenome ) {
+		const inputGenomeParsed = await getGenomeFromGenomeString( inputGenome );
+		let newGenome = inputGenomeParsed;
+console.log("newGenome", newGenome);
+		const evoRunId = `mutations_${ulid()}`;
+		// for( let generationNumber = 1; generationNumber <= cli.flags.mutationCount; generationNumber++ ) {
+		// 	newGenome = getNewAudioSynthesisGenomeByMutation(
+		// 		newGenome,
+		// 		evoRunId, generationNumber,
+		// 		-1, // parentIndex
+		// 		'mutations', // algorithm
+		// 		getAudioContext(),
+		// 		cli.flags.probabilityMutatingWaveNetwork,
+		// 		cli.flags.probabilityMutatingPatch
+		// 		// TODO: read asNEATMutationParams from file path, if supplied via flag
+		// 	);
+		// }
+		if( cli.flags.writeToOutput ) {
+			console.log(genomeStringified);
+		}
+	}
+	process.exit();
 }
 
 async function renderAudioFromGenome() {
@@ -151,33 +190,56 @@ async function renderAudioFromGenome() {
 
 		// console.log("inputGenome unparsed:", inputGenome);
 		const inputGenomeParsed = JSON.parse( inputGenome );
+console.log(" inputGenomeParsed",  inputGenomeParsed);
 		const { duration, noteDelta, velocity, reverse } = cli.flags;
 
 		const offlineAudioContext = new OfflineAudioContext({
 			numberOfChannels: 2,
-			length: 44100 * duration,
-			sampleRate: 44100,
+			length: SAMPLE_RATE * duration,
+			sampleRate: SAMPLE_RATE,
 		});
 
-		const virtualAudioGraph = await wireUpAudioGraphForPatchAndWaveNetwork(
+		const audioBuffer = await getAudioBufferFromGenomeAndMeta(
 			inputGenomeParsed,
-			duration, noteDelta, velocity,
-			offlineAudioContext.sampleRate, // TODO: see a todo comment at startMemberOutputsRendering in render.js
+			duration, noteDelta, velocity, reverse,
+			false, // asDataArray
 			offlineAudioContext,
-			reverse
+			getAudioContext()
 		);
 
-		virtualAudioGraph.audioContext.startRendering().then( audioBuffer => {
-			if( cli.flags.playOnDefaultAudioDevice ) {
-				playAudio( audioBuffer );
-				setTimeout(() => {process.exit()}, duration*1000);
-			} else {
-				process.exit();
-			}
-			if( cli.flags.writeToFile ) {
-				// TODO: write audioBuffer as wav to file, and exit when that (and playing) is done
-			}
-		} );
+		if( cli.flags.playOnDefaultAudioDevice ) {
+			playAudio( audioBuffer );
+			setTimeout(() => {process.exit()}, duration*1000);
+		} else {
+			process.exit();
+		}
+		if( cli.flags.writeToFile ) {
+			// TODO: write audioBuffer as wav to file, and exit when that (and playing) is done
+		}
+
+		// const virtualAudioGraph = await wireUpAudioGraphForPatchAndWaveNetwork(
+		// 	inputGenomeParsed,
+		// 	duration, noteDelta, velocity,
+		// 	offlineAudioContext.sampleRate, // TODO: see a todo comment at startMemberOutputsRendering in render.js
+		// 	offlineAudioContext,
+		// 	reverse
+		// );
+
+		// virtualAudioGraph.audioContext.startRendering().then( audioBuffer => {
+
+		// 	const sampleCount = Math.round(SAMPLE_RATE * duration);
+		// 	const normalizedAudioBuffer = normalizeAudioBuffer( audioBuffer, sampleCount, getAudioContext(), false );
+
+		// 	if( cli.flags.playOnDefaultAudioDevice ) {
+		// 		playAudio( normalizedAudioBuffer );
+		// 		setTimeout(() => {process.exit()}, duration*1000);
+		// 	} else {
+		// 		process.exit();
+		// 	}
+		// 	if( cli.flags.writeToFile ) {
+		// 		// TODO: write audioBuffer as wav to file, and exit when that (and playing) is done
+		// 	}
+		// } );
 	}
 }
 
@@ -190,8 +252,8 @@ async function soundCheck() {
 
 	const offlineAudioContext = new OfflineAudioContext({
 		numberOfChannels: 2,
-		length: 44100 * duration,
-		sampleRate: 44100,
+		length: SAMPLE_RATE * duration,
+		sampleRate: SAMPLE_RATE,
 	});
 
 	const virtualAudioGraph = await wireUpAudioGraphForPatchAndWaveNetwork(
@@ -207,11 +269,6 @@ async function soundCheck() {
 
 		setTimeout(() => {process.exit()}, duration*1000);
 	} );
-}
-
-
-function sayHello(name) {
-  console.log("Hello " + name);
 }
 
 // from https://wellingguzman.com/notes/node-pipe-input
@@ -234,7 +291,7 @@ function getInput() {
 }
 
 function getAudioContext() {
-	if( ! audioCtx ) audioCtx = new AudioContext();
+	if( ! audioCtx ) audioCtx = new AudioContext({sampleRate: SAMPLE_RATE});
 	return audioCtx;
 }
 
@@ -253,40 +310,4 @@ function playAudio( audioBuffer ) {
 	audioBufferSourceNode.start();
 }
 
-//getInput().then(sayHello).catch(console.error);
-// sayHello()
-
 executeEvolutionTask();
-
-
-function testVirtualAudioGraph() {
-	// const virtualAudioGraph = createVirtualAudioGraph({
-	// 	audioContext: getAudioContext(),
-	// 	output: getAudioContext().destination,
-	// });
-	//
-	// const {currentTime} = getAudioContext()
-	//
-	// const graph = {
-	// 	0: ['gain', 'output', {gain: 0.2}],
-	// 	1: ['oscillator', 0, {
-	// 		type: 'square',
-	// 		frequency: 440,
-	// 		startTime: currentTime + 1,
-	// 		stopTime: currentTime + 2
-	// 	}],
-	// 	2: ['oscillator', 0, {
-	// 		type: 'sawtooth',
-	// 		frequency: 260,
-	// 		detune: 4,
-	// 		startTime: currentTime + 1.5,
-	// 		stopTime: currentTime + 8.5
-	// 	}],
-	// }
-	//
-	// virtualAudioGraph.update(graph)
-	//
-	// console.log("virtualAudioGraph",virtualAudioGraph);
-}
-
-// testVirtualAudioGraph();

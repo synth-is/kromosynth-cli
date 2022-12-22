@@ -56,26 +56,11 @@ function testVirtualAudioGraph() {
 			stopTime: currentTime + 4
 		}],
 	}
-//   const graph = {
-//     0: ['gain', 'output', { gain: 0.5 }],
-//     1: ['oscillator', 0]
-//   }
 
 	virtualAudioGraph.update(graph)
 
-  console.log("/////////////");
-  console.log(virtualAudioGraph);
-  console.log("/////////////");
-
-	// console.log("virtualAudioGraph",virtualAudioGraph);
-  // console.log("virtualAudioGraph.update.toString()",virtualAudioGraph.update.toString());
-
   if( ! ONLINE ) {
     virtualAudioGraph.audioContext.startRendering().then( renderedBuffer => {
-console.log('Rendering completed successfully');
-console.log("renderedBuffer.length",renderedBuffer.length);
-console.log("renderedBuffer.getChannelData()");
-console.log(renderedBuffer.getChannelData(0));
       const audioContextPlayback = new AudioContext();
       const song = audioContextPlayback.createBufferSource();
       song.buffer = renderedBuffer;
