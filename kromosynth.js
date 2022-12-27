@@ -131,12 +131,13 @@ function executeEvolutionTask() {
 function newGenome() {
   // console.log("newGenome");
   const genome = getNewAudioSynthesisGenome();
-  const genomeStringified = JSON.stringify(genome);
-  if( cli.flags.writeToFile ) {
-    // TODO:
-  }
+	const genomeAndMeta = { genome };
+	const genomeAndMetaStringified = JSON.stringify(genomeAndMeta);
+	if( cli.flags.writeToFile ) {
+		// TODO:
+	}
   if( cli.flags.writeToOutput ) {
-    console.log(genomeStringified);
+    console.log(genomeAndMetaStringified);
   }
   process.exit();
 }
@@ -147,32 +148,35 @@ function genomeFromUrl() {
 
 async function mutateGenome() {
 	// console.log("mutateGenome");
-	let inputGenome;
+	let inputGenomeString;
 	if( cli.flags.readFromInput ) { // TODO: detect if input is incoming and then opt for this flag's functionality?
-		inputGenome = await getInput();
+		inputGenomeString = await getInput();
 	} else if( cli.flags.readFromFile ) {
 
 	}
-	console.log("inputGenome", inputGenome);
-	if( inputGenome ) {
-		const inputGenomeParsed = await getGenomeFromGenomeString( inputGenome );
+	if( inputGenomeString ) {
+		const inputGenomeParsed = await getGenomeFromGenomeString( inputGenomeString );
 		let newGenome = inputGenomeParsed;
-console.log("newGenome", newGenome);
 		const evoRunId = `mutations_${ulid()}`;
-		// for( let generationNumber = 1; generationNumber <= cli.flags.mutationCount; generationNumber++ ) {
-		// 	newGenome = getNewAudioSynthesisGenomeByMutation(
-		// 		newGenome,
-		// 		evoRunId, generationNumber,
-		// 		-1, // parentIndex
-		// 		'mutations', // algorithm
-		// 		getAudioContext(),
-		// 		cli.flags.probabilityMutatingWaveNetwork,
-		// 		cli.flags.probabilityMutatingPatch
-		// 		// TODO: read asNEATMutationParams from file path, if supplied via flag
-		// 	);
-		// }
+		const patchFitnessTestDuration = 0.1;
+		for( let generationNumber = 1; generationNumber <= cli.flags.mutationCount; generationNumber++ ) {
+			newGenome = await getNewAudioSynthesisGenomeByMutation(
+				newGenome,
+				evoRunId, generationNumber,
+				-1, // parentIndex
+				'mutations', // algorithm
+				getAudioContext(),
+				// TODO: get offline audio context
+				cli.flags.probabilityMutatingWaveNetwork,
+				cli.flags.probabilityMutatingPatch,
+				undefined, // TODO: read asNEATMutationParams from file path, if supplied via flag
+				getNewOfflineAudioContext( patchFitnessTestDuration ),
+				patchFitnessTestDuration
+			);
+		}
 		if( cli.flags.writeToOutput ) {
-			console.log(genomeStringified);
+			const genomeAndMeta = { genome: newGenome };
+			console.log(JSON.stringify(genomeAndMeta));
 		}
 	}
 	process.exit();
@@ -182,7 +186,7 @@ async function renderAudioFromGenome() {
 
 	let inputGenome;
 	if( cli.flags.readFromInput ) { // TODO: detect if input is incoming and then opt for this flag's functionality?
-		inputGenome = await getInput();
+		inputGenome = await getNextToLastLineFromInput();
 	} else if( cli.flags.readFromFile ) {
 		// TODO
 	}
@@ -190,7 +194,7 @@ async function renderAudioFromGenome() {
 
 		// console.log("inputGenome unparsed:", inputGenome);
 		const inputGenomeParsed = JSON.parse( inputGenome );
-console.log(" inputGenomeParsed",  inputGenomeParsed);
+
 		const { duration, noteDelta, velocity, reverse } = cli.flags;
 
 		const offlineAudioContext = new OfflineAudioContext({
@@ -203,7 +207,7 @@ console.log(" inputGenomeParsed",  inputGenomeParsed);
 			inputGenomeParsed,
 			duration, noteDelta, velocity, reverse,
 			false, // asDataArray
-			offlineAudioContext,
+			getNewOfflineAudioContext( duration ),
 			getAudioContext()
 		);
 
@@ -290,9 +294,24 @@ function getInput() {
   });
 }
 
+async function getNextToLastLineFromInput() { // based on https://stackoverflow.com/a/5400451
+	const input = await getInput();
+	const inputLineArray = input.split(/\r?\n/);
+	return inputLineArray[inputLineArray.length - 2];
+}
+
 function getAudioContext() {
 	if( ! audioCtx ) audioCtx = new AudioContext({sampleRate: SAMPLE_RATE});
 	return audioCtx;
+}
+
+function getNewOfflineAudioContext( duration ) {
+	const offlineAudioContext = new OfflineAudioContext({
+		numberOfChannels: 2,
+		length: SAMPLE_RATE * duration,
+		sampleRate: SAMPLE_RATE,
+	});
+	return offlineAudioContext;
 }
 
 function playAudio( audioBuffer ) {
