@@ -8,7 +8,6 @@ import {
 	getNewAudioSynthesisGenomeByMutation,
 	getGenomeFromGenomeString,
 	wireUpAudioGraphForPatchAndWaveNetwork,
-	normalizeAudioBuffer,
 	getAudioBufferFromGenomeAndMeta
 } from 'kromosynth';
 
@@ -16,6 +15,9 @@ let audioCtx;
 let audioBufferSourceNode;
 
 const SAMPLE_RATE = 48000;
+
+const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";
+const GENOME_OUTPUT_END = "GENOME_OUTPUT_END";
 
 const cli = meow(`
 	Usage
@@ -129,7 +131,6 @@ function executeEvolutionTask() {
 }
 
 function newGenome() {
-  // console.log("newGenome");
   const genome = getNewAudioSynthesisGenome();
 	const genomeAndMeta = { genome };
 	const genomeAndMetaStringified = JSON.stringify(genomeAndMeta);
@@ -137,7 +138,7 @@ function newGenome() {
 		// TODO:
 	}
   if( cli.flags.writeToOutput ) {
-    console.log(genomeAndMetaStringified);
+		printGeneToOutput( genomeAndMetaStringified );
   }
   process.exit();
 }
@@ -147,10 +148,9 @@ function genomeFromUrl() {
 }
 
 async function mutateGenome() {
-	// console.log("mutateGenome");
 	let inputGenomeString;
 	if( cli.flags.readFromInput ) { // TODO: detect if input is incoming and then opt for this flag's functionality?
-		inputGenomeString = await getInput();
+		inputGenomeString = await getGenomeFromInput();
 	} else if( cli.flags.readFromFile ) {
 
 	}
@@ -166,17 +166,16 @@ async function mutateGenome() {
 				-1, // parentIndex
 				'mutations', // algorithm
 				getAudioContext(),
-				// TODO: get offline audio context
 				cli.flags.probabilityMutatingWaveNetwork,
 				cli.flags.probabilityMutatingPatch,
 				undefined, // TODO: read asNEATMutationParams from file path, if supplied via flag
-				getNewOfflineAudioContext( patchFitnessTestDuration ),
+				OfflineAudioContext,
 				patchFitnessTestDuration
 			);
 		}
 		if( cli.flags.writeToOutput ) {
 			const genomeAndMeta = { genome: newGenome };
-			console.log(JSON.stringify(genomeAndMeta));
+			printGeneToOutput( JSON.stringify(genomeAndMeta) );
 		}
 	}
 	process.exit();
@@ -186,22 +185,14 @@ async function renderAudioFromGenome() {
 
 	let inputGenome;
 	if( cli.flags.readFromInput ) { // TODO: detect if input is incoming and then opt for this flag's functionality?
-		inputGenome = await getNextToLastLineFromInput();
+		inputGenome = await getGenomeFromInput();
 	} else if( cli.flags.readFromFile ) {
 		// TODO
 	}
 	if( inputGenome ) {
-
-		// console.log("inputGenome unparsed:", inputGenome);
 		const inputGenomeParsed = JSON.parse( inputGenome );
 
 		const { duration, noteDelta, velocity, reverse } = cli.flags;
-
-		const offlineAudioContext = new OfflineAudioContext({
-			numberOfChannels: 2,
-			length: SAMPLE_RATE * duration,
-			sampleRate: SAMPLE_RATE,
-		});
 
 		const audioBuffer = await getAudioBufferFromGenomeAndMeta(
 			inputGenomeParsed,
@@ -220,30 +211,6 @@ async function renderAudioFromGenome() {
 		if( cli.flags.writeToFile ) {
 			// TODO: write audioBuffer as wav to file, and exit when that (and playing) is done
 		}
-
-		// const virtualAudioGraph = await wireUpAudioGraphForPatchAndWaveNetwork(
-		// 	inputGenomeParsed,
-		// 	duration, noteDelta, velocity,
-		// 	offlineAudioContext.sampleRate, // TODO: see a todo comment at startMemberOutputsRendering in render.js
-		// 	offlineAudioContext,
-		// 	reverse
-		// );
-
-		// virtualAudioGraph.audioContext.startRendering().then( audioBuffer => {
-
-		// 	const sampleCount = Math.round(SAMPLE_RATE * duration);
-		// 	const normalizedAudioBuffer = normalizeAudioBuffer( audioBuffer, sampleCount, getAudioContext(), false );
-
-		// 	if( cli.flags.playOnDefaultAudioDevice ) {
-		// 		playAudio( normalizedAudioBuffer );
-		// 		setTimeout(() => {process.exit()}, duration*1000);
-		// 	} else {
-		// 		process.exit();
-		// 	}
-		// 	if( cli.flags.writeToFile ) {
-		// 		// TODO: write audioBuffer as wav to file, and exit when that (and playing) is done
-		// 	}
-		// } );
 	}
 }
 
@@ -294,10 +261,28 @@ function getInput() {
   });
 }
 
-async function getNextToLastLineFromInput() { // based on https://stackoverflow.com/a/5400451
+function printGeneToOutput( gene ) {
+	const geneArray = gene.match(/.{1,1024}/g); // https://stackoverflow.com/a/7033662/169858
+	console.log(GENOME_OUTPUT_BEGIN);
+	geneArray.forEach(oneGeneLine => {
+		console.log(oneGeneLine);
+	});
+	console.log(GENOME_OUTPUT_END);
+}
+
+async function getGenomeFromInput() { // based on https://stackoverflow.com/a/5400451
 	const input = await getInput();
 	const inputLineArray = input.split(/\r?\n/);
-	return inputLineArray[inputLineArray.length - 2];
+	let encounteredGenomeOutput = false;
+	let geneJSON = "";
+	for (const inputLine of inputLineArray) {
+		if( encounteredGenomeOutput && GENOME_OUTPUT_END !== inputLine ) {
+			geneJSON += inputLine;
+		} else if( GENOME_OUTPUT_BEGIN === inputLine ) {
+			encounteredGenomeOutput = true;
+		}
+	}
+	return geneJSON;
 }
 
 function getAudioContext() {
