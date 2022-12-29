@@ -29,20 +29,25 @@ const cli = meow(`
 	  --read-from-file, -rff  Gene file to read from
     --write-to-file, -wtf  File to write to (file name auto-generated if none supplied)
 
-    --read-from-input, -rfi  Read from standard input (for piping ... | )
-    --write-to-output, -wto  Write to standard output (for piping | ...)
+    --read-from-input, -rfi  Read from standard input (for piping ... | ); false by default
+    --write-to-output, -wto  Write to standard output (for piping | ...); true by default
 
-		--play-on-default-audio-device, -play  Play rendered audio with the command <render-audio> on default audio device
-		--duration, -d  Duration in seconds for the <render-audio> command
-		--note-delta, -nd  Note relative from the sound's base note (12=one octave up), for the <render-audio> command
-		--velocity, -v  Velocity of the rendered sound from the <render-audio> command, 1 being full velocity (as when hitting a piano key)
-		--reverse, -r  Reverse the rendered sound from the <render-audio> command
+		--play-on-default-audio-device, -play  Play rendered audio with the command <render-audio> on default audio device; true by default
+		--duration, -d  Duration in seconds for the <render-audio> command; 1.0 by default
+		--note-delta, -nd  Note relative from the sound's base note (12=one octave up), for the <render-audio> command; 0 by default
+		--velocity, -v  Velocity of the rendered sound from the <render-audio> command, 1 being full velocity (as when hitting a piano key); 1.0 by default
+		--reverse, -r  Reverse the rendered sound from the <render-audio> command; false by default
+
+		--mutation-count, -mc	 Number of mutations to perform with the <mutate-genome> command; 1 by default
+		--probability-mutating-wave-network, -pmwn	Probability of mutating the audio buffer source pattern producing network on each mutation; 0.5 by default
+		--probability-mutating-patch, -pmp	Probability of mutating the synthesizer patch (adding nodes, e.g. a buffer source, oscillator, etc.); 0.5 by default
 
 	Examples
 		$ ./kromosynth.js new-genome [--write-to-file]
 		$ ./kromosynth.js mutate-genome [--read-from-file | --read-from-input] [--write-to-file | --write-to-output]
 		$ ./kromosynth.js render-audio [--read-from-file | --read-from-input] [--write-to-file | --play-on-default-audio-device]
 		$ ./kromosynth.js sound-check
+		👉 more in the project's readme (at https://github.com/synth-is/kromosynth-cli)
 `, {
 	importMeta: import.meta,
 	flags: {
@@ -157,7 +162,7 @@ async function mutateGenome() {
 	if( cli.flags.readFromInput ) { // TODO: detect if input is incoming and then opt for this flag's functionality?
 		inputGenomeString = await getGenomeFromInput();
 	} else if( cli.flags.readFromFile ) {
-
+		inputGenomeString = readGeneFromFile( cli.flags.readFromFile );
 	}
 	const doWriteToFile = cli.flags.writeToFile !== undefined;
 	if( inputGenomeString ) {
@@ -199,7 +204,7 @@ async function renderAudioFromGenome() {
 	if( cli.flags.readFromInput ) { // TODO: detect if input is incoming and then opt for this flag's functionality?
 		inputGenome = await getGenomeFromInput();
 	} else if( cli.flags.readFromFile ) {
-		// TODO
+		inputGenome = readGeneFromFile( cli.flags.readFromFile );
 	}
 	if( inputGenome ) {
 		const inputGenomeParsed = JSON.parse( inputGenome );
@@ -291,12 +296,18 @@ async function getGenomeFromInput() { // based on https://stackoverflow.com/a/54
 	const input = await getInput();
 	const inputLineArray = input.split(/\r?\n/);
 	let encounteredGenomeOutput = false;
-	let geneJSON = "";
-	for (const inputLine of inputLineArray) {
-		if( encounteredGenomeOutput && GENOME_OUTPUT_END !== inputLine ) {
-			geneJSON += inputLine;
-		} else if( GENOME_OUTPUT_BEGIN === inputLine ) {
-			encounteredGenomeOutput = true;
+	let geneJSON;
+	if( inputLineArray.length === 1 ) {
+		// we should have the whole gene on one line (not split over multiple lines, mixed with other output from the CLI methods)
+		geneJSON = inputLineArray[0];
+	} else {
+		geneJSON = "";
+		for (const inputLine of inputLineArray) {
+			if( encounteredGenomeOutput && GENOME_OUTPUT_END !== inputLine ) {
+				geneJSON += inputLine;
+			} else if( GENOME_OUTPUT_BEGIN === inputLine ) {
+				encounteredGenomeOutput = true;
+			}
 		}
 	}
 	return geneJSON;
@@ -333,10 +344,14 @@ function playAudio( audioBuffer ) {
 
 function writeToFile( content, fileNameFlag, id, fileNamePrefix, fileNameSuffix, exitAfterWriting = true ) {
 	let fileName;
-	if( fileNameFlag ) {
+	if( fileNameFlag && !fileNameFlag.endsWith('/') ) {
 		fileName = fileNameFlag;
 	} else { // no file name supplied, generate one
 		fileName = `${fileNamePrefix}${id || ulid()}${fileNameSuffix}`;
+		if( fileNameFlag && fileNameFlag.endsWith('/') ) {
+			if( !fs.existsSync(fileNameFlag) ) fs.mkdirSync(fileNameFlag);
+			fileName = fileNameFlag + fileName;
+		}
 	}
 	fs.writeFile(fileName, content, err => {
 		if (err) {
@@ -350,6 +365,16 @@ function writeGeneToFile( content, fileNameFlag, id ) {
 }
 function writeToWavFile( content, fileNameFlag, id, duration, noteDelta, velocity, reverse, exitAfterWriting ) {
 	writeToFile( content, fileNameFlag, id, 'kromosynth_render_', `__d_${duration}__nd_${noteDelta}__v_${velocity}__r_${reverse}.wav`, exitAfterWriting );
+}
+
+function readGeneFromFile( fileName ) {
+	let geneJSONString;
+	try {
+		geneJSONString = fs.readFileSync(fileName, 'utf8');
+	} catch (err) {
+		console.error(err);
+	}
+	return geneJSONString;
 }
 
 executeEvolutionTask();

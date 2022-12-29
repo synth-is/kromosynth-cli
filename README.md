@@ -49,8 +49,25 @@ Create a new genome, perform 35 mutations on it, render a two second audio from 
 ./kromosynth.js new-genome | ./kromosynth.js --read-from-input --mutation-count 35 mutate-genome | ./kromosynth.js --read-from-input --duration 2 --velocity 0.75 --note-delta 0 render-audio
 ```
 
-- Create a new genome, perform 35 mutations on it, write the gene to a file
-- Render a two second audio from the gene and write it to a WAV file with an auto-generated file name (without playing it on the default audio device):
+Create a new genome, perform 250 mutations on it, mostly on its audio buffer source pattern producing network (CPPN) part, render a two second audio from the result and play on the default audio device:
 ```
-./kromosynth.js new-genome | ./kromosynth.js --read-from-input --write-to-file --mutation-count 35 mutate-genome | ./kromosynth.js --read-from-input --write-to-file --play-on-default-audio-device false --duration 2 --velocity 0.75 --note-delta 0 render-audio
+./kromosynth.js new-genome | ./kromosynth.js --read-from-input --mutation-count 250 --probability-mutating-wave-network 0.9 --probability-mutating-patch 0.1 mutate-genome | ./kromosynth.js --read-from-input --duration 2 --velocity 0.75 --note-delta 0 render-audio
+```
+
+### File persistence
+
+- Create a new genome, perform 35 mutations on it, write the gene to a file, with an auto-generated file name in the specified `genes/` folder
+- Render a two second audio from the gene and write it to a WAV file with an auto-generated file name in the specified `render/` folder (without playing it on the default audio device):
+```
+./kromosynth.js new-genome | ./kromosynth.js --read-from-input --write-to-file genes/ --mutation-count 35 mutate-genome | ./kromosynth.js --read-from-input --write-to-file render/ --play-on-default-audio-device false --duration 2 --velocity 0.75 --note-delta 0 render-audio
+```
+
+Read a gene from file, render a five second sound, one octave down from it's base note, with half velocity, write the result to a WAV file with auto-generated file name in the `render` folder and also play it on the default audio device (could also explicitly declare `--play-on-default-audio-device true`, or `--play-on-default-audio-device false` to not play the sound):
+```
+./kromosynth.js --read-from-file genes/kromosynth_gene_01GNEV157BWBNZK89RSJF082HY.json --write-to-file render/ --play-on-default-audio-device false --duration 5 --velocity 0.5 --note-delta -12 render-audio
+```
+
+Read a gene from a file, mutate it a few times, save the mutated result to a gene file (in `genes/` with an auto-generated file name), play back the result and save it to a WAV file with an auto-generated file name in the `render/` directory:
+```
+cat genes/kromosynth_gene_01GNEV157BWBNZK89RSJF082HY.json | ./kromosynth.js --read-from-input --write-to-file genes/ --mutation-count 8 mutate-genome | ./kromosynth.js --read-from-input --write-to-file render/ --duration 2 --velocity 1 --note-delta 0 --play-on-default-audio-device true render-audio
 ```
