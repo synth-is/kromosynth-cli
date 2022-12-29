@@ -37,6 +37,7 @@ const cli = meow(`
 		--note-delta, -nd  Note relative from the sound's base note (12=one octave up), for the <render-audio> command; 0 by default
 		--velocity, -v  Velocity of the rendered sound from the <render-audio> command, 1 being full velocity (as when hitting a piano key); 1.0 by default
 		--reverse, -r  Reverse the rendered sound from the <render-audio> command; false by default
+		--gene-metadata-override, -gmo	Metadata from gene, for duration, note delta and velocity, if present, overrides corresponding command line flags or their defaults
 
 		--mutation-count, -mc	 Number of mutations to perform with the <mutate-genome> command; 1 by default
 		--probability-mutating-wave-network, -pmwn	Probability of mutating the audio buffer source pattern producing network on each mutation; 0.5 by default
@@ -92,6 +93,11 @@ const cli = meow(`
 		reverse: {
 			type: 'boolean',
 			alias: 'r',
+			default: false
+		},
+		geneMetadataOverride: {
+			type: 'boolean',
+			alias: 'gmo',
 			default: false
 		},
 		mutationCount: {
@@ -208,8 +214,17 @@ async function renderAudioFromGenome() {
 	}
 	if( inputGenome ) {
 		const inputGenomeParsed = JSON.parse( inputGenome );
-
-		const { duration, noteDelta, velocity, reverse } = cli.flags;
+		let duration, noteDelta, velocity;
+		if( cli.flags.geneMetadataOverride ) {
+			duration = inputGenomeParsed.duration || cli.flags.duration;
+			noteDelta = inputGenomeParsed.noteDelta || cli.flags.noteDelta;
+			velocity = inputGenomeParsed.velocity || cli.flags.velocity;
+		} else {
+			duration = cli.flags.duration;
+			noteDelta = cli.flags.noteDelta;
+			velocity = cli.flags.velocity;
+		}
+		const { reverse } = cli.flags;
 
 		const audioBuffer = await getAudioBufferFromGenomeAndMeta(
 			inputGenomeParsed,

@@ -54,6 +54,11 @@ Create a new genome, perform 250 mutations on it, mostly on its audio buffer sou
 ./kromosynth.js new-genome | ./kromosynth.js --read-from-input --mutation-count 250 --probability-mutating-wave-network 0.9 --probability-mutating-patch 0.1 mutate-genome | ./kromosynth.js --read-from-input --duration 2 --velocity 0.75 --note-delta 0 render-audio
 ```
 
+Render and play a gene from a file, using values from the gene's metadata, if present, for duration, note delta and velocity, by passing in the flag `--gene-metadata-override true`.
+```
+./kromosynth.js --read-from-file ~/iCloud/Documents/synth.is/favoriteGenomes/2022-07/fg_01FHTCZZKRMXS2242ZXN36XWYR.json --write-to-file render/ --play-on-default-audio-device true --gene-metadata-override true render-audio
+```
+
 ### File persistence
 
 - Create a new genome, perform 35 mutations on it, write the gene to a file, with an auto-generated file name in the specified `genes/` folder
