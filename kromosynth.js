@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import meow from 'meow';
+import fs from 'fs';
 import NodeWebAudioAPI from 'node-web-audio-api';
 const { AudioContext, OfflineAudioContext } = NodeWebAudioAPI;
 import {ulid} from 'ulid';
+import toWav from 'audiobuffer-to-wav';
 import {
 	getNewAudioSynthesisGenome,
 	getNewAudioSynthesisGenomeByMutation,
@@ -25,7 +27,7 @@ const cli = meow(`
 
 	Options
 	  --read-from-file, -rff  Gene file to read from
-    --write-to-file, -wtf  File to write to
+    --write-to-file, -wtf  File to write to (file name auto-generated if none supplied)
 
     --read-from-input, -rfi  Read from standard input (for piping ... | )
     --write-to-output, -wto  Write to standard output (for piping | ...)
@@ -132,15 +134,18 @@ function executeEvolutionTask() {
 
 function newGenome() {
   const genome = getNewAudioSynthesisGenome();
-	const genomeAndMeta = { genome };
+	const genomeAndMeta = { genome, _id: ulid() };
 	const genomeAndMetaStringified = JSON.stringify(genomeAndMeta);
-	if( cli.flags.writeToFile ) {
-		// TODO:
+	const doWriteToFile = cli.flags.writeToFile !== undefined;
+	if( doWriteToFile ) {
+		writeGeneToFile( genomeAndMetaStringified, cli.flags.writeToFile, genomeAndMeta._id );
 	}
   if( cli.flags.writeToOutput ) {
 		printGeneToOutput( genomeAndMetaStringified );
   }
-  process.exit();
+	if( ! doWriteToFile ) {
+		process.exit();
+	} // otherwise process.exit will be called in the fs.writeFile callback above
 }
 
 function genomeFromUrl() {
@@ -154,6 +159,7 @@ async function mutateGenome() {
 	} else if( cli.flags.readFromFile ) {
 
 	}
+	const doWriteToFile = cli.flags.writeToFile !== undefined;
 	if( inputGenomeString ) {
 		const inputGenomeParsed = await getGenomeFromGenomeString( inputGenomeString );
 		let newGenome = inputGenomeParsed;
@@ -173,12 +179,18 @@ async function mutateGenome() {
 				patchFitnessTestDuration
 			);
 		}
+		const genomeAndMeta = { genome: newGenome, _id: ulid() };
+		const genomeAndMetaStringified = JSON.stringify(genomeAndMeta);
 		if( cli.flags.writeToOutput ) {
-			const genomeAndMeta = { genome: newGenome };
-			printGeneToOutput( JSON.stringify(genomeAndMeta) );
+			printGeneToOutput( genomeAndMetaStringified );
+		}
+		if( doWriteToFile ) {
+			writeGeneToFile( genomeAndMetaStringified, cli.flags.writeToFile, genomeAndMeta._id );
 		}
 	}
-	process.exit();
+	if( ! doWriteToFile || ! inputGenomeString ) {
+		process.exit();
+	} // otherwise process.exit will be called in the fs.writeFile callback above
 }
 
 async function renderAudioFromGenome() {
@@ -201,15 +213,20 @@ async function renderAudioFromGenome() {
 			getNewOfflineAudioContext( duration ),
 			getAudioContext()
 		);
-
+		const doWriteToFile = cli.flags.writeToFile !== undefined;
 		if( cli.flags.playOnDefaultAudioDevice ) {
 			playAudio( audioBuffer );
 			setTimeout(() => {process.exit()}, duration*1000);
-		} else {
+		} else if( ! doWriteToFile ) {
 			process.exit();
 		}
-		if( cli.flags.writeToFile ) {
+		if( doWriteToFile ) {
 			// TODO: write audioBuffer as wav to file, and exit when that (and playing) is done
+			const wav = toWav(audioBuffer);
+			// const wavBlob = new Blob([ new DataView(wav) ], {
+			// 	type: 'audio/wav'
+			// });
+			writeToWavFile( Buffer.from(new Uint8Array(wav)), cli.flags.writeToFile, inputGenomeParsed._id, duration, noteDelta, velocity, reverse, !cli.flags.playOnDefaultAudioDevice );
 		}
 	}
 }
@@ -312,6 +329,27 @@ function playAudio( audioBuffer ) {
 	audioBufferSourceNode.connect(getAudioContext().destination);
 	// start the source playing
 	audioBufferSourceNode.start();
+}
+
+function writeToFile( content, fileNameFlag, id, fileNamePrefix, fileNameSuffix, exitAfterWriting = true ) {
+	let fileName;
+	if( fileNameFlag ) {
+		fileName = fileNameFlag;
+	} else { // no file name supplied, generate one
+		fileName = `${fileNamePrefix}${id || ulid()}${fileNameSuffix}`;
+	}
+	fs.writeFile(fileName, content, err => {
+		if (err) {
+			console.error(err);
+		}
+		if( exitAfterWriting ) process.exit();
+	});
+}
+function writeGeneToFile( content, fileNameFlag, id ) {
+	writeToFile( content, fileNameFlag, id, 'kromosynth_gene_', '.json' );
+}
+function writeToWavFile( content, fileNameFlag, id, duration, noteDelta, velocity, reverse, exitAfterWriting ) {
+	writeToFile( content, fileNameFlag, id, 'kromosynth_render_', `__d_${duration}__nd_${noteDelta}__v_${velocity}__r_${reverse}.wav`, exitAfterWriting );
 }
 
 executeEvolutionTask();

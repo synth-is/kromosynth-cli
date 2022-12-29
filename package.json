@@ -17,6 +17,7 @@
   "author": "Björn Þór Jónsson <bangsi@bthj.is> (synth.is)",
   "license": "AGPL-3.0-or-later",
   "dependencies": {
+    "audiobuffer-to-wav": "^1.0.0",
     "kromosynth": "file:../kromosynth",
     "meow": "^11.0.0",
     "node-web-audio-api": "file:../../vendor/node-web-audio-api",
