@@ -1,6 +1,6 @@
 {
   "name": "kromosynth-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Command-line interface to neuro-evolution of pattern producing networks and audio signal paths for audio waveform breeding with quality diversity search.",
   "main": "kromosynth.js",
   "scripts": {
@@ -21,7 +21,7 @@
     "jsonc-parser": "^3.2.0",
     "kromosynth": "file:../kromosynth",
     "meow": "^11.0.0",
-    "node-web-audio-api": "file:../../vendor/node-web-audio-api",
+    "node-web-audio-api": "^0.5.0",
     "ulid": "^2.3.0",
     "virtual-audio-graph": "github:synth-is/virtual-audio-graph"
   },
