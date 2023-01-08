@@ -2,6 +2,12 @@
 
 A command line interface to `kromosynth`.
 
+## Install as a global command
+
+```
+npm install -g kromosynth-cli
+```
+
 ## Examples
 
 Piped command-line combinations for spawning, mutating, rendering, playing and saving genes and their renditions.
@@ -10,53 +16,53 @@ Piped command-line combinations for spawning, mutating, rendering, playing and s
 
 Output description and help text:
 ```
-./kromosynth.js --help
+kromosynth --help
 ```
 
 ### Genesis genes
 
 Create a new genome and print it to standard output:
 ```
-./kromosynth.js new-genome
+kromosynth new-genome
 ```
 
 Create a new genome, specify not to print to standard output (otherwise the default) and write it to a file with an auto-generated name:
 ```
-./kromosynth.js new-genome --write-to-output false --write-to-file
+kromosynth new-genome --write-to-output false --write-to-file
 ```
 
 Create a new genome, print to standard output and write it to a file with the supplied name:
 ```
-./kromosynth.js new-genome --write-to-file kromosynth_gene_initial_1.json
+kromosynth new-genome --write-to-file kromosynth_gene_initial_1.json
 ```
 
 ### Gene mutations
 
 Create a new genome, perform 35 mutations on it and print the result to standard output:
 ```
-./kromosynth.js new-genome | ./kromosynth.js --read-from-input --mutation-count 35 mutate-genome
+kromosynth new-genome | kromosynth --read-from-input --mutation-count 35 mutate-genome
 ```
 
 Create a new genome, perform 42 mutations on it and write to a file with the supplied name:
 ```
-./kromosynth.js new-genome | ./kromosynth.js --read-from-input --mutation-count 42 --write-to-output false --write-to-file kromosynth_gene_mutation_42.json mutate-genome
+kromosynth new-genome | kromosynth --read-from-input --mutation-count 42 --write-to-output false --write-to-file kromosynth_gene_mutation_42.json mutate-genome
 ```
 
 ### Playback and rendering
 
 Create a new genome, perform 35 mutations on it, render a two second audio from it and play on the default audio device:
 ```
-./kromosynth.js new-genome | ./kromosynth.js --read-from-input --mutation-count 35 mutate-genome | ./kromosynth.js --read-from-input --duration 2 --velocity 0.75 --note-delta 0 render-audio
+kromosynth new-genome | kromosynth --read-from-input --mutation-count 35 mutate-genome | kromosynth --read-from-input --duration 2 --velocity 0.75 --note-delta 0 render-audio
 ```
 
 Create a new genome, perform 250 mutations on it, mostly on its audio buffer source pattern producing network (CPPN) part, render a two second audio from the result and play on the default audio device:
 ```
-./kromosynth.js new-genome | ./kromosynth.js --read-from-input --mutation-count 250 --probability-mutating-wave-network 0.9 --probability-mutating-patch 0.1 mutate-genome | ./kromosynth.js --read-from-input --duration 2 --velocity 0.75 --note-delta 0 render-audio
+kromosynth new-genome | kromosynth --read-from-input --mutation-count 250 --probability-mutating-wave-network 0.9 --probability-mutating-patch 0.1 mutate-genome | kromosynth --read-from-input --duration 2 --velocity 0.75 --note-delta 0 render-audio
 ```
 
 Render and play a gene from a file, using values from the gene's metadata, if present, for duration, note delta and velocity, by passing in the flag `--gene-metadata-override true`.
 ```
-./kromosynth.js --read-from-file ~/iCloud/Documents/synth.is/favoriteGenomes/2022-07/fg_01FHTCZZKRMXS2242ZXN36XWYR.json --write-to-file render/ --play-on-default-audio-device true --gene-metadata-override true render-audio
+kromosynth --read-from-file ~/iCloud/Documents/synth.is/favoriteGenomes/2022-07/fg_01FHTCZZKRMXS2242ZXN36XWYR.json --write-to-file render/ --play-on-default-audio-device true --gene-metadata-override true render-audio
 ```
 
 ### File persistence
@@ -64,15 +70,32 @@ Render and play a gene from a file, using values from the gene's metadata, if pr
 - Create a new genome, perform 35 mutations on it, write the gene to a file, with an auto-generated file name in the specified `genes/` folder
 - Render a two second audio from the gene and write it to a WAV file with an auto-generated file name in the specified `render/` folder (without playing it on the default audio device):
 ```
-./kromosynth.js new-genome | ./kromosynth.js --read-from-input --write-to-file genes/ --mutation-count 35 mutate-genome | ./kromosynth.js --read-from-input --write-to-file render/ --play-on-default-audio-device false --duration 2 --velocity 0.75 --note-delta 0 render-audio
+kromosynth new-genome | kromosynth --read-from-input --write-to-file genes/ --mutation-count 35 mutate-genome | kromosynth --read-from-input --write-to-file render/ --play-on-default-audio-device false --duration 2 --velocity 0.75 --note-delta 0 render-audio
 ```
 
 Read a gene from file, render a five second sound, one octave down from it's base note, with half velocity, write the result to a WAV file with auto-generated file name in the `render` folder and also play it on the default audio device (could also explicitly declare `--play-on-default-audio-device true`, or `--play-on-default-audio-device false` to not play the sound):
 ```
-./kromosynth.js --read-from-file genes/kromosynth_gene_01GNEV157BWBNZK89RSJF082HY.json --write-to-file render/ --play-on-default-audio-device false --duration 5 --velocity 0.5 --note-delta -12 render-audio
+kromosynth --read-from-file genes/kromosynth_gene_01GNEV157BWBNZK89RSJF082HY.json --write-to-file render/ --play-on-default-audio-device false --duration 5 --velocity 0.5 --note-delta -12 render-audio
 ```
 
 Read a gene from a file, mutate it a few times, save the mutated result to a gene file (in `genes/` with an auto-generated file name), play back the result and save it to a WAV file with an auto-generated file name in the `render/` directory:
 ```
-cat genes/kromosynth_gene_01GNEV157BWBNZK89RSJF082HY.json | ./kromosynth.js --read-from-input --write-to-file genes/ --mutation-count 8 mutate-genome | ./kromosynth.js --read-from-input --write-to-file render/ --duration 2 --velocity 1 --note-delta 0 --play-on-default-audio-device true render-audio
+cat genes/kromosynth_gene_01GNEV157BWBNZK89RSJF082HY.json | kromosynth --read-from-input --write-to-file genes/ --mutation-count 8 mutate-genome | kromosynth --read-from-input --write-to-file render/ --duration 2 --velocity 1 --note-delta 0 --play-on-default-audio-device true render-audio
+```
+
+### Evolution (hyper)parameters
+
+In addition to controlling the likelihood of mutating the wave network and audio graph patch parts of a genome, with the command line flags `--probability-mutating-wave-network` and `--probability-mutating-patch`, respectively, further evolution (hyper)parameteres can be supplied from a JSON(-C) file, with the flag `--evo-params-json-file`, or an inline JSON string, with the `--evo-params-json-string` flag.
+
+New genome with evolution parameters read from a file in `conf/evolutionary-hyperparameters.jsonc`:
+```
+kromosynth --evo-params-json-file conf/evolutionary-hyperparameters.jsonc new-genome
+```
+
+New genome with evolution parameters supplied by an inline JSON string; the genome is then mutated with evolution parameters from a file in `conf/evolutionary-hyperparameters.jsonc`:
+```
+kromosynth \
+  --evo-params-json-string '{"waveNetwork":{"neatParameters":{"pMutateAddConnection":0.13,"pMutateAddNode":0.13,"pMutateDeleteSimpleNeuron":0,"pMutateDeleteConnection":0,"pMutateConnectionWeights":0.72,"pMutateChangeActivations":0.02,"pNodeMutateActivationRate":0.2,"connectionWeightRange":3,"disallowRecurrence":true},"iecOptions":{"initialMutationCount":5,"postMutationCount":5},"activationFunctionProbabilities":{"triangle":0.25,"sawtooth":0.25,"StepFunction":0.25,"Sine":0.25,"Sine2":0.25,"cos":0,"arctan":0,"spike":0,"BipolarSigmoid":0,"PlainSigmoid":0,"Gaussian":0,"Linear":0,"NullFn":0}},"audioGraph":{"mutationParams":{"mutationDistance":0.5,"splitMutationChance":0.2,"addOscillatorChance":0.1,"addAudioBufferSourceChance":0.1,"addConnectionChance":0.2,"mutateConnectionWeightsChance":0.2,"mutateNodeParametersChance":0.2},"defaultParameters":{"connectionMutationRate":[0.05,0.8],"nodeMutationRate":[0.05,0.8],"addOscillatorFMMutationRate":0.5,"addConnectionFMMutationRate":0.1}}}' \
+  new-genome | \
+  kromosynth --read-from-input --mutation-count 1 --evo-params-json-file conf/evolutionary-hyperparameters.jsonc mutate-genome
 ```

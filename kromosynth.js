@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import meow from 'meow';
 import fs from 'fs';
+import { parse } from 'jsonc-parser';
 import NodeWebAudioAPI from 'node-web-audio-api';
 const { AudioContext, OfflineAudioContext } = NodeWebAudioAPI;
 import {ulid} from 'ulid';
@@ -23,56 +24,73 @@ const GENOME_OUTPUT_END = "GENOME_OUTPUT_END";
 
 const cli = meow(`
 	Usage
-	  $ foo <command>
+	  $ kromosynth <command>
+
+	Commands
+		new-genome
+			Spawn new sound synthesis genome (pattern producting wave generation network + audio graph)
+
+		mutate-genome
+			Mutate the supplied genome
+
+		render-audio
+			Render audio from the supplied genome
 
 	Options
-	  --read-from-file, -rff  Gene file to read from
-    --write-to-file, -wtf  File to write to (file name auto-generated if none supplied)
+		Commands: <new-genome, mutate-genome or render-audio>
+		--read-from-file, -r  Gene file to read from
+		--write-to-file, -w  File to write to (file name auto-generated if none supplied)
 
-    --read-from-input, -rfi  Read from standard input (for piping ... | ); false by default
-    --write-to-output, -wto  Write to standard output (for piping | ...); true by default
+		--read-from-input, -i  Read from standard input (for piping ... | ); false by default
+		--write-to-output, -o  Write to standard output (for piping | ...); true by default
 
-		--play-on-default-audio-device, -play  Play rendered audio with the command <render-audio> on default audio device; true by default
+		Command: <mutate-genome>
+		--mutation-count	 Number of mutations to perform with the <mutate-genome> command; 1 by default
+		--probability-mutating-wave-network	Probability of mutating the audio buffer source pattern producing network on each mutation; 0.5 by default
+		--probability-mutating-patch	Probability of mutating the synthesizer patch (adding nodes, e.g. a buffer source, oscillator, etc.); 0.5 by default
+
+		Command: <render-audio>
+		--play-on-default-audio-device, -p  Play rendered audio with the command <render-audio> on default audio device; true by default
 		--duration, -d  Duration in seconds for the <render-audio> command; 1.0 by default
-		--note-delta, -nd  Note relative from the sound's base note (12=one octave up), for the <render-audio> command; 0 by default
+		--note-delta, -d  Note relative from the sound's base note (12=one octave up), for the <render-audio> command; 0 by default
 		--velocity, -v  Velocity of the rendered sound from the <render-audio> command, 1 being full velocity (as when hitting a piano key); 1.0 by default
 		--reverse, -r  Reverse the rendered sound from the <render-audio> command; false by default
-		--gene-metadata-override, -gmo	Metadata from gene, for duration, note delta and velocity, if present, overrides corresponding command line flags or their defaults
+		--gene-metadata-override	Metadata from gene, for duration, note delta and velocity, if present, overrides corresponding command line flags or their defaults
 
-		--mutation-count, -mc	 Number of mutations to perform with the <mutate-genome> command; 1 by default
-		--probability-mutating-wave-network, -pmwn	Probability of mutating the audio buffer source pattern producing network on each mutation; 0.5 by default
-		--probability-mutating-patch, -pmp	Probability of mutating the synthesizer patch (adding nodes, e.g. a buffer source, oscillator, etc.); 0.5 by default
+		Commands: <new-genome or mutate-genome>
+		--evo-params-json-file		File containing evolutionary hyperparameters
+		--evo-params-json-string		JSON string containing evolutionary hyperparameters
 
 	Examples
-		$ ./kromosynth.js new-genome [--write-to-file]
-		$ ./kromosynth.js mutate-genome [--read-from-file | --read-from-input] [--write-to-file | --write-to-output]
-		$ ./kromosynth.js render-audio [--read-from-file | --read-from-input] [--write-to-file | --play-on-default-audio-device]
-		$ ./kromosynth.js sound-check
+		$ kromosynth new-genome [--write-to-file]
+		$ kromosynth mutate-genome [--read-from-file | --read-from-input] [--write-to-file | --write-to-output]
+		$ kromosynth render-audio [--read-from-file | --read-from-input] [--write-to-file | --play-on-default-audio-device]
+		$ kromosynth sound-check
 		👉 more in the project's readme (at https://github.com/synth-is/kromosynth-cli)
 `, {
 	importMeta: import.meta,
 	flags: {
 		readFromFile: {
 			type: 'string',
-			alias: 'rff'
+			alias: 'r'
 		},
 		writeToFile: {
 			type: 'string',
-			alias: 'wtf',
+			alias: 'w',
 		},
 		writeToOutput: {
 			type: 'boolean',
-			alias: 'wto',
+			alias: 'o',
 			default: true
 		},
 		readFromInput: {
 			type: 'boolean',
-			alias: 'rfi',
+			alias: 'i',
 			default: false // TODO: might want to go for true, then need to detect if stdin
 		},
 		playOnDefaultAudioDevice: {
 			type: 'boolean',
-			alias: 'play',
+			alias: 'p',
 			default: true
 		},
 		duration: {
@@ -82,7 +100,7 @@ const cli = meow(`
 		},
 		noteDelta: {
 			type: 'number',
-			alias: 'nd',
+			alias: 'd',
 			default: 0
 		},
 		velocity: {
@@ -97,23 +115,25 @@ const cli = meow(`
 		},
 		geneMetadataOverride: {
 			type: 'boolean',
-			alias: 'gmo',
 			default: false
 		},
 		mutationCount: {
 			type: 'number',
-			alias: 'mc',
 			default: 1
 		},
 		probabilityMutatingWaveNetwork: {
 			type: 'number',
-			alias: 'pmwn',
 			default: 0.5
 		},
 		probabilityMutatingPatch: {
 			type: 'number',
-			alias: 'pmp',
 			default: 0.5
+		},
+		evoParamsJsonFile: {
+			type: 'string'
+		},
+		evoParamsJsonString: {
+			type: 'string'
 		}
 	}
 });
@@ -124,27 +144,33 @@ function executeEvolutionTask() {
   // console.log("cli.flags", cli.flags);
   switch (command) {
     case "new-genome":
-		newGenome();
-		break;
-	case "genome-from-url":
-		genomeFromUrl();
-		break;
+			newGenome();
+			break;
+		case "genome-from-url":
+			genomeFromUrl();
+			break;
     case "mutate-genome":
-		mutateGenome();
-		break;
-	case "render-audio":
-		renderAudioFromGenome();
-		break;
-	case "sound-check":
-		soundCheck();
-		break;
+			mutateGenome();
+			break;
+		case "render-audio":
+			renderAudioFromGenome();
+			break;
+		case "sound-check":
+			soundCheck();
+			break;
     default:
       cli.showHelp();
   }
 }
 
 function newGenome() {
-  const genome = getNewAudioSynthesisGenome();
+	const evoParams = getEvoParams();
+	const genome = getNewAudioSynthesisGenome(
+		undefined, // evolutionRunId
+		undefined, // generationNumber
+		undefined, // parentIndex
+		evoParams
+	);
 	const genomeAndMeta = { genome, _id: ulid() };
 	const genomeAndMetaStringified = JSON.stringify(genomeAndMeta);
 	const doWriteToFile = cli.flags.writeToFile !== undefined;
@@ -164,18 +190,20 @@ function genomeFromUrl() {
 }
 
 async function mutateGenome() {
+	const evoParams = getEvoParams();
 	let inputGenomeString;
 	if( cli.flags.readFromInput ) { // TODO: detect if input is incoming and then opt for this flag's functionality?
 		inputGenomeString = await getGenomeFromInput();
 	} else if( cli.flags.readFromFile ) {
-		inputGenomeString = readGeneFromFile( cli.flags.readFromFile );
+		inputGenomeString = readJSONFromFile( cli.flags.readFromFile );
 	}
 	const doWriteToFile = cli.flags.writeToFile !== undefined;
 	if( inputGenomeString ) {
-		const inputGenomeParsed = await getGenomeFromGenomeString( inputGenomeString );
+		const inputGenomeParsed = await getGenomeFromGenomeString( inputGenomeString, evoParams );
 		let newGenome = inputGenomeParsed;
 		const evoRunId = `mutations_${ulid()}`;
 		const patchFitnessTestDuration = 0.1;
+		const audioGraphMutationParams = evoParams && evoParams["audioGraph"] && evoParams["audioGraph"]["mutationParams"] || undefined;
 		for( let generationNumber = 1; generationNumber <= cli.flags.mutationCount; generationNumber++ ) {
 			newGenome = await getNewAudioSynthesisGenomeByMutation(
 				newGenome,
@@ -185,7 +213,7 @@ async function mutateGenome() {
 				getAudioContext(),
 				cli.flags.probabilityMutatingWaveNetwork,
 				cli.flags.probabilityMutatingPatch,
-				undefined, // TODO: read asNEATMutationParams from file path, if supplied via flag
+				audioGraphMutationParams,
 				OfflineAudioContext,
 				patchFitnessTestDuration
 			);
@@ -210,7 +238,7 @@ async function renderAudioFromGenome() {
 	if( cli.flags.readFromInput ) { // TODO: detect if input is incoming and then opt for this flag's functionality?
 		inputGenome = await getGenomeFromInput();
 	} else if( cli.flags.readFromFile ) {
-		inputGenome = readGeneFromFile( cli.flags.readFromFile );
+		inputGenome = readJSONFromFile( cli.flags.readFromFile );
 	}
 	if( inputGenome ) {
 		const inputGenomeParsed = JSON.parse( inputGenome );
@@ -241,11 +269,7 @@ async function renderAudioFromGenome() {
 			process.exit();
 		}
 		if( doWriteToFile ) {
-			// TODO: write audioBuffer as wav to file, and exit when that (and playing) is done
 			const wav = toWav(audioBuffer);
-			// const wavBlob = new Blob([ new DataView(wav) ], {
-			// 	type: 'audio/wav'
-			// });
 			writeToWavFile( Buffer.from(new Uint8Array(wav)), cli.flags.writeToFile, inputGenomeParsed._id, duration, noteDelta, velocity, reverse, !cli.flags.playOnDefaultAudioDevice );
 		}
 	}
@@ -382,14 +406,33 @@ function writeToWavFile( content, fileNameFlag, id, duration, noteDelta, velocit
 	writeToFile( content, fileNameFlag, id, 'kromosynth_render_', `__d_${duration}__nd_${noteDelta}__v_${velocity}__r_${reverse}.wav`, exitAfterWriting );
 }
 
-function readGeneFromFile( fileName ) {
-	let geneJSONString;
+function readJSONFromFile( fileName ) {
+	let jsonString;
 	try {
-		geneJSONString = fs.readFileSync(fileName, 'utf8');
+		jsonString = fs.readFileSync(fileName, 'utf8');
 	} catch (err) {
 		console.error(err);
 	}
-	return geneJSONString;
+	return jsonString;
+}
+
+function getEvoParamsFromJSONString( evoParamsJsonString ) {
+	return parse( evoParamsJsonString );
+}
+function getEvoParamsFromJSONFile( fileName ) {
+	const evoParamsJsonString = readJSONFromFile( fileName );
+	return getEvoParamsFromJSONString( evoParamsJsonString );
+}
+function getEvoParams() {
+	let evoParams;
+	if( cli.flags.evoParamsJsonFile ) {
+		evoParams = getEvoParamsFromJSONFile( cli.flags.evoParamsJsonFile );
+	} else if( cli.flags.evoParamsJsonString ) {
+		evoParams = getEvoParamsFromJSONString( cli.flags.evoParamsJsonString );
+	} else {
+		evoParams = {};
+	}
+	return evoParams;
 }
 
 executeEvolutionTask();
