@@ -60,9 +60,13 @@
       "addConnectionFMMutationRate": 0.5,
 
       "addOscillatorNetworkOutputVsOscillatorNodeRate": 0.5,
-      "addAudioBufferSourceVsWavetableNodeRate": 0.5
+      "addAudioBufferSourceVsWavetableNodeRate": 0.5,
+
+      "includeNoise": false,
       
-      // TODO: initial node chance: oscillator, audiobuffer source node or additive synthesis
+      // initial node chances must add up to 1
+      "initialOscillatorChance": 0.5,
+      "initialAudioBufferSourceChance": 0.5
     }
   }
 }

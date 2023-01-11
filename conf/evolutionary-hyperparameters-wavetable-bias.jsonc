@@ -41,7 +41,7 @@
       // Chances must add up to 1.0
       "splitMutationChance": 0.0,
       "addOscillatorChance": 0.4,
-      "addAudioBufferSourceChance": 0.0,
+      "addAudioBufferSourceChance": 0.0, // 0 favours wavetable
       "addConnectionChance": 0.4,
       "mutateConnectionWeightsChance": 0.2, // 0.25,
       "mutateNodeParametersChance": 0.0 // 0.25
@@ -62,9 +62,11 @@
       "addOscillatorNetworkOutputVsOscillatorNodeRate": 1.0,
       "addAudioBufferSourceVsWavetableNodeRate": 0,
 
-      "includeNoise": false
-      
-      // TODO: initial node chance: oscillator, audiobuffer source node or additive synthesis
+      "includeNoise": false,
+
+      // initial node chances must add up to 1
+      "initialOscillatorChance": 0.5,
+      "initialAudioBufferSourceChance": 0.5
     }
   }
 }
