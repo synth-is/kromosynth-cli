@@ -17,11 +17,11 @@
       "postMutationCount": 5  // AKA mutationsOnCreation
     },
     "activationFunctionProbabilities": {
-      "triangle": 0.25,
-      "sawtooth": 0.25,
-      "StepFunction": 0.25,
-      "Sine": 0.25,
-      "Sine2": 0.25, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=sin(2*x)&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1.1&yGrid=1&gwidth=290&gheight=130
+      "triangle": 0.0,
+      "sawtooth": 0.0,
+      "StepFunction": 0.0,
+      "Sine": 1.0,
+      "Sine2": 0.0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=sin(2*x)&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1.1&yGrid=1&gwidth=290&gheight=130
 
       "cos": 0,
       "arctan": 0,
@@ -39,13 +39,13 @@
       "mutationDistance": 0.5,
 
       // Chances must add up to 1.0
-      "splitMutationChance": 0.2,
-      "addOscillatorChance": 0.1,
-      "addAudioBufferSourceChance": 0.1,
-      "addPartialAndEnvelopeChance": 0.0,
-      "addConnectionChance": 0.2,
-      "mutateConnectionWeightsChance": 0.2, // 0.25,
-      "mutateNodeParametersChance": 0.2 // 0.25
+      "splitMutationChance": 0.0,
+      "addOscillatorChance": 0.0,
+      "addAudioBufferSourceChance": 0.0,
+      "addPartialAndEnvelopeChance": 0.6,
+      "addConnectionChance": 0.0,
+      "mutateConnectionWeightsChance": 0.2,
+      "mutateNodeParametersChance": 0.2
     },
     "defaultParameters": {
       "connectionMutationRate": [0.05, 0.8],
@@ -54,7 +54,7 @@
 
       // percentage of addOscillatorMutations will
       // generate a node for fm, as opposed to strict audio output
-      "addOscillatorFMMutationRate": 0.1,
+      "addOscillatorFMMutationRate": 0,
 
       // Percentage of addConnectionMutation will generate a connection
       // for fm, as opposed to a strict audio connection
@@ -62,18 +62,19 @@
 
       // Chance between an Oscillator node or a (CPPN) network output node, when "addOscillator"
       "addOscillatorNetworkOutputVsOscillatorNodeRate": 0.5,
-      
+
+
       // Rate between audio buffer source node, a wavetable node or additive synthesis node
       // addAudioBufferSource?Chances must add up to 1
-      "addAudioBufferSourceProperChance": 0.3,
-      "addAudioBufferSourceWavetableChance": 0.3,
-      "addAudioBufferSourceAdditiveChance": 0.4,
+      "addAudioBufferSourceProperChance": 0,
+      "addAudioBufferSourceWavetableChance": 0,
+      "addAudioBufferSourceAdditiveChance": 1,
 
-      "includeNoise": true,
-      
+      "includeNoise": false,
+
       // initial node chances must add up to 1
-      "initialOscillatorChance": 0.5,
-      "initialAudioBufferSourceChance": 0.5
+      "initialOscillatorChance": 0,
+      "initialAudioBufferSourceChance": 1
     }
   }
 }
