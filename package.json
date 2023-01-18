@@ -19,7 +19,7 @@
   "dependencies": {
     "audiobuffer-to-wav": "^1.0.0",
     "jsonc-parser": "^3.2.0",
-    "kromosynth": "^1.0.1",
+    "kromosynth": "^1.0.2",
     "meow": "^11.0.0",
     "node-web-audio-api": "^0.5.0",
     "ulid": "^2.3.0",

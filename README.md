@@ -99,3 +99,35 @@ kromosynth \
   new-genome | \
   kromosynth --read-from-input --mutation-count 1 --evo-params-json-file conf/evolutionary-hyperparameters.jsonc mutate-genome
 ```
+
+
+### Biasing towards specific audio graph nodes with parameter configuration
+
+Following are examples of biasing evolution of the audio graph part of the gene, by mutations, towards specific node types, such as:
+
+- wavetables:
+
+25 mutations, writing the genes to a file within the sub-folder `genes/` and rendering a five second sound at full velocity:
+```
+kromosynth new-genome --evo-params-json-file conf/evolutionary-hyperparameters-wavetable-bias.jsonc | kromosynth --read-from-input --write-to-file genes/ --mutation-count 25 --evo-params-json-file conf/evolutionary-hyperparameters-wavetable-bias.jsonc mutate-genome | kromosynth --read-from-input --duration 5 --velocity 1 --note-delta 0 render-audio
+```
+
+Biasing mutations towards the pattern producing networks, with 20% chance of mutating the audio graph (patch):
+```
+kromosynth new-genome --evo-params-json-file conf/evolutionary-hyperparameters-wavetable-bias.jsonc | kromosynth --read-from-input --write-to-file genes/ --mutation-count 100 --evo-params-json-file conf/evolutionary-hyperparameters-wavetable-bias.jsonc --probability-mutating-wave-network 0.8 --probability-mutating-patch 0.2 mutate-genome | kromosynth --read-from-input --duration 5 --velocity 1 --note-delta 0 render-audio
+```
+
+- additive synthesis nodes:
+
+```
+kromosynth new-genome --evo-params-json-file conf/evolutionary-hyperparameters-additive-bias.jsonc | kromosynth --read-from-input --mutation-count 155 --evo-params-json-file conf/evolutionary-hyperparameters-additive-bias.jsonc mutate-genome
+```
+
+440 mutations, mostly on the wave-pattern-producing network:
+```
+kromosynth new-genome --evo-params-json-file conf/evolutionary-hyperparameters-additive-bias.jsonc | kromosynth --read-from-input --write-to-file genes/ --mutation-count 440 --evo-params-json-file conf/evolutionary-hyperparameters-additive-bias.jsonc --probability-mutating-wave-network 0.99 --probability-mutating-patch 0.01 mutate-genome | kromosynth --read-from-input --duration 60 --velocity 1 --note-delta -24 render-audio
+```
+
+```
+kromosynth new-genome --evo-params-json-file conf/evolutionary-hyperparameters-additive-bias.jsonc | kromosynth --read-from-input --write-to-file genes/ --mutation-count 70 --evo-params-json-file conf/evolutionary-hyperparameters-additive-bias.jsonc --probability-mutating-wave-network 0.9 --probability-mutating-patch 0.1 mutate-genome | kromosynth --read-from-input --duration 35 --velocity 1 --note-delta -24 render-audio
+```

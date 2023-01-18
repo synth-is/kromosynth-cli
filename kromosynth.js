@@ -56,6 +56,7 @@ const cli = meow(`
 		--velocity, -v  Velocity of the rendered sound from the <render-audio> command, 1 being full velocity (as when hitting a piano key); 1.0 by default
 		--reverse, -r  Reverse the rendered sound from the <render-audio> command; false by default
 		--gene-metadata-override	Metadata from gene, for duration, note delta and velocity, if present, overrides corresponding command line flags or their defaults
+		--use-overtone-inharmonicity-factors	Whether to use evolved inharmonicity factors on partial / overtone buffer sources to additive synthesis nodes; true by default
 
 		Commands: <new-genome or mutate-genome>
 		--evo-params-json-file		File containing evolutionary hyperparameters
@@ -134,6 +135,10 @@ const cli = meow(`
 		},
 		evoParamsJsonString: {
 			type: 'string'
+		},
+		useOvertoneInharmonicityFactors: {
+			type: 'boolean',
+			default: true
 		}
 	}
 });
@@ -214,6 +219,7 @@ async function mutateGenome() {
 				cli.flags.probabilityMutatingWaveNetwork,
 				cli.flags.probabilityMutatingPatch,
 				audioGraphMutationParams,
+				evoParams,
 				OfflineAudioContext,
 				patchFitnessTestDuration
 			);
@@ -259,7 +265,8 @@ async function renderAudioFromGenome() {
 			duration, noteDelta, velocity, reverse,
 			false, // asDataArray
 			getNewOfflineAudioContext( duration ),
-			getAudioContext()
+			getAudioContext(),
+			cli.flags.useOvertoneInharmonicityFactors
 		);
 		const doWriteToFile = cli.flags.writeToFile !== undefined;
 		if( cli.flags.playOnDefaultAudioDevice ) {

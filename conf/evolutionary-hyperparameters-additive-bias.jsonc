@@ -17,20 +17,20 @@
       "postMutationCount": 5  // AKA mutationsOnCreation
     },
     "activationFunctionProbabilities": {
-      "triangle": 0.0,
-      "sawtooth": 0.0,
-      "StepFunction": 0.0,
-      "Sine": 1.0,
-      "Sine2": 0.0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=sin(2*x)&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1.1&yGrid=1&gwidth=290&gheight=130
+      "triangle": 0.25,
+      "sawtooth": 0.25,
+      "StepFunction": 0.25,
+      "Sine": 0.0,
+      "Sine2": 0.25, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=sin(2*x)&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1.1&yGrid=1&gwidth=290&gheight=130
 
-      "cos": 0,
-      "arctan": 0,
-      "spike": 0,
+      "cos": 0.0,
+      "arctan": 0.0,
+      "spike": 0.0,
 
       "BipolarSigmoid": 0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=(2.0+%2F+(1.0+%2B+exp(-4.9+*+x)))+-+1.0&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
       "PlainSigmoid": 0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=1.0%2F(1.0%2B(exp(-x)))&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
-      "Gaussian": 0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=2+*+exp(-(x*2.5)%5E2)+-+1&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
-      "Linear": 0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=abs(x)&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+      "Gaussian": 0.0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=2+*+exp(-(x*2.5)%5E2)+-+1&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+      "Linear": 0.0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=abs(x)&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
       "NullFn": 0 // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=0&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
     }
   },
