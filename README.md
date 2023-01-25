@@ -131,3 +131,11 @@ kromosynth new-genome --evo-params-json-file conf/evolutionary-hyperparameters-a
 ```
 kromosynth new-genome --evo-params-json-file conf/evolutionary-hyperparameters-additive-bias.jsonc | kromosynth --read-from-input --write-to-file genes/ --mutation-count 70 --evo-params-json-file conf/evolutionary-hyperparameters-additive-bias.jsonc --probability-mutating-wave-network 0.9 --probability-mutating-patch 0.1 mutate-genome | kromosynth --read-from-input --duration 35 --velocity 1 --note-delta -24 render-audio
 ```
+
+### Sound classification
+
+Obtain class predictions for one sound genome, using the default (YAMNet) classifier:
+
+```
+cat genes/kromosynth_gene_01GPVVQV1Y0FQ2J6RJ4AC5DTEE.json | kromosynth --read-from-input classify-genome
+```

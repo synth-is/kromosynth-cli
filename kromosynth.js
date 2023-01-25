@@ -11,7 +11,8 @@ import {
 	getNewAudioSynthesisGenomeByMutation,
 	getGenomeFromGenomeString,
 	wireUpAudioGraphForPatchAndWaveNetwork,
-	getAudioBufferFromGenomeAndMeta
+	getAudioBufferFromGenomeAndMeta,
+	getClassScoresForGenome
 } from 'kromosynth';
 
 let audioCtx;
@@ -36,8 +37,11 @@ const cli = meow(`
 		render-audio
 			Render audio from the supplied genome
 
+		classify-genome
+			Get class scores for genome
+
 	Options
-		Commands: <new-genome, mutate-genome or render-audio>
+		Commands: <new-genome, mutate-genome, render-audio or classify-genome>
 		--read-from-file, -r  Gene file to read from
 		--write-to-file, -w  File to write to (file name auto-generated if none supplied)
 
@@ -62,10 +66,18 @@ const cli = meow(`
 		--evo-params-json-file		File containing evolutionary hyperparameters
 		--evo-params-json-string		JSON string containing evolutionary hyperparameters
 
+		Command: <classify-genome>
+		--class-scoring-durations		Array of sound durations in seconds, used to obtain sound classification scores (fitness). Example: "[0.5, 1, 2, 5]"
+		--class-scoring-note-deltas		Array of note delta values, used to obtain sound classification scores (fitness). Example: "[-36, -24, -12, 0, 12, 24, 36]"
+		--class-scoring-velocities		Array of velocity values in the range [0, 1], used to obtain sound classification scores (fitness). Example: "[0.25, 0.5, 0.75, 1]"
+		--classification-graph-model	A key for a classification model. Example: "yamnet"
+		--use-gpu		Flag controlling the use of a GPU during classification
+
 	Examples
 		$ kromosynth new-genome [--write-to-file]
 		$ kromosynth mutate-genome [--read-from-file | --read-from-input] [--write-to-file | --write-to-output]
 		$ kromosynth render-audio [--read-from-file | --read-from-input] [--write-to-file | --play-on-default-audio-device]
+		$ kromosynth classify-genome [--read-from-file | --read-from-input] [--write-to-file "filename.json" | --write-to-output]
 		$ kromosynth sound-check
 		👉 more in the project's readme (at https://github.com/synth-is/kromosynth-cli)
 `, {
@@ -139,6 +151,23 @@ const cli = meow(`
 		useOvertoneInharmonicityFactors: {
 			type: 'boolean',
 			default: true
+		},
+
+		classScoringDurations: {
+			type: 'string'
+		},
+		classScoringNoteDeltas: {
+			type: 'string'
+		},
+		classScoringVelocities: {
+			type: 'string'
+		},
+		classificationGraphModel: {
+			type: 'string'
+		},
+		useGpu: {
+			type: 'boolean',
+			default: true
 		}
 	}
 });
@@ -162,6 +191,9 @@ function executeEvolutionTask() {
 			break;
 		case "sound-check":
 			soundCheck();
+			break;
+		case "classify-genome":
+			classifyGenome();
 			break;
     default:
       cli.showHelp();
@@ -239,7 +271,6 @@ async function mutateGenome() {
 }
 
 async function renderAudioFromGenome() {
-
 	let inputGenome;
 	if( cli.flags.readFromInput ) { // TODO: detect if input is incoming and then opt for this flag's functionality?
 		inputGenome = await getGenomeFromInput();
@@ -279,6 +310,37 @@ async function renderAudioFromGenome() {
 			const wav = toWav(audioBuffer);
 			writeToWavFile( Buffer.from(new Uint8Array(wav)), cli.flags.writeToFile, inputGenomeParsed._id, duration, noteDelta, velocity, reverse, !cli.flags.playOnDefaultAudioDevice );
 		}
+	}
+}
+
+async function classifyGenome() {
+	let inputGenome;
+	if( cli.flags.readFromInput ) { // TODO: detect if input is incoming and then opt for this flag's functionality?
+		inputGenome = await getGenomeFromInput();
+	} else if( cli.flags.readFromFile ) {
+		inputGenome = readJSONFromFile( cli.flags.readFromFile );
+	}
+	const doWriteToFile = cli.flags.writeToFile !== undefined;
+	if( inputGenome ) {
+		const genomeAndMetaParsed = JSON.parse( inputGenome );
+		const classScoresForGenome = await getClassScoresForGenome(
+			genomeAndMetaParsed.genome,
+			cli.flags.classScoringDurations, cli.flags.classScoringNoteDeltas, cli.flags.classScoringVelocities,
+			cli.flags.classificationGraphModel,
+			cli.flags.useGpu,
+			true // supplyAudioContextInstances
+		);
+		
+		const classScoresForGenomeStringified = JSON.stringify(classScoresForGenome);
+		if( cli.flags.writeToOutput ) {
+			printGeneToOutput( classScoresForGenomeStringified, "CLASSIFICATION_OUTPUT_BEGIN", "CLASSIFICATION_OUTPUT_END" );
+		}
+		if( doWriteToFile ) {
+			writeGeneToFile( classScoresForGenomeStringified, cli.flags.writeToFile, genomeAndMetaParsed._id );
+		}
+	}
+	if( ! doWriteToFile || ! inputGenomeString ) {
+		process.exit();
 	}
 }
 
@@ -329,13 +391,13 @@ function getInput() {
   });
 }
 
-function printGeneToOutput( gene ) {
+function printGeneToOutput( gene, stringDelimiterBegin, stringDelimiterEnd ) {
 	const geneArray = gene.match(/.{1,1024}/g); // https://stackoverflow.com/a/7033662/169858
-	console.log(GENOME_OUTPUT_BEGIN);
+	console.log(stringDelimiterBegin || GENOME_OUTPUT_BEGIN);
 	geneArray.forEach(oneGeneLine => {
 		console.log(oneGeneLine);
 	});
-	console.log(GENOME_OUTPUT_END);
+	console.log(stringDelimiterEnd || GENOME_OUTPUT_END);
 }
 
 async function getGenomeFromInput() { // based on https://stackoverflow.com/a/5400451
