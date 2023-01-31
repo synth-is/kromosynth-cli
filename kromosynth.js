@@ -14,6 +14,7 @@ import {
 	getAudioBufferFromGenomeAndMeta,
 	getClassScoresForGenome
 } from 'kromosynth';
+import { mapElites } from './quality-diversity-search.js';
 
 let audioCtx;
 let audioBufferSourceNode;
@@ -40,6 +41,9 @@ const cli = meow(`
 		classify-genome
 			Get class scores for genome
 
+		quality-diversity-search
+			Perform search for sounds with Quality Diversity algorithms
+
 	Options
 		Commands: <new-genome, mutate-genome, render-audio or classify-genome>
 		--read-from-file, -r  Gene file to read from
@@ -62,7 +66,7 @@ const cli = meow(`
 		--gene-metadata-override	Metadata from gene, for duration, note delta and velocity, if present, overrides corresponding command line flags or their defaults
 		--use-overtone-inharmonicity-factors	Whether to use evolved inharmonicity factors on partial / overtone buffer sources to additive synthesis nodes; true by default
 
-		Commands: <new-genome or mutate-genome>
+		Commands: <new-genome, mutate-genome or quality-diversity-search>
 		--evo-params-json-file		File containing evolutionary hyperparameters
 		--evo-params-json-string		JSON string containing evolutionary hyperparameters
 
@@ -73,11 +77,17 @@ const cli = meow(`
 		--classification-graph-model	A key for a classification model. Example: "yamnet"
 		--use-gpu		Flag controlling the use of a GPU during classification
 
+		Command: <quality-diversity-search>
+		--evolution-run-id	ID of the evolution run, for restarting a previous run; if none is supplied, a new one is created
+		--evolution-run-config-json-file	File containing configuration parameters for evolution runs with Quality Diversity search algorithms
+		--evolution-run-config-json-string 	JSON string containing configuration parameters for evolution runs with Quality Diversity search algorithms
+
 	Examples
 		$ kromosynth new-genome [--write-to-file]
 		$ kromosynth mutate-genome [--read-from-file | --read-from-input] [--write-to-file | --write-to-output]
 		$ kromosynth render-audio [--read-from-file | --read-from-input] [--write-to-file | --play-on-default-audio-device]
 		$ kromosynth classify-genome [--read-from-file | --read-from-input] [--write-to-file "filename.json" | --write-to-output]
+		$ kromosynth quality-diversity-search --evo-params-json-file config/evolutionary-hyperparameters.jsonc --evolution-run-config-json-file config/evolution-run-config.jsonc
 		$ kromosynth sound-check
 		👉 more in the project's readme (at https://github.com/synth-is/kromosynth-cli)
 `, {
@@ -168,6 +178,16 @@ const cli = meow(`
 		useGpu: {
 			type: 'boolean',
 			default: true
+		},
+
+		evolutionRunId: {
+			type: 'string'
+		},
+		evolutionRunConfigJsonFile: {
+			type: 'string'
+		},
+		evolutionRunConfigJsonString: {
+			type: 'string'
 		}
 	}
 });
@@ -194,6 +214,9 @@ function executeEvolutionTask() {
 			break;
 		case "classify-genome":
 			classifyGenome();
+			break;
+		case "quality-diversity-search":
+			qualityDiversitySearch();
 			break;
     default:
       cli.showHelp();
@@ -240,7 +263,7 @@ async function mutateGenome() {
 		let newGenome = inputGenomeParsed;
 		const evoRunId = `mutations_${ulid()}`;
 		const patchFitnessTestDuration = 0.1;
-		const audioGraphMutationParams = evoParams && evoParams["audioGraph"] && evoParams["audioGraph"]["mutationParams"] || undefined;
+		const audioGraphMutationParams = getAudioGraphMutationParams( evoParams );
 		for( let generationNumber = 1; generationNumber <= cli.flags.mutationCount; generationNumber++ ) {
 			newGenome = await getNewAudioSynthesisGenomeByMutation(
 				newGenome,
@@ -344,6 +367,16 @@ async function classifyGenome() {
 	}
 }
 
+function qualityDiversitySearch() {
+	let {evolutionRunId} = cli.flags;
+	if( ! evolutionRunId ) {
+		evolutionRunId = ulid();
+	}
+	const evoRunConfig = getEvolutionRunConfig();
+	const evoParams = getEvoParams();
+	mapElites( evolutionRunId, evoRunConfig, evoParams );
+}
+
 // creates a random genome, wires up an audio graph for it
 // and plays it back in real time (to the default audio device)
 async function soundCheck() {
@@ -421,7 +454,7 @@ async function getGenomeFromInput() { // based on https://stackoverflow.com/a/54
 	return geneJSON;
 }
 
-function getAudioContext() {
+export function getAudioContext() {
 	if( ! audioCtx ) audioCtx = new AudioContext({sampleRate: SAMPLE_RATE});
 	return audioCtx;
 }
@@ -463,7 +496,7 @@ function writeToFile( content, fileNameFlag, id, fileNamePrefix, fileNameSuffix,
 	}
 	fs.writeFile(fileName, content, err => {
 		if (err) {
-			console.error(err);
+			console.error("writeToFile: ", err);
 		}
 		if( exitAfterWriting ) process.exit();
 	});
@@ -480,28 +513,45 @@ function readJSONFromFile( fileName ) {
 	try {
 		jsonString = fs.readFileSync(fileName, 'utf8');
 	} catch (err) {
-		console.error(err);
+		console.error("readJSONFromFile: ", err);
 	}
 	return jsonString;
 }
 
-function getEvoParamsFromJSONString( evoParamsJsonString ) {
+function getParamsFromJSONString( evoParamsJsonString ) {
 	return parse( evoParamsJsonString );
 }
-function getEvoParamsFromJSONFile( fileName ) {
+function getParamsFromJSONFile( fileName ) {
 	const evoParamsJsonString = readJSONFromFile( fileName );
-	return getEvoParamsFromJSONString( evoParamsJsonString );
+	return getParamsFromJSONString( evoParamsJsonString );
 }
-function getEvoParams() {
+
+export function getEvoParams() {
 	let evoParams;
 	if( cli.flags.evoParamsJsonFile ) {
-		evoParams = getEvoParamsFromJSONFile( cli.flags.evoParamsJsonFile );
+		evoParams = getParamsFromJSONFile( cli.flags.evoParamsJsonFile );
 	} else if( cli.flags.evoParamsJsonString ) {
-		evoParams = getEvoParamsFromJSONString( cli.flags.evoParamsJsonString );
+		evoParams = getParamsFromJSONString( cli.flags.evoParamsJsonString );
 	} else {
 		evoParams = {};
 	}
 	return evoParams;
+}
+
+function getEvolutionRunConfig() {
+	let evoRunConfig;
+	if( cli.flags.evolutionRunConfigJsonFile ) {
+		evoRunConfig = getParamsFromJSONFile( cli.flags.evolutionRunConfigJsonFile );
+	} else if( cli.flags.evolutionRunConfigJsonString ) {
+		evoRunConfig = getParamsFromJSONString( cli.flags.evolutionRunConfigJsonString );
+	} else {
+		evoParams = {};
+	}
+	return evoRunConfig;
+}
+
+export function getAudioGraphMutationParams( evoParams ) {
+	return evoParams && evoParams["audioGraph"] && evoParams["audioGraph"]["mutationParams"] || undefined; 
 }
 
 executeEvolutionTask();

@@ -18,6 +18,7 @@
   "license": "AGPL-3.0-or-later",
   "dependencies": {
     "audiobuffer-to-wav": "^1.0.0",
+    "chance": "^1.1.9",
     "jsonc-parser": "^3.2.0",
     "kromosynth": "^1.0.2",
     "meow": "^11.0.0",
