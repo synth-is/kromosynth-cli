@@ -49,24 +49,18 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
   const evoRunDirPath = `${evoRunsDirPath}${evolutionRunId}/`;
   let eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath );
   if( ! eliteMap ) {
-    eliteMap = initializeGrid( evolutionRunId, algorithmKey, classificationGraphModel );
+    eliteMap = initializeGrid( evolutionRunId, algorithmKey, evolutionRunConfig, evolutionaryHyperparameters );
     createEvoRunDir( evoRunDirPath );
     saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
     saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, 0 ); // generation specific map
   }
   const audioGraphMutationParams = getAudioGraphMutationParams( evolutionaryHyperparameters );
   const patchFitnessTestDuration = 0.1;
-  // if(
-  //   ! Object.keys(eliteMap).length
-  // ) {
-  //   this.initializeGrid('mapElites');
-  // }
-  // for( ; eliteMapExtra.generationNumber < this.state.evals; eliteMapExtra.generationNumber++ ) {
   const chance = new Chance();
   while( ! shouldTerminate(terminationCondition, eliteMap) ) {
-    // if( ! this.state.mining ) break;
     let newGenome;
     let randomClassKey;
+    const parentGenomes = [];
     if( eliteMap.generationNumber < seedEvals ) {
       newGenome = getNewAudioSynthesisGenome(
         evolutionRunId,
@@ -75,14 +69,18 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
         evolutionaryHyperparameters
       );
     } else {
-      const classKeys = Object.keys(eliteMap);
+      const classKeys = Object.keys(eliteMap.cells);
       const classBiases = classKeys.map( ck =>
-        undefined === eliteMap[ck].unproductiveBiasCounter ? 10 : eliteMap[ck].unproductiveBiasCounter
+        undefined === eliteMap.cells[ck].unproductiveBiasCounter ? 10 : eliteMap.cells[ck].unproductiveBiasCounter
       );
       randomClassKey = chance.weighted(classKeys, classBiases);
 
       const classEliteGenomeId = getCurrentClassElite(randomClassKey, eliteMap).genome;
-      const classEliteGenome = await readGenomeFromDisk( evolutionRunId, classEliteGenomeId, evoRunDirPath );
+      const classEliteGenome = await readGenomeAndMetaFromDisk( evolutionRunId, classEliteGenomeId, evoRunDirPath );
+      parentGenomes.push( {
+        genomeId: classEliteGenome.id,
+        eliteClass: randomClassKey
+      } );
       newGenome = await getNewAudioSynthesisGenomeByMutation(
         classEliteGenome,
         evolutionRunId, eliteMap.generationNumber, -1, algorithmKey, getAudioContext(),
@@ -108,27 +106,29 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
         true // supplyAudioContextInstances
       )
       .catch( async e => {
-        // this.setState({ mining: false }, () => {
-        //   window.open(window.location.href, Date.now().toString());
-        // } );
-        // await this.sleep(1000);
-        // location.reload();
-          console.error("mapElites -> getClassScoresForGenome: ", e);
+        console.error("mapElites -> getClassScoresForGenome: ", e);
       } );
     if( newGenomeClassScores !== undefined ) {
       const eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap );
       if( eliteClassKeys.length > 0 ) {
         // const genomeSavedInDB = await this.saveToGenomeMap(evolutionRunId, genomeId, newGenome);
-        await saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath );
+        newGenome.tags = [];
         for( const classKey of eliteClassKeys ) {
-        // eliteClassKeys.forEach((classKey) => {
           const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
-          eliteMap[classKey].champions.push({
+          const updated = Date.now();
+          eliteMap.cells[classKey].champions.push({
             genome: genomeId,
             duration,
             noteDelta,
             velocity,
-            score
+            score,
+            generationNumber: eliteMap.generationNumber,
+            parentGenomes
+          });
+          newGenome.tags.push({
+            tag: classKey,
+            score, duration, noteDelta, velocity,
+            updated
           });
           // delete the last top elite (if any) from genomeMap
           /*
@@ -139,34 +139,23 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
           }
           */
           // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
-          eliteMap[classKey].unproductiveBiasCounter = 10;
-
-        // });
+          eliteMap.cells[classKey].unproductiveBiasCounter = 10;
         }
+        await saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath );
         if( randomClassKey ) {
-          eliteMap[randomClassKey].unproductiveBiasCounter = 10;
+          eliteMap.cells[randomClassKey].unproductiveBiasCounter = 10;
         }
       } else if( randomClassKey ) {
         // bias search away from exploring niches that produce fewer innovations
-        eliteMap[randomClassKey].unproductiveBiasCounter -= 1; // TODO should stop at zero?
+        eliteMap.cells[randomClassKey].unproductiveBiasCounter -= 1; // TODO should stop at zero?
       }
     }
     console.log("iteration", eliteMap.generationNumber);
-    // TODO save to file eliteMap and eliteMap with generation number in file name
-    // this.setState({eliteMap: cloneDeep(eliteMap), generationNumber: eliteMapExtra.generationNumber});
-    // await this.saveEliteMap(evolutionRunId, null/*eliteMapExtra.generationNumber*/, eliteMap);
-    // await this.saveEliteMapExtra(evolutionRunId, eliteMapExtra);
     saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
     saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, eliteMap.generationNumber ); // generation specific map
     eliteMap.generationNumber++;
   }
   console.log("eliteMap",eliteMap);
-  // console.log("eliteMapExtra", eliteMapExtra);
-  // this.setState({
-  //   eliteMap: cloneDeep(eliteMap),
-  //   generationNumber: eliteMapExtra.generationNumber,
-  //   mining: false
-  // });
   process.exit();
 }
 
@@ -177,30 +166,21 @@ function getClassKeysWhereScoresAreElite( classScores, eliteMap ) {
   );
 }
 
-function initializeGrid( evolutionRunId, algorithm, classificationGraphModel ) {
+function initializeGrid( evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters ) {
+  const { classificationGraphModel } = evolutionRunConfig;
   let eliteMap = {
     _id: getEliteMapKey(evolutionRunId),
     algorithm,
+    evolutionRunConfig, evolutionaryHyperparameters,
     generationNumber: 0,
-    // TODO:
-    // "evolutionRunConfig": {},
-    // "evolutionaryHyperparameters": {},
+    cells: {} // aka classes or niches
   };
-  // eliteMapExtra = {generationNumber: 0};
   const classifierTags = getClassifierTags(classificationGraphModel);
   classifierTags.forEach((oneTag, i) => {
-    eliteMap[oneTag] = {
+    eliteMap.cells[oneTag] = {
       champions: []
     };
   });
-
-  // await this.addEvolutionRun( evolutionRunId, algorithm );
-  // await this.saveEliteMap( evolutionRunId, eliteMapExtra.generationNumber, eliteMap );
-  // await this.saveEliteMapExtra( evolutionRunId, eliteMapExtra );
-
-  // const evolutionRun = await this.getEvolutionRun( evolutionRunId );
-  // this.setState({evolutionRun});
-
   return eliteMap;
 }
 
@@ -209,16 +189,12 @@ function createEvoRunDir( evoRunDirPath ) {
 }
 
 function saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, generationNumber ) {
-console.log("saveEliteMapToDisk");
   const eliteMapFilePath = `${evoRunDirPath}${getEliteMapKey(evolutionRunId, generationNumber)}.json`;
-console.log("eliteMapFilePath", eliteMapFilePath);
   const eliteMapStringified = JSON.stringify(eliteMap);
-  // return fs.writeFile( eliteMapFilePath, eliteMapStringified, err => {if( err ) console.error("saveEliteMapToDisk -> writeFile:", err)} );
   fs.writeFileSync( eliteMapFilePath, eliteMapStringified );
 }
 
 function readEliteMapFromDisk( evolutionRunId, evoRunDirPath ) {
-console.log("readEliteMapFromDisk");
   let eliteMap;
   try {
     const eliteMapFilePath = `${evoRunDirPath}${getEliteMapKey(evolutionRunId)}.json`;
@@ -240,17 +216,11 @@ console.log("saveGenomeToDisk");
     _id: genomeKey,
     genome
   });
-  // return fs.writeFile( genomeFilePath, genomeString, err => {if( err ) console.error("saveEliteMapToDisk -> writeFile:", err)} );
   fs.writeFileSync( genomeFilePath, genomeString );
-  // , err => {
-  //   if( err ) {
-  //     console.error("saveGenomeToDisk -> fs.writeFile", err);
-  //   }
-  // } );
 console.log("wrote file");
 }
 
-async function readGenomeFromDisk( evolutionRunId, genomeId, evoRunDirPath ) {
+async function readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath ) {
 console.log("readGenomeFromDisk");
   let genome;
   try {
@@ -258,7 +228,6 @@ console.log("readGenomeFromDisk");
     const genomeFilePath = `${evoRunDirPath}${genomeKey}.json`;
     if( fs.existsSync(genomeFilePath) ) {
       const genomeJSONString = fs.readFileSync(genomeFilePath, 'utf8');
-      // const genomeJSON =  JSON.parse(genomeJSONString);
       genome = await getGenomeFromGenomeString( genomeJSONString );
     }
   } catch( err ) {
@@ -289,17 +258,14 @@ function getClassifierTags( graphModel ) {
 }
 
 function getCurrentClassElite( classKey, eliteMap ) {
-  const classElites = eliteMap[classKey];
+  const classElites = eliteMap.cells[classKey];
   let currentClassElite;
   if( classElites && classElites.champions.length > 0 ) {
     currentClassElite = classElites.champions[classElites.champions.length-1];
   } else {
     if( ! classElites ) {
-      eliteMap[classKey] = {champions:[]};
-      // this.setState(update(this.state, {
-      //   eliteMap: {[classKey]: {$set: {champions: []}}}
-      // }));
-      eliteMapExtra[classKey] = {unproductiveBiasCounter:10};
+      eliteMap.cells[classKey] = {champions:[]};
+      eliteMap.cells[classKey] = {unproductiveBiasCounter:10};
     }
     currentClassElite = null;
   }
@@ -321,17 +287,17 @@ function shouldTerminate( terminationCondition, eliteMap ) {
   if( condition = terminationCondition["numberOfEvals"] ) {
     shouldTerminate = condition <= eliteMap.generationNumber;
   } else if( condition = terminationCondition["averageFitnessInMap"] ) {
-    const cellsKeysWithChampions = Object.keys(eliteMap).filter(oneClassKey => eliteMap[oneClassKey].champions.length);
+    const cellsKeysWithChampions = Object.keys(eliteMap.cells).filter(oneClassKey => eliteMap.cells[oneClassKey].champions.length);
     const averageFitness = cellsKeysWithChampions.reduce((a, b) => 
-      eliteMap[a].champions[eliteMap[a].champions.length-1].score + eliteMap[b].champions[eliteMap[b].champions.length-1].score 
+      eliteMap.cells[a].champions[eliteMap.cells[a].champions.length-1].score + eliteMap.cells[b].champions[eliteMap.cells[b].champions.length-1].score 
     ) / cellsKeysWithChampions.length;
     shouldTerminate = condition <= averageFitness;
   } else if( condition = terminationCondition["percentageOfMapFilledWithFitnessThreshold"] ) {
-    const cellCount = Object.keys(eliteMap).length;
+    const cellCount = Object.keys(eliteMap.cells).length;
     const { percentage, minimumCellFitness } = condition;
     let cellsWithFitnessOverThresholdCount = 0;
-    Object.keys(eliteMap).forEach( oneClassKey => {
-      if( minimumCellFitness <= eliteMap[oneClassKey].champions[eliteMap[oneClassKey].champions.length-1].score ) {
+    Object.keys(eliteMap.cells).forEach( oneClassKey => {
+      if( minimumCellFitness <= eliteMap.cells[oneClassKey].champions[eliteMap.cells[oneClassKey].champions.length-1].score ) {
         cellsWithFitnessOverThresholdCount++;
       }
     });

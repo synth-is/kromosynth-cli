@@ -1,7 +1,7 @@
 {
-  "seedEvals": 1,
+  "seedEvals": 5,
   "terminationCondition": {
-   "numberOfEvals": 10
+   "numberOfEvals": 11
   //  or
   //  {"averageFitnessInMap": x}
   //  or
