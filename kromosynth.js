@@ -192,7 +192,7 @@ const cli = meow(`
 	}
 });
 
-function executeEvolutionTask() {
+async function executeEvolutionTask() {
   const command = cli.input[0];
   // console.log("command", command);
   // console.log("cli.flags", cli.flags);
@@ -216,7 +216,7 @@ function executeEvolutionTask() {
 			classifyGenome();
 			break;
 		case "quality-diversity-search":
-			qualityDiversitySearch();
+			await qualityDiversitySearch();
 			break;
     default:
       cli.showHelp();
@@ -367,14 +367,14 @@ async function classifyGenome() {
 	}
 }
 
-function qualityDiversitySearch() {
+async function qualityDiversitySearch() {
 	let {evolutionRunId} = cli.flags;
 	if( ! evolutionRunId ) {
 		evolutionRunId = ulid();
 	}
 	const evoRunConfig = getEvolutionRunConfig();
 	const evoParams = getEvoParams();
-	mapElites( evolutionRunId, evoRunConfig, evoParams );
+	await mapElites( evolutionRunId, evoRunConfig, evoParams );
 }
 
 // creates a random genome, wires up an audio graph for it
@@ -554,4 +554,4 @@ export function getAudioGraphMutationParams( evoParams ) {
 	return evoParams && evoParams["audioGraph"] && evoParams["audioGraph"]["mutationParams"] || undefined; 
 }
 
-executeEvolutionTask();
+await executeEvolutionTask();
