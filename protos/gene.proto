@@ -1,0 +1,50 @@
+syntax = "proto3";
+import "google/protobuf/struct.proto";
+
+option java_multiple_files = true;
+option java_package = "is.synth.grpc.gene";
+option java_outer_classname = "KromosynthGene";
+option objc_class_prefix = "KSG";
+
+package kromosynthgene;
+
+// The gene service definition
+service Genome {
+  rpc RandomGenome (RandomGenomeRequest) returns (GenomeReply) {}
+  rpc GenomeVariation (GenomeVariationRequest) returns (GenomeReply) {}
+  rpc GenomeEvaluation (GenomeEvaluationRequest) returns (GenomeClassScoresReply) {}
+}
+
+message RandomGenomeRequest {
+  string evolution_run_id = 1;
+  int32 generation_number = 2;
+  google.protobuf.Struct evolutionary_hyperparameters = 3;
+}
+
+message GenomeVariationRequest {
+  string genomeString = 1;
+  string evolutionRunId = 2;
+  int32 generationNumber = 3;
+  string algorithmKey = 4;
+  double probabilityMutatingWaveNetwork = 5;
+  double probabilityMutatingPatch = 6;
+  google.protobuf.Struct audioGraphMutationParams = 7;
+  google.protobuf.Struct evolutionaryHyperparameters = 8;
+  double patchFitnessTestDuration = 9;
+}
+
+message GenomeEvaluationRequest {
+  string genomeString = 1;
+  google.protobuf.Struct classScoringDurations = 2;
+  google.protobuf.Struct classScoringNoteDeltas = 3;
+  google.protobuf.Struct classScoringVelocities = 4;
+  string classificationGraphModel = 5;
+  bool useGpuForTensorflow = 6;
+}
+message GenomeClassScoresReply {
+  google.protobuf.Struct genomeClassScores = 1;
+}
+
+message GenomeReply {
+  string genome_string = 1;
+}

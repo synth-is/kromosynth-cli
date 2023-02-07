@@ -1,0 +1,34 @@
+{
+  "name": "kromosynth-gene-factory-grpc",
+  "version": "1.0.0",
+  "description": "gRPC service for Kromosynth gene operations",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.8.7",
+    "@grpc/proto-loader": "^0.7.4",
+    "kromosynth": "file:../../kromosynth",
+    "minimist": "^1.2.7",
+    "pb-util": "^1.0.3",
+    "node-web-audio-api": "^0.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/synth-is/kromosynth-gene-factory-grpc.git"
+  },
+  "keywords": [
+    "sonic",
+    "design",
+    "evolutionary",
+    "algorithms"
+  ],
+  "author": "Björn Þór Jónsson <bthj@uio.no>",
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/synth-is/kromosynth-gene-factory-grpc/issues"
+  },
+  "homepage": "https://github.com/synth-is/kromosynth-gene-factory-grpc#readme",
+  "type": "module"
+}

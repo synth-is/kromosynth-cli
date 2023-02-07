@@ -4,11 +4,14 @@ import Chance from 'chance';
 import { getAudioGraphMutationParams } from "./kromosynth.js";
 import { yamnetTags } from 'kromosynth/workers/audio-classification/classificationTags.js';
 import {
-  getClassScoresForGenome,
   getGenomeFromGenomeString
 } from 'kromosynth';
-import { randomGene, geneVariation } from './service/gene-factory.js';
-import { evaluate } from './service/gene-evaluation.js';
+// import { callRandomGeneService } from './service/gene-random-worker-client.js';
+import { 
+  callRandomGeneService,
+  callGeneVariationService,
+  callGeneEvaluationService
+} from './service/gRPC/gene_client.js';
 
 /**
  * 
@@ -61,16 +64,18 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
   const chance = new Chance();
 
   while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
-    let newGenome;
     let randomClassKey;
     const parentGenomes = [];
 
+    ///// gene initialisation
 
-    ///// gene factory
-
+    let newGenomeString;
     if( eliteMap.generationNumber < seedEvals ) {
 
-      newGenome = randomGene( evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters );
+      newGenomeString = await callRandomGeneService( 
+        evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters, 
+        'localhost:50051' // TODO: selection from a list of hosts
+      );
 
     } else {
 
@@ -94,19 +99,20 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
       } );
 
       if( dummyRun ) {
-        newGenome = await getGenomeFromGenomeString( classEliteGenomeString );
+        newGenomeString = classEliteGenomeString;
       } else {
 
         ///// variation
-
-        newGenome = await geneVariation(
+        
+        newGenomeString = await callGeneVariationService(
           classEliteGenomeString,
           evolutionRunId, eliteMap.generationNumber, algorithmKey,
           probabilityMutatingWaveNetwork,
           probabilityMutatingPatch,
           audioGraphMutationParams,
           evolutionaryHyperparameters,
-          patchFitnessTestDuration
+          patchFitnessTestDuration,
+          'localhost:50051' // TODO: selection from a list of hosts
         );
       }
     }
@@ -120,16 +126,17 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
 
       ///// evaluate
 
-      newGenomeClassScores = await evaluate(
-        newGenome,
+      newGenomeClassScores = await callGeneEvaluationService(
+        newGenomeString,
         classScoringDurations,
         classScoringNoteDeltas,
         classScoringVelocities,
         classificationGraphModel,
         useGpuForTensorflow,
-        true // supplyAudioContextInstances
+        'localhost:50051' // TODO: selection from a list of hosts
+      ).catch( 
+        e => console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e)
       );
-
     }
 
     ///// add to archive
@@ -137,7 +144,7 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
     if( newGenomeClassScores !== undefined ) {
       const eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap );
       if( eliteClassKeys.length > 0 ) {
-        // const genomeSavedInDB = await this.saveToGenomeMap(evolutionRunId, genomeId, newGenome);
+        const newGenome = await getGenomeFromGenomeString( newGenomeString );
         newGenome.tags = [];
         newGenome.parentGenomes = parentGenomes.length ? parentGenomes : undefined;
         for( const classKey of eliteClassKeys ) {
