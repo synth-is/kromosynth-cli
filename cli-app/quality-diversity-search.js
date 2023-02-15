@@ -63,137 +63,176 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
   const patchFitnessTestDuration = 0.1;
   const chance = new Chance();
 
+  const geneServers = [
+    'localhost:50051', 'localhost:50052', 'localhost:50053', 'localhost:50054',
+    // 'localhost:50055', 'localhost:50056', 'localhost:50057', 'localhost:50058'
+  ];
+
+  const searchBatchSize = geneServers.length;
+
   while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
-    let randomClassKey;
-    const parentGenomes = [];
+    const searchPromises = new Array(searchBatchSize);
+    for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
+      console.log("batchIteration", batchIteration);
+      const geneServerHost = geneServers[ batchIteration % geneServers.length ];
+      searchPromises[batchIteration] = new Promise( async (resolve) => {
 
-    ///// gene initialisation
-
-    let newGenomeString;
-    if( eliteMap.generationNumber < seedEvals ) {
-
-      newGenomeString = await callRandomGeneService( 
-        evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters, 
-        'localhost:50051' // TODO: selection from a list of hosts
-      );
-
-    } else {
-
-      ///// selection 
-
-      const classKeys = Object.keys(eliteMap.cells);
-      const classBiases = classKeys.map( ck =>
-        undefined === eliteMap.cells[ck].unproductiveBiasCounter ? 10 : eliteMap.cells[ck].unproductiveBiasCounter
-      );
-      randomClassKey = chance.weighted(classKeys, classBiases);
-
-      const {
-        genome: classEliteGenomeId, duration, noteDelta, velocity, score, generationNumber
-      } = getCurrentClassElite(randomClassKey, eliteMap);
-      const classEliteGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, classEliteGenomeId, evoRunDirPath );
-
-      parentGenomes.push( {
-        genomeId: classEliteGenomeId,
-        eliteClass: randomClassKey,
-        duration, noteDelta, velocity, score, generationNumber
-      } );
-
-      if( dummyRun ) {
-        newGenomeString = classEliteGenomeString;
-      } else {
-
-        ///// variation
-        
-        newGenomeString = await callGeneVariationService(
-          classEliteGenomeString,
-          evolutionRunId, eliteMap.generationNumber, algorithmKey,
-          probabilityMutatingWaveNetwork,
-          probabilityMutatingPatch,
-          audioGraphMutationParams,
-          evolutionaryHyperparameters,
-          patchFitnessTestDuration,
-          'localhost:50051' // TODO: selection from a list of hosts
-        );
-      }
-    }
-
-    const genomeId = ulid();
-
-    let newGenomeClassScores;
-    if( dummyRun && dummyRun.iterations ) {
-      newGenomeClassScores = getDummyClassScoresForGenome( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
-    } else {
-
-      ///// evaluate
-
-      newGenomeClassScores = await callGeneEvaluationService(
-        newGenomeString,
-        classScoringDurations,
-        classScoringNoteDeltas,
-        classScoringVelocities,
-        classificationGraphModel,
-        useGpuForTensorflow,
-        'localhost:50051' // TODO: selection from a list of hosts
-      ).catch( 
-        e => console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e)
-      );
-    }
-
-    ///// add to archive
-
-    if( newGenomeClassScores !== undefined ) {
-      const eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap );
-      if( eliteClassKeys.length > 0 ) {
-        const newGenome = await getGenomeFromGenomeString( newGenomeString );
-        newGenome.tags = [];
-        newGenome.parentGenomes = parentGenomes.length ? parentGenomes : undefined;
-        for( const classKey of eliteClassKeys ) {
-          const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
-          const updated = Date.now();
-          eliteMap.cells[classKey].champions = [
-          // .push(
-          {
-            genome: genomeId,
-            duration,
-            noteDelta,
-            velocity,
-            score,
-            generationNumber: eliteMap.generationNumber,
-            parentGenomes: parentGenomes.length ? parentGenomes : undefined
+        let randomClassKey;
+        const parentGenomes = [];
+    
+        ///// gene initialisation
+    
+        let newGenomeString;
+        if( eliteMap.generationNumber < seedEvals ) {
+    
+          newGenomeString = await callRandomGeneService( 
+            evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters, 
+            geneServerHost
+          );
+    
+        } else {
+    
+          ///// selection 
+    
+          const classKeys = Object.keys(eliteMap.cells);
+          const classBiases = classKeys.map( ck =>
+            undefined === eliteMap.cells[ck].unproductiveBiasCounter ? 10 : eliteMap.cells[ck].unproductiveBiasCounter
+          );
+          randomClassKey = chance.weighted(classKeys, classBiases);
+    
+          const {
+            genome: classEliteGenomeId, duration, noteDelta, velocity, score, generationNumber
+          } = getCurrentClassElite(randomClassKey, eliteMap);
+          const classEliteGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, classEliteGenomeId, evoRunDirPath );
+    
+          parentGenomes.push( {
+            genomeId: classEliteGenomeId,
+            eliteClass: randomClassKey,
+            duration, noteDelta, velocity, score, generationNumber
+          } );
+    
+          if( dummyRun ) {
+            newGenomeString = classEliteGenomeString;
+          } else {
+    
+            ///// variation
+            
+            newGenomeString = await callGeneVariationService(
+              classEliteGenomeString,
+              evolutionRunId, eliteMap.generationNumber, algorithmKey,
+              probabilityMutatingWaveNetwork,
+              probabilityMutatingPatch,
+              audioGraphMutationParams,
+              evolutionaryHyperparameters,
+              patchFitnessTestDuration,
+              geneServerHost
+            );
           }
-          ];
-          // );
-          newGenome.tags.push({
-            tag: classKey,
-            score, duration, noteDelta, velocity,
-            updated
-          });
-          // delete the last top elite (if any) from genomeMap
-          /*
-          if( eliteMap[classKey].champions.length > 2 ) {
-            // const lastTopEliteGenomeId = eliteMap[classKey].champions[ eliteMap[classKey].champions.length-2 ].genome;
-            // delete genomeMap[lastTopEliteGenomeId];
-            eliteMap[classKey].champions = eliteMap[classKey].champions.slice( - 1 );
+        }
+    
+        const genomeId = ulid();
+    
+        let newGenomeClassScores;
+        if( dummyRun && dummyRun.iterations ) {
+          newGenomeClassScores = getDummyClassScoresForGenome( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
+        } else {
+    
+          ///// evaluate
+    
+          newGenomeClassScores = await callGeneEvaluationService(
+            newGenomeString,
+            classScoringDurations,
+            classScoringNoteDeltas,
+            classScoringVelocities,
+            classificationGraphModel,
+            useGpuForTensorflow,
+            geneServerHost
+          ).catch( 
+            e => console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e)
+          );
+        }
+
+        resolve({
+          genomeId,
+          randomClassKey,
+          newGenomeString,
+          newGenomeClassScores, 
+          parentGenomes
+        });
+
+      }); // new Promise( async (resolve) => {
+    } // for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
+
+    await Promise.all( searchPromises ).then( async (batchIterationResults) => {
+      for( let oneBatchIterationResult of batchIterationResults ) {
+
+        const { 
+          genomeId, randomClassKey, newGenomeString, newGenomeClassScores,  parentGenomes
+        } = oneBatchIterationResult;
+
+        ///// add to archive
+  
+        if( newGenomeClassScores !== undefined ) {
+          const eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap );
+          if( eliteClassKeys.length > 0 ) {
+            console.log("eliteClassKeys.length:",eliteClassKeys.length);
+            const newGenome = await getGenomeFromGenomeString( newGenomeString );
+            newGenome.tags = [];
+            newGenome.parentGenomes = parentGenomes.length ? parentGenomes : undefined;
+            for( const classKey of eliteClassKeys ) {
+              const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
+              const updated = Date.now();
+              eliteMap.cells[classKey].champions = [
+              // .push(
+              {
+                genome: genomeId,
+                duration,
+                noteDelta,
+                velocity,
+                score,
+                generationNumber: eliteMap.generationNumber,
+                parentGenomes: newGenome.parentGenomes
+              }
+              ];
+              // );
+              newGenome.tags.push({
+                tag: classKey,
+                score, duration, noteDelta, velocity,
+                updated
+              });
+              // delete the last top elite (if any) from genomeMap
+              /*
+              if( eliteMap[classKey].champions.length > 2 ) {
+                // const lastTopEliteGenomeId = eliteMap[classKey].champions[ eliteMap[classKey].champions.length-2 ].genome;
+                // delete genomeMap[lastTopEliteGenomeId];
+                eliteMap[classKey].champions = eliteMap[classKey].champions.slice( - 1 );
+              }
+              */
+              // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
+              eliteMap.cells[classKey].unproductiveBiasCounter = 10;
+            }
+            await saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath );
+            if( randomClassKey ) {
+              eliteMap.cells[randomClassKey].unproductiveBiasCounter = 10;
+            }
+          } else if( randomClassKey ) {
+            // bias search away from exploring niches that produce fewer innovations
+            eliteMap.cells[randomClassKey].unproductiveBiasCounter -= 1; // TODO should stop at zero?
           }
-          */
-          // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
-          eliteMap.cells[classKey].unproductiveBiasCounter = 10;
-        }
-        await saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath );
-        if( randomClassKey ) {
-          eliteMap.cells[randomClassKey].unproductiveBiasCounter = 10;
-        }
-      } else if( randomClassKey ) {
-        // bias search away from exploring niches that produce fewer innovations
-        eliteMap.cells[randomClassKey].unproductiveBiasCounter -= 1; // TODO should stop at zero?
+
+          console.log("iteration", eliteMap.generationNumber);
+          saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
+          if( eliteMap.generationNumber % eliteMapSnapshotEvery === 0 ) {
+            saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, eliteMap.generationNumber ); // generation specific map
+          }
+          eliteMap.generationNumber++;
+
+        } // if( newGenomeClassScores !== undefined ) {
+
       }
-    }
-    console.log("iteration", eliteMap.generationNumber);
-    saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
-    if( eliteMap.generationNumber % eliteMapSnapshotEvery === 0 ) {
-      saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, eliteMap.generationNumber ); // generation specific map
-    }
-    eliteMap.generationNumber++;
+      
+    }); // await Promise.all( searchPromises ).then( async (batchIterationResult) => {
+
   }
   console.log("eliteMap",eliteMap);
   process.exit();

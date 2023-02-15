@@ -139,3 +139,15 @@ Obtain class predictions for one sound genome, using the default (YAMNet) classi
 ```
 cat genes/kromosynth_gene_01GPVVQV1Y0FQ2J6RJ4AC5DTEE.json | kromosynth --read-from-input classify-genome
 ```
+
+## Quality Diversity search
+
+Starting a controller, managed by pm2:
+```
+pm2 start kromosynth.js -- quality-diversity-search --evo-params-json-file conf/evolutionary-hyperparameters.jsonc --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GRM1W26X4H704V9RSP97YN6
+```
+
+Starting a service cluster, managed by pm2:
+```
+pm2 delete all && pm2 start ecosystem.config.cjs
+```
