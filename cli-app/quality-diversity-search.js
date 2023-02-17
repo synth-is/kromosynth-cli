@@ -46,9 +46,11 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
   const {
     seedEvals, terminationCondition, evoRunsDirPath,
     probabilityMutatingWaveNetwork, probabilityMutatingPatch,
-    classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classificationGraphModel,
+    classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
+    classificationGraphModel,
     useGpuForTensorflow,
     eliteMapSnapshotEvery,
+    geneServers,
     dummyRun
   } = evolutionRunConfig;
   const evoRunDirPath = `${evoRunsDirPath}${evolutionRunId}/`;
@@ -62,11 +64,6 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
   const audioGraphMutationParams = getAudioGraphMutationParams( evolutionaryHyperparameters );
   const patchFitnessTestDuration = 0.1;
   const chance = new Chance();
-
-  const geneServers = [
-    'localhost:50051', 'localhost:50052', 'localhost:50053', 'localhost:50054',
-    // 'localhost:50055', 'localhost:50056', 'localhost:50057', 'localhost:50058'
-  ];
 
   const searchBatchSize = geneServers.length;
 

@@ -1,5 +1,3 @@
-import { memoryUsage } from 'node:process';
-import memwatch from 'node-memwatch-new';
 import grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
 import { struct } from 'pb-util';
@@ -28,9 +26,6 @@ const packageDefinition = protoLoader.loadSync(
 const gene_proto = grpc.loadPackageDefinition(packageDefinition).kromosynthgene;
 
 function newGenome( call, callback ) {
-  // collectGarbage();
-  // var hd = new memwatch.HeapDiff();
-
   const evolutionRunId = call.request.evolution_run_id;
   const generationNumber = call.request.generation_number;
   const evolutionaryHyperparameters = struct.decode(call.request.evolutionary_hyperparameters);
@@ -44,17 +39,10 @@ function newGenome( call, callback ) {
   console.log("Created new gene for evolution run", evolutionRunId);
   const genome_string = JSON.stringify( genome );
 
-  // var diff = hd.end();
-  // console.log("diff:");
-  // console.log(JSON.stringify(diff));
-
   return callback( null, { genome_string } );
 }
 
 async function mutatedGenome( call, callback ) {
-  // collectGarbage();
-  // var hd = new memwatch.HeapDiff();
-
   const {
     genomeString,
     evolutionRunId, 
@@ -82,17 +70,11 @@ async function mutatedGenome( call, callback ) {
   console.log("Created new genome by variation for evolution run", evolutionRunId);
   const genome_string = JSON.stringify( newGenome );
 
-  // var diff = hd.end();
-  // console.log("diff:");
-  // console.log(JSON.stringify(diff));
-
   return callback( null, {genome_string} );
 }
 
+let modelUrl;
 async function evaluateGenome( call, callback ) {
-  // collectGarbage();
-  // var hd = new memwatch.HeapDiff();
-
   let error = null;
   const {
     genomeString,
@@ -108,7 +90,7 @@ async function evaluateGenome( call, callback ) {
     Object.values(struct.decode( classScoringDurations )),
     Object.values(struct.decode( classScoringNoteDeltas )),
     Object.values(struct.decode( classScoringVelocities )),
-    classificationGraphModel,
+    classificationGraphModel, modelUrl,
     useGpuForTensorflow,
     true // supplyAudioContextInstances
   )
@@ -116,10 +98,6 @@ async function evaluateGenome( call, callback ) {
     console.error("mapElites -> getClassScoresForGenome: ", e);
     error = e;
   } );
-
-  // var diff = hd.end();
-  // console.log("diff:");
-  // console.log(JSON.stringify(diff));
 
   return callback( error, {
     genomeClassScores: struct.encode( genomeClassScores )
@@ -132,28 +110,13 @@ function getAudioContext() {
 	return audioCtx;
 }
 
-function collectGarbage() {
-  const memoryThreshold = 4e+9; // 4 gigabytes TODO: configurable?
-  const residentSetSize = memoryUsage.rss();
-  console.log("residentSetSize:",residentSetSize);
-  if( true /* residentSetSize > memoryThreshold */ ) {
-    // requires Node to be started with the --expose-gc flag, e.g.:
-    // node --expose-gc index.js
-    console.log("Taking out the garbage...");
-    if( global.gc ) {
-      global.gc();
-    } else {
-      console.log("For manually triggering the garbage collector, Node needs to be started with the --expose-gc flag: node --expose-gc index.js");
-    }
-    console.log("...done collecting garbage.");
-  }
-}
-
 function main() {
   const argv = parseArgs(process.argv.slice(2));
   console.log("process.env.PORT:",process.env.PORT);
   const port = argv.port || process.env.PORT || '50051';
   console.log("port:",port);
+  modelUrl = argv.modelUrl;
+  console.log("modelUrl:",modelUrl);
   const processTitle = argv.processTitle || 'kromosynth-gRPC';
   process.title = processTitle;
   
