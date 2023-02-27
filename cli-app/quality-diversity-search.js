@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { execSync } from 'child_process'
 import {ulid} from 'ulid';
 import Chance from 'chance';
 import { getAudioGraphMutationParams } from "./kromosynth.js";
@@ -57,9 +58,17 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
   let eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath );
   if( ! eliteMap ) {
     eliteMap = initializeGrid( evolutionRunId, algorithmKey, evolutionRunConfig, evolutionaryHyperparameters );
+
+    // initialise git
+    runCmd(`git init ${evoRunDirPath}`);
+
     createEvoRunDir( evoRunDirPath );
     saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
     saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, 0 ); // generation specific map
+
+    // add file to git
+    const eliteMapFileName = `${getEliteMapKey(evolutionRunId)}.json`;
+    runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
   }
   const audioGraphMutationParams = getAudioGraphMutationParams( evolutionaryHyperparameters );
   const patchFitnessTestDuration = 0.1;
@@ -173,9 +182,11 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
           const eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap );
           if( eliteClassKeys.length > 0 ) {
             console.log("eliteClassKeys.length:",eliteClassKeys.length);
+            eliteMap.newEliteCount = eliteClassKeys.length;
             const newGenome = await getGenomeFromGenomeString( newGenomeString );
             newGenome.tags = [];
             newGenome.parentGenomes = parentGenomes.length ? parentGenomes : undefined;
+            newGenome.generationNumber = eliteMap.generationNumber;
             for( const classKey of eliteClassKeys ) {
               const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
               const updated = Date.now();
@@ -221,7 +232,12 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
           saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
           if( eliteMap.generationNumber % eliteMapSnapshotEvery === 0 ) {
             saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, eliteMap.generationNumber ); // generation specific map
+            runCmd(`git -C ${evoRunDirPath} gc --aggressive --prune=now`);
           }
+
+          // git commit iteration
+          runCmd(`git -C ${evoRunDirPath} commit -a -m "Iteration ${eliteMap.generationNumber}"`);
+
           eliteMap.generationNumber++;
 
         } // if( newGenomeClassScores !== undefined ) {
@@ -265,9 +281,13 @@ function createEvoRunDir( evoRunDirPath ) {
 }
 
 function saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, generationNumber ) {
-  const eliteMapFilePath = `${evoRunDirPath}${getEliteMapKey(evolutionRunId, generationNumber)}.json`;
-  const eliteMapStringified = JSON.stringify(eliteMap);
+  const eliteMapFileName = `${getEliteMapKey(evolutionRunId, generationNumber)}.json`;
+  const eliteMapFilePath = `${evoRunDirPath}${eliteMapFileName}`;
+  const eliteMapStringified = JSON.stringify(eliteMap, null, 2); // prettified to obtain the benefits (compression of git diffs)
   fs.writeFileSync( eliteMapFilePath, eliteMapStringified );
+  
+  // add file to git (possibly redundantly)
+  // runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
 }
 
 function readEliteMapFromDisk( evolutionRunId, evoRunDirPath ) {
@@ -286,12 +306,15 @@ function readEliteMapFromDisk( evolutionRunId, evoRunDirPath ) {
 
 function saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath ) {
   const genomeKey = getGenomeKey(evolutionRunId, genomeId);
-  const genomeFilePath = `${evoRunDirPath}${genomeKey}.json`;
+  const genomeFileName = `${genomeKey}.json`;
+  const genomeFilePath = `${evoRunDirPath}${genomeFileName}`;
   const genomeString = JSON.stringify({
     _id: genomeKey,
     genome
   });
   fs.writeFileSync( genomeFilePath, genomeString );
+  // add file to git (without committing)
+  // runCmd(`git -C ${evoRunDirPath} add ${genomeFileName}`);
 }
 
 async function readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath ) {
@@ -427,3 +450,18 @@ const getDummyClassScoresForGenome = (cellLabels, generationNumber, totalIterati
   } );
   return genomeClassScores;
 };
+
+
+
+
+function runCmd( cmd ) {
+  try {
+    return execSync(cmd).toString();
+  } catch (e) {
+    throw e;
+  }
+}
+
+function runCmdAsLines( cmd ) {
+  return runCmd( cmd ).split('\n');
+}
