@@ -3,7 +3,7 @@ module.exports = {
     name   : "kromosynth-gRPC",
     script : "./index.js",
     args: "--modelUrl file:///Users/bjornpjo/Developer/apps/kromosynth/workers/audio-classification/tfjs-model/yamnet/tfjs/1/model.json",
-    instances : 4,
+    instances : 8,
     exec_mode : "cluster",
     max_memory_restart: '1G',
     increment_var : 'PORT',

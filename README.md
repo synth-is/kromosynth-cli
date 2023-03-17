@@ -142,6 +142,13 @@ cat genes/kromosynth_gene_01GPVVQV1Y0FQ2J6RJ4AC5DTEE.json | kromosynth --read-fr
 
 ## Quality Diversity search
 
+Within `gRPC`:
+
+Starting a QD search controller, without pm2:
+```
+kromosynth quality-diversity-search --evo-params-json-file conf/evolutionary-hyperparameters.jsonc --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GRM1W26X4H704V9RSP97YN6H
+```
+
 Starting a controller, managed by pm2:
 ```
 pm2 start kromosynth.js -- quality-diversity-search --evo-params-json-file conf/evolutionary-hyperparameters.jsonc --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GRM1W26X4H704V9RSP97YN6
@@ -150,4 +157,16 @@ pm2 start kromosynth.js -- quality-diversity-search --evo-params-json-file conf/
 Starting a service cluster, managed by pm2:
 ```
 pm2 delete all && pm2 start ecosystem.config.cjs
+```
+
+### Evo run data history
+
+Save a list of all git commit IDs:
+```
+git rev-list master --first-parent > commits.txt
+```
+
+Obtain the elite map at one specific iteration / revsiont / git commit:
+```
+git -C evoruns/01GT9HMJNTVB6ZD4K6CAN1H6ZX show 50a581e44b5f07d61ca1660b002f4c31698a4bee:elites_01GT9HMJNTVB6ZD4K6CAN1H6ZX.json
 ```

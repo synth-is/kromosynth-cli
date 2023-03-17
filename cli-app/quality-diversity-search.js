@@ -74,13 +74,28 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
   const patchFitnessTestDuration = 0.1;
   const chance = new Chance();
 
-  const searchBatchSize = geneServers.length;
+  let searchBatchSize;
+  if( dummyRun ) {
+    searchBatchSize = dummyRun.searchBatchSize;
+  } else {
+    searchBatchSize = geneServers.length;
+  }
+
+  // turn of automatic garbage collection, 
+  // as automatic background runs seem to affect performance when performing rapid successive commits
+  // - gc will be triggered manually at regular intervals below
+  runCmd('git config --global gc.auto 0');
 
   while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
     const searchPromises = new Array(searchBatchSize);
     for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
       console.log("batchIteration", batchIteration);
-      const geneServerHost = geneServers[ batchIteration % geneServers.length ];
+      let geneServerHost;
+      if( dummyRun ) {
+        geneServerHost = geneServers[0];
+      } else {
+        geneServerHost = geneServers[ batchIteration % geneServers.length ];
+      }
       searchPromises[batchIteration] = new Promise( async (resolve) => {
 
         let randomClassKey;
@@ -107,14 +122,17 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
           randomClassKey = chance.weighted(classKeys, classBiases);
     
           const {
-            genome: classEliteGenomeId, duration, noteDelta, velocity, score, generationNumber
+            genome: classEliteGenomeId, 
+            score, 
+            generationNumber
           } = getCurrentClassElite(randomClassKey, eliteMap);
+          
           const classEliteGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, classEliteGenomeId, evoRunDirPath );
     
           parentGenomes.push( {
             genomeId: classEliteGenomeId,
             eliteClass: randomClassKey,
-            duration, noteDelta, velocity, score, generationNumber
+            score, generationNumber,
           } );
     
           if( dummyRun ) {
@@ -122,7 +140,6 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
           } else {
     
             ///// variation
-            
             newGenomeString = await callGeneVariationService(
               classEliteGenomeString,
               evolutionRunId, eliteMap.generationNumber, algorithmKey,
@@ -134,7 +151,7 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
               geneServerHost
             );
           }
-        }
+        } // if( eliteMap.generationNumber < seedEvals ) {
     
         const genomeId = ulid();
     
@@ -191,15 +208,16 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
               const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
               const updated = Date.now();
               eliteMap.cells[classKey].champions = [
+                // genomeId
               // .push(
               {
                 genome: genomeId,
-                duration,
-                noteDelta,
-                velocity,
+                // duration,
+                // noteDelta,
+                // velocity,
                 score,
                 generationNumber: eliteMap.generationNumber,
-                parentGenomes: newGenome.parentGenomes
+                // parentGenomes: newGenome.parentGenomes
               }
               ];
               // );
@@ -223,7 +241,8 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
             if( randomClassKey ) {
               eliteMap.cells[randomClassKey].unproductiveBiasCounter = 10;
             }
-          } else if( randomClassKey ) {
+          } else if( randomClassKey ) { // if( eliteClassKeys.length > 0 ) {
+
             // bias search away from exploring niches that produce fewer innovations
             eliteMap.cells[randomClassKey].unproductiveBiasCounter -= 1; // TODO should stop at zero?
           }
@@ -231,8 +250,9 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
           console.log("iteration", eliteMap.generationNumber);
           saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
           if( eliteMap.generationNumber % eliteMapSnapshotEvery === 0 ) {
-            saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, eliteMap.generationNumber ); // generation specific map
-            runCmd(`git -C ${evoRunDirPath} gc --aggressive --prune=now`);
+            // saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, eliteMap.generationNumber ); // generation specific map
+            // runCmd(`git -C ${evoRunDirPath} gc --prune=now`);
+            runCmd(`git -C ${evoRunDirPath} gc`);
           }
 
           // git commit iteration
@@ -242,7 +262,7 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
 
         } // if( newGenomeClassScores !== undefined ) {
 
-      }
+      } // for( let oneBatchIterationResult of batchIterationResults ) {
       
     }); // await Promise.all( searchPromises ).then( async (batchIterationResult) => {
 
