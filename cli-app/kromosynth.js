@@ -15,6 +15,10 @@ import {
 	getClassScoresForGenome
 } from 'kromosynth';
 import { mapElites } from './quality-diversity-search.js';
+import { 
+	calculateQDScoreForOneIteration, 
+	calculateQDScoresForAllIterations 
+} from './qd-run-analysis.js';	
 
 let audioCtx;
 let audioBufferSourceNode;
@@ -82,13 +86,26 @@ const cli = meow(`
 		--evolution-run-config-json-file	File containing configuration parameters for evolution runs with Quality Diversity search algorithms
 		--evolution-run-config-json-string 	JSON string containing configuration parameters for evolution runs with Quality Diversity search algorithms
 
+		Command: <elite-map-qd-score>
+		--evolution-run-iteration The evolution run iteration number to calculate QD score for; the last iteration is used if omitted
+
+		Command: <evo-run-qd-scores>
+		--step-size Resolution: How many iterations to step over when calculating QD scores (trend) for one entire QD search run; 1, every iteration, is the default
+
 	Examples
 		$ kromosynth new-genome [--write-to-file]
 		$ kromosynth mutate-genome [--read-from-file | --read-from-input] [--write-to-file | --write-to-output]
 		$ kromosynth render-audio [--read-from-file | --read-from-input] [--write-to-file | --play-on-default-audio-device]
 		$ kromosynth classify-genome [--read-from-file | --read-from-input] [--write-to-file "filename.json" | --write-to-output]
-		$ kromosynth quality-diversity-search --evo-params-json-file config/evolutionary-hyperparameters.jsonc --evolution-run-config-json-file config/evolution-run-config.jsonc
 		$ kromosynth sound-check
+
+		QD search:
+		$ kromosynth quality-diversity-search --evo-params-json-file config/evolutionary-hyperparameters.jsonc --evolution-run-config-json-file config/evolution-run-config.jsonc
+
+		QD search analysis:
+		$ kromosynth elite-map-qd-score --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
+		$ kromosynth evo-run-qd-scores --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
+
 		👉 more in the project's readme (at https://github.com/synth-is/kromosynth-cli)
 `, {
 	importMeta: import.meta,
@@ -183,6 +200,13 @@ const cli = meow(`
 		evolutionRunId: {
 			type: 'string'
 		},
+		evolutionRunIteration: {
+			type: 'number'
+		},
+		stepSize: {
+			type: 'number',
+			default: 1
+		},
 		evolutionRunConfigJsonFile: {
 			type: 'string'
 		},
@@ -217,6 +241,12 @@ async function executeEvolutionTask() {
 			break;
 		case "quality-diversity-search":
 			await qualityDiversitySearch();
+			break;
+		case "elite-map-qd-score":
+			qdAnalysis_eliteMapQDScore();
+			break;
+		case "evo-run-qd-scores":
+			qdAnalysis_evoRunQDScores();
 			break;
     default:
       cli.showHelp();
@@ -375,6 +405,24 @@ async function qualityDiversitySearch() {
 	const evoRunConfig = getEvolutionRunConfig();
 	const evoParams = getEvoParams();
 	await mapElites( evolutionRunId, evoRunConfig, evoParams );
+}
+
+async function qdAnalysis_eliteMapQDScore() {
+	let {evolutionRunId, evolutionRunIteration} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		const qdScore = await calculateQDScoreForOneIteration( evoRunConfig, evolutionRunId, evolutionRunIteration );
+		console.log(qdScore);
+	}
+}
+
+async function qdAnalysis_evoRunQDScores() {
+	let {evolutionRunId, stepSize} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		const qdScores = await calculateQDScoresForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+		console.log(qdScores);
+	}
 }
 
 // creates a random genome, wires up an audio graph for it

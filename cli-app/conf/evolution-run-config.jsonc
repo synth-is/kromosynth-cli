@@ -26,7 +26,7 @@
   ,
   "dummyRun": { // generate dummy data without evaluations
     "cellCount": 10000,
-    "iterations": 1000000,
+    "iterations": 10000,
     "searchBatchSize": 499
   }
 }

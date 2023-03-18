@@ -1,5 +1,4 @@
 import fs from 'fs';
-import { execSync } from 'child_process'
 import {ulid} from 'ulid';
 import Chance from 'chance';
 import { getAudioGraphMutationParams } from "./kromosynth.js";
@@ -13,6 +12,7 @@ import {
   callGeneVariationService,
   callGeneEvaluationService
 } from './service/gRPC/gene_client.js';
+import { runCmd } from './util/qd-common.js';
 
 /**
  * 
@@ -43,7 +43,7 @@ import {
 export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionaryHyperparameters
   // seedEvals, terminationCondition, evoRunsDirPath 
 ) {
-  const algorithmKey = 'mapElites_with_unproductiveBiasCounter';
+  const algorithmKey = 'mapElites_with_uBC';
   const {
     seedEvals, terminationCondition, evoRunsDirPath,
     probabilityMutatingWaveNetwork, probabilityMutatingPatch,
@@ -117,14 +117,17 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
     
           const classKeys = Object.keys(eliteMap.cells);
           const classBiases = classKeys.map( ck =>
-            undefined === eliteMap.cells[ck].unproductiveBiasCounter ? 10 : eliteMap.cells[ck].unproductiveBiasCounter
+            undefined === eliteMap.cells[ck].uBC ? 10 : eliteMap.cells[ck].uBC
           );
           randomClassKey = chance.weighted(classKeys, classBiases);
     
           const {
-            genome: classEliteGenomeId, 
-            score, 
-            generationNumber
+            // genome: classEliteGenomeId, 
+            // score, 
+            // generationNumber
+            g: classEliteGenomeId, 
+            s, 
+            gN
           } = getCurrentClassElite(randomClassKey, eliteMap);
           
           const classEliteGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, classEliteGenomeId, evoRunDirPath );
@@ -132,7 +135,8 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
           parentGenomes.push( {
             genomeId: classEliteGenomeId,
             eliteClass: randomClassKey,
-            score, generationNumber,
+            // score, generationNumber,
+            s, gN,
           } );
     
           if( dummyRun ) {
@@ -196,9 +200,16 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
         ///// add to archive
   
         if( newGenomeClassScores !== undefined ) {
-          const eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap );
+          let eliteClassKeys;
+          if( dummyRun && dummyRun.iterations ) {
+            eliteClassKeys = getDummyClassKeysWhereScoresAreElite( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
+          } else {
+            eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap );
+          }
           if( eliteClassKeys.length > 0 ) {
             console.log("eliteClassKeys.length:",eliteClassKeys.length);
+            const classScoresSD = getClassScoresStandardDeviation( newGenomeClassScores );
+            console.log("classScoresSD", classScoresSD);
             eliteMap.newEliteCount = eliteClassKeys.length;
             const newGenome = await getGenomeFromGenomeString( newGenomeString );
             newGenome.tags = [];
@@ -207,16 +218,16 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
             for( const classKey of eliteClassKeys ) {
               const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
               const updated = Date.now();
-              eliteMap.cells[classKey].champions = [
+              eliteMap.cells[classKey].elts = [
                 // genomeId
               // .push(
               {
-                genome: genomeId,
+                g: genomeId, //genome: genomeId,
                 // duration,
                 // noteDelta,
                 // velocity,
-                score,
-                generationNumber: eliteMap.generationNumber,
+                s: score.toFixed(4), // score: score.toFixed(4),
+                gN: eliteMap.generationNumber, // generationNumber: eliteMap.generationNumber,
                 // parentGenomes: newGenome.parentGenomes
               }
               ];
@@ -228,23 +239,23 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
               });
               // delete the last top elite (if any) from genomeMap
               /*
-              if( eliteMap[classKey].champions.length > 2 ) {
-                // const lastTopEliteGenomeId = eliteMap[classKey].champions[ eliteMap[classKey].champions.length-2 ].genome;
+              if( eliteMap[classKey].elts.length > 2 ) {
+                // const lastTopEliteGenomeId = eliteMap[classKey].elts[ eliteMap[classKey].elts.length-2 ].genome;
                 // delete genomeMap[lastTopEliteGenomeId];
-                eliteMap[classKey].champions = eliteMap[classKey].champions.slice( - 1 );
+                eliteMap[classKey].elts = eliteMap[classKey].elts.slice( - 1 );
               }
               */
               // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
-              eliteMap.cells[classKey].unproductiveBiasCounter = 10;
+              eliteMap.cells[classKey].uBC = 10;
             }
             await saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath );
             if( randomClassKey ) {
-              eliteMap.cells[randomClassKey].unproductiveBiasCounter = 10;
+              eliteMap.cells[randomClassKey].uBC = 10;
             }
           } else if( randomClassKey ) { // if( eliteClassKeys.length > 0 ) {
 
             // bias search away from exploring niches that produce fewer innovations
-            eliteMap.cells[randomClassKey].unproductiveBiasCounter -= 1; // TODO should stop at zero?
+            eliteMap.cells[randomClassKey].uBC -= 1; // TODO should stop at zero?
           }
 
           console.log("iteration", eliteMap.generationNumber);
@@ -252,7 +263,7 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
           if( eliteMap.generationNumber % eliteMapSnapshotEvery === 0 ) {
             // saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, eliteMap.generationNumber ); // generation specific map
             // runCmd(`git -C ${evoRunDirPath} gc --prune=now`);
-            runCmd(`git -C ${evoRunDirPath} gc`);
+            // runCmd(`git -C ${evoRunDirPath} gc`);
           }
 
           // git commit iteration
@@ -266,8 +277,10 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
       
     }); // await Promise.all( searchPromises ).then( async (batchIterationResult) => {
 
-  }
+  } // while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
   console.log("eliteMap",eliteMap);
+  // collect git garbage 
+  runCmd(`git -C ${evoRunDirPath} gc`);
   process.exit();
 }
 
@@ -290,7 +303,7 @@ function initializeGrid( evolutionRunId, algorithm, evolutionRunConfig, evolutio
   const classifierTags = getClassifierTags(classificationGraphModel, dummyRun);
   classifierTags.forEach((oneTag, i) => {
     eliteMap.cells[oneTag] = {
-      champions: []
+      elts: []
     };
   });
   return eliteMap;
@@ -334,7 +347,7 @@ function saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath ) {
   });
   fs.writeFileSync( genomeFilePath, genomeString );
   // add file to git (without committing)
-  // runCmd(`git -C ${evoRunDirPath} add ${genomeFileName}`);
+  runCmd(`git -C ${evoRunDirPath} add ${genomeFileName}`);
 }
 
 async function readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath ) {
@@ -379,16 +392,22 @@ function getClassifierTags( graphModel, dummyRun ) {
 function getCurrentClassElite( classKey, eliteMap ) {
   const classElites = eliteMap.cells[classKey];
   let currentClassElite;
-  if( classElites && classElites.champions.length > 0 ) {
-    currentClassElite = classElites.champions[classElites.champions.length-1];
+  if( classElites && classElites.elts.length > 0 ) {
+    currentClassElite = classElites.elts[classElites.elts.length-1];
   } else {
     if( ! classElites ) {
-      eliteMap.cells[classKey] = {champions:[]};
-      eliteMap.cells[classKey] = {unproductiveBiasCounter:10};
+      eliteMap.cells[classKey] = {elts:[]};
+      eliteMap.cells[classKey] = {uBC:10};
     }
     currentClassElite = null;
   }
   return currentClassElite;
+}
+
+function getClassScoresStandardDeviation( genomeClassScores ) {
+  const scores = Object.values(genomeClassScores).map( gcs => gcs.score );
+  const sd = calcStandardDeviation( scores );
+  return sd;
 }
 
 /**
@@ -414,7 +433,7 @@ function shouldTerminate( terminationCondition, eliteMap, dummyRun ) {
     if( cellsKeysWithChampions.length ) {
       let scoreSum = 0;
       for( const oneCellKey of cellsKeysWithChampions ) {
-        scoreSum += eliteMap.cells[oneCellKey].champions[eliteMap.cells[oneCellKey].champions.length-1].score;
+        scoreSum += eliteMap.cells[oneCellKey].elts[eliteMap.cells[oneCellKey].elts.length-1].score;
       }
       const averageFitness = scoreSum / cellsKeysWithChampions.length;
       shouldTerminate = condition <= averageFitness;
@@ -435,7 +454,7 @@ function shouldTerminate( terminationCondition, eliteMap, dummyRun ) {
     const { percentage, minimumCellFitness } = condition;
     let cellsWithFitnessOverThresholdCount = 0;
     Object.keys(eliteMap.cells).forEach( oneClassKey => {
-      if( minimumCellFitness <= eliteMap.cells[oneClassKey].champions[eliteMap.cells[oneClassKey].champions.length-1].score ) {
+      if( minimumCellFitness <= eliteMap.cells[oneClassKey].elts[eliteMap.cells[oneClassKey].elts.length-1].score ) {
         cellsWithFitnessOverThresholdCount++;
       }
     });
@@ -445,16 +464,9 @@ function shouldTerminate( terminationCondition, eliteMap, dummyRun ) {
   return shouldTerminate;
 }
 
-const getCellKeysWithChampions = cells => Object.keys(cells).filter(oneClassKey => cells[oneClassKey].champions.length);
+const getCellKeysWithChampions = cells => Object.keys(cells).filter(oneClassKey => cells[oneClassKey].elts.length);
 
-const getScoresForCellKeys = (cellKeys, cells) => cellKeys.map( oneCellKey => cells[oneCellKey].champions[cells[oneCellKey].champions.length-1].score );
-
-// https://github.com/30-seconds/30-seconds-of-code/blob/master/snippets/median.md
-const median = arr => {
-  const mid = Math.floor(arr.length / 2),
-    nums = [...arr].sort((a, b) => a - b);
-  return arr.length % 2 !== 0 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
-};
+const getScoresForCellKeys = (cellKeys, cells) => cellKeys.map( oneCellKey => cells[oneCellKey].elts[cells[oneCellKey].elts.length-1].score );
 
 const getDummyLabels = cellCount => [...Array(cellCount).keys()].map(c => c.toString().padStart(cellCount.toString().length, 0));
 
@@ -471,17 +483,63 @@ const getDummyClassScoresForGenome = (cellLabels, generationNumber, totalIterati
   return genomeClassScores;
 };
 
-
-
-
-function runCmd( cmd ) {
-  try {
-    return execSync(cmd).toString();
-  } catch (e) {
-    throw e;
+const getDummyClassKeysWhereScoresAreElite = (cellLabels, generationNumber, totalIterations) => {
+  console.log("generationNumber", generationNumber, "totalIterations", totalIterations);
+  const numberOfClassKeys = Math.abs(totalIterations - generationNumber); // a batch run may cause generationNumber to exceed totalIterations
+  const classKeysWhereScoresAreElite = new Array(numberOfClassKeys);
+  for( let i = 0; i < numberOfClassKeys; i++ ) {
+    const oneCellIndex = Math.floor(Math.random()*cellLabels.length);
+    classKeysWhereScoresAreElite[i] = cellLabels[oneCellIndex];
   }
+  return classKeysWhereScoresAreElite;
+};
+
+
+// https://chat-gpt.org/chat
+function calcStandardDeviation(numbers) {
+  // calculate the mean
+  const mean = numbers.reduce((total, num) => total + num) / numbers.length;
+
+  // calculate the sum of squared deviations from the mean
+  const deviations = numbers.map(num => (num - mean) ** 2);
+  const sumOfDeviations = deviations.reduce((total, deviation) => total + deviation);
+
+  // calculate the standard deviation
+  const variance = sumOfDeviations / numbers.length;
+  const standardDeviation = Math.sqrt(variance);
+
+  return standardDeviation;
 }
 
-function runCmdAsLines( cmd ) {
-  return runCmd( cmd ).split('\n');
+function calculateMeanDeviation(numbers) {
+  // Calculate the mean of the array
+  const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
+
+  // Calculate the deviations of each number from the mean
+  const deviations = numbers.map(num => Math.abs(num - mean));
+
+  // Calculate the mean deviation
+  const meanDeviation = deviations.reduce((a, b) => a + b, 0) / deviations.length;
+
+  // Return the result
+  return meanDeviation;
+}
+
+// https://github.com/30-seconds/30-seconds-of-code/blob/master/snippets/median.md
+const median = arr => {
+  const mid = Math.floor(arr.length / 2),
+    nums = [...arr].sort((a, b) => a - b);
+  return arr.length % 2 !== 0 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+};
+
+// function median(arr) {
+//   const mid = Math.floor(arr.length / 2);
+//   const nums = [...arr].sort((a, b) => a - b);
+//   return arr.length % 2 !== 0 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+// }
+
+function medianAbsoluteDeviation(arr) {
+  const med = median(arr);
+  const absDeviation = arr.map((el) => Math.abs(el - med));
+  return median(absDeviation);
 }
