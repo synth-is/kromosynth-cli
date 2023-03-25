@@ -1,5 +1,5 @@
 {
-  "seedEvals": 10,
+  "seedEvals": 4,
   "terminationCondition": {
    "numberOfEvals": 10000
   //  or
@@ -18,15 +18,22 @@
   "classificationGraphModel": "yamnet",
   "useGpuForTensorflow": true,
   "eliteMapSnapshotEvery": 100000,
-  "geneServers": [
+  "geneVariationServers": [
     "localhost:50051"
     , "localhost:50052", "localhost:50053", "localhost:50054",
     "localhost:50055", "localhost:50056", "localhost:50057", "localhost:50058"
+    // "localhost:50052"
+  ],
+  "geneEvaluationServers": [
+    "localhost:50061"
+    , "localhost:50062", "localhost:50063", "localhost:50064",
+    "localhost:50065", "localhost:50066", "localhost:50067", "localhost:50068"
+    // "localhost:50062"
   ]
-  ,
-  "dummyRun": { // generate dummy data without evaluations
-    "cellCount": 10000,
-    "iterations": 10000,
-    "searchBatchSize": 499
-  }
+  // ,
+  // "dummyRun": { // generate dummy data without evaluations
+  //   "cellCount": 10000,
+  //   "iterations": 10000,
+  //   "searchBatchSize": 499
+  // }
 }

@@ -5,7 +5,7 @@ import {
   getNewAudioSynthesisGenomeByMutation,
   getGenomeFromGenomeString
 } from 'kromosynth';
-import { getAudioContext } from "../kromosynth.js";
+import { getAudioContext } from "../util/qd-common";
 
 export function randomGene(evolutionRunId, generationNumber, evolutionaryHyperparameters) {
   return getNewAudioSynthesisGenome(

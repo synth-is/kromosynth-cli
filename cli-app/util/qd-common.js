@@ -1,10 +1,30 @@
 import { execSync, spawn } from 'child_process';
+import fs from 'fs';
 
 export function getEvoRunDirPath( evoRunConfig, evoRunId ) {
   const { evoRunsDirPath } = evoRunConfig;
   const evoRunDirPath = `${evoRunsDirPath}${evoRunId}/`;
   return evoRunDirPath;
 }
+
+export async function readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath ) {
+  let genomeJSONString;
+  try {
+    const genomeKey = getGenomeKey(evolutionRunId, genomeId);
+    const genomeFilePath = `${evoRunDirPath}${genomeKey}.json`;
+    if( fs.existsSync(genomeFilePath) ) {
+      genomeJSONString = fs.readFileSync(genomeFilePath, 'utf8');
+    }
+  } catch( err ) {
+    console.error("readGenomeFromDisk: ", err);
+  }
+  return genomeJSONString;
+}
+
+export function getGenomeKey( evolutionRunId, genomeId ) {
+  return `genome_${evolutionRunId}_${genomeId}`;
+}
+
 
 // bjarnij
 export function runCmd( cmd ) {

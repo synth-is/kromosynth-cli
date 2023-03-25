@@ -85,6 +85,10 @@ export function callGeneEvaluationService(
   });
 }
 
+export function clearServiceConnectionList( host ) {
+  clients[host] = undefined;
+}
+
 function getClient( gRPCHost ) {
   const _host = gRPCHost || 'localhost:50051';
   if( ! clients[_host] ) {

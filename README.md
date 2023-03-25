@@ -159,6 +159,34 @@ Starting a service cluster, managed by pm2:
 pm2 delete all && pm2 start ecosystem.config.cjs
 ```
 
+### QD search data analysis
+
+#### QD score
+
+Calculate QD score for an elite map at one specific iteration:
+```
+kromosynth elite-map-qd-score --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
+```
+
+Calculate QD scores across an entire QD run, optionally controlling the granularity with a step size parameter:
+```
+kromosynth evo-run-qd-scores --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
+```
+
+#### Playback
+
+Play all sounds / classes / niches / cells in the elite map:
+
+- from the last iteration 
+```
+kromosynth evo-run-play-elite-map --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J
+```
+- from a specified iteration
+```
+kromosynth evo-run-play-elite-map --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
+```
+
+
 ### Evo run data history
 
 Save a list of all git commit IDs:

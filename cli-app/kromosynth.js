@@ -3,7 +3,7 @@ import meow from 'meow';
 import fs from 'fs';
 import { parse } from 'jsonc-parser';
 import NodeWebAudioAPI from 'node-web-audio-api';
-const { AudioContext, OfflineAudioContext } = NodeWebAudioAPI;
+const { OfflineAudioContext } = NodeWebAudioAPI;
 import {ulid} from 'ulid';
 import toWav from 'audiobuffer-to-wav';
 import {
@@ -17,13 +17,12 @@ import {
 import { mapElites } from './quality-diversity-search.js';
 import { 
 	calculateQDScoreForOneIteration, 
-	calculateQDScoresForAllIterations 
+	calculateQDScoresForAllIterations,
+	playAllClassesInEliteMap
 } from './qd-run-analysis.js';	
-
-let audioCtx;
-let audioBufferSourceNode;
-
-const SAMPLE_RATE = 48000;
+import {
+	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
+} from './util/rendering-common.js';
 
 const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";
 const GENOME_OUTPUT_END = "GENOME_OUTPUT_END";
@@ -91,6 +90,9 @@ const cli = meow(`
 
 		Command: <evo-run-qd-scores>
 		--step-size Resolution: How many iterations to step over when calculating QD scores (trend) for one entire QD search run; 1, every iteration, is the default
+
+		Command: <evo-run-play-elite-map, ...>
+		--score-threshold minimum score for an elite to be taken into consideration
 
 	Examples
 		$ kromosynth new-genome [--write-to-file]
@@ -212,6 +214,10 @@ const cli = meow(`
 		},
 		evolutionRunConfigJsonString: {
 			type: 'string'
+		},
+
+		scoreThreshold: {
+			type: 'number'
 		}
 	}
 });
@@ -247,6 +253,19 @@ async function executeEvolutionTask() {
 			break;
 		case "evo-run-qd-scores":
 			qdAnalysis_evoRunQDScores();
+			break;
+		case "evo-run-elite-counts":
+			break;
+		case "evo-run-variances":
+			break;
+		case "evo-run-coverage-above-score-threshold":
+			break;
+		case "evo-run-class-lineage":
+			break;
+		case "evo-run-play-class":
+			break;
+		case "evo-run-play-elite-map":
+			qdAnalysis_playEliteMap();
 			break;
     default:
       cli.showHelp();
@@ -425,6 +444,14 @@ async function qdAnalysis_evoRunQDScores() {
 	}
 }
 
+async function qdAnalysis_playEliteMap() {
+	let {evolutionRunId, evolutionRunIteration, scoreThreshold} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		await playAllClassesInEliteMap(evoRunConfig, evolutionRunId, evolutionRunIteration, scoreThreshold);
+	}
+}
+
 // creates a random genome, wires up an audio graph for it
 // and plays it back in real time (to the default audio device)
 async function soundCheck() {
@@ -500,35 +527,6 @@ async function getGenomeFromInput() { // based on https://stackoverflow.com/a/54
 		}
 	}
 	return geneJSON;
-}
-
-export function getAudioContext() {
-	if( ! audioCtx ) audioCtx = new AudioContext({sampleRate: SAMPLE_RATE});
-	return audioCtx;
-}
-
-function getNewOfflineAudioContext( duration ) {
-	const offlineAudioContext = new OfflineAudioContext({
-		numberOfChannels: 2,
-		length: SAMPLE_RATE * duration,
-		sampleRate: SAMPLE_RATE,
-	});
-	return offlineAudioContext;
-}
-
-function playAudio( audioBuffer ) {
-
-	if( audioBufferSourceNode ) {
-		this.stopAudio();
-	}
-	audioBufferSourceNode = getAudioContext().createBufferSource();
-	// set the buffer in the AudioBufferSourceNode
-	audioBufferSourceNode.buffer = audioBuffer;
-	// connect the AudioBufferSourceNode to the
-	// destination so we can hear the sound
-	audioBufferSourceNode.connect(getAudioContext().destination);
-	// start the source playing
-	audioBufferSourceNode.start();
 }
 
 function writeToFile( content, fileNameFlag, id, fileNamePrefix, fileNameSuffix, exitAfterWriting = true ) {
