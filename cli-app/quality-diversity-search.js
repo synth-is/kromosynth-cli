@@ -84,7 +84,7 @@ export async function mapElites(
   if( dummyRun ) {
     searchBatchSize = dummyRun.searchBatchSize;
   } else {
-    searchBatchSize = geneVariationServers.length;
+    searchBatchSize = geneEvaluationServers.length;
   }
 
   // turn of automatic garbage collection, 

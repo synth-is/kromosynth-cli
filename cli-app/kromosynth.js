@@ -439,6 +439,10 @@ async function evolutionRuns() {
 		const currentEvoConfig = evoRunsConfig.evoRuns[evoRunsConfig.currentEvolutionRunIndex];
 		if( ! currentEvolutionRunId ) {
 			currentEvolutionRunId = ulid() + "_" + currentEvoConfig.label;
+			evoRunsConfig.currentEvolutionRunId = currentEvolutionRunId;
+			if( cli.flags.evolutionRunsConfigJsonFile ) {
+				saveEvolutionRunsConfig( evoRunsConfig );
+			}
 		}
 		
 		const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
@@ -453,11 +457,15 @@ async function evolutionRuns() {
 	
 		if( cli.flags.evolutionRunsConfigJsonFile ) {
 			evoRunsConfig.currentEvolutionRunIndex++;
-			const evoRunsConfigString = JSON.stringify( evoRunsConfig, null, 2 );
-			fs.writeFileSync( cli.flags.evolutionRunsConfigJsonFile, evoRunsConfigString );
+			saveEvolutionRunsConfig( evoRunsConfig );
 		}
 	}
 	process.exit();
+}
+
+function saveEvolutionRunsConfig( evoRunsConfig ) {
+	const evoRunsConfigString = JSON.stringify( evoRunsConfig, null, 2 );
+			fs.writeFileSync( cli.flags.evolutionRunsConfigJsonFile, evoRunsConfigString );
 }
 
 async function qualityDiversitySearch( evolutionRunId, evoRunConfig, evoParams ) {
