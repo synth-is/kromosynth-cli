@@ -7,7 +7,7 @@ module.exports = {
       instances : 8,
       exec_mode : "cluster",
       max_memory_restart: '700M',
-      cron_restart: '* * * * *',
+      cron_restart: '*/10 * * * *',
       increment_var : 'PORT',
       env: {
         "PORT": 50051,
@@ -21,7 +21,7 @@ module.exports = {
       instances : 8,
       exec_mode : "cluster",
       max_memory_restart: '700M',
-      cron_restart: '* * * * *',
+      cron_restart: '*/10 * * * *',
       increment_var : 'PORT',
       env: {
         "PORT": 50061,

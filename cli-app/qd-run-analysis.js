@@ -42,34 +42,37 @@ export async function calculateQDScoreForOneIteration( evoRunConfig, evoRunId, i
   return qdScore;
 }
 
-export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iterationIndex, scoreThreshold) {
+export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iterationIndex, scoreThreshold, toTermination) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
-  for( const oneCellKey of cellKeys ) {
-    if( eliteMap.cells[oneCellKey].elts.length ) {
-      const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
-      const score = eliteMap.cells[oneCellKey].elts[0].s;
-      if( undefined === scoreThreshold || scoreThreshold <= score ) {
-        const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
-        const genomeAndMeta = JSON.parse( genomeString );
-        const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === oneCellKey);
-        const { duration, noteDelta, velocity } = tagForCell;
-        const audioBuffer = await getAudioBufferFromGenomeAndMeta(
-          genomeAndMeta,
-          duration, noteDelta, velocity, 
-          false, // reverse,
-          false, // asDataArray
-          getNewOfflineAudioContext( duration ),
-          getAudioContext(),
-          true, // useOvertoneInharmonicityFactors
-        );
-        console.log("Playing class", oneCellKey, "for", (iterationIndex === undefined ? "last iteration": "iteration "+iterationIndex), "in evo run", evoRunId, "; duration", duration, ", note delta", noteDelta, " and velocity", velocity );
-        playAudio( audioBuffer );
-        await new Promise(resolve => setTimeout(resolve, duration*1000));
+  do {
+    for( const oneCellKey of cellKeys ) {
+      if( eliteMap.cells[oneCellKey].elts.length ) {
+        const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
+        const score = eliteMap.cells[oneCellKey].elts[0].s;
+        if( undefined === scoreThreshold || scoreThreshold <= score ) {
+          const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+          const genomeAndMeta = JSON.parse( genomeString );
+          const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === oneCellKey);
+          const { duration, noteDelta, velocity } = tagForCell;
+          const audioBuffer = await getAudioBufferFromGenomeAndMeta(
+            genomeAndMeta,
+            duration, noteDelta, velocity, 
+            false, // reverse,
+            false, // asDataArray
+            getNewOfflineAudioContext( duration ),
+            getAudioContext(),
+            true, // useOvertoneInharmonicityFactors
+          );
+          console.log("Playing class", oneCellKey, "for", (iterationIndex === undefined ? "last iteration ("+eliteMap.generationNumber+")": "iteration "+iterationIndex), "in evo run", evoRunId, "; duration", duration, ", note delta", noteDelta, ", velocity", velocity + " and score: " + score );
+          playAudio( audioBuffer );
+          await new Promise(resolve => setTimeout(resolve, duration*1000));
+        }
       }
     }
-  }
+  } while (toTermination && ! eliteMap.terminated);
+  process.exit();
 }
 
 export async function playOneClassAcrossEvoRun(evoRunConfig, evoRunId, iterationIndex, scoreThreshold) {

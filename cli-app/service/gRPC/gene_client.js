@@ -2,7 +2,7 @@ import grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
 import { struct } from 'pb-util';
 
-const PROTO_PATH = '../protos/gene.proto';
+const PROTO_PATH = '../gRPC/protos/gene.proto';
 let clients = {};
 
 export function callRandomGeneService(

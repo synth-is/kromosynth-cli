@@ -44,6 +44,9 @@ const cli = meow(`
 		classify-genome
 			Get class scores for genome
 
+		evolution-runs
+			Execute (potentially several) evolution runs sequentially, each corresponding to one execution of the command quality-diversity-search
+
 		quality-diversity-search
 			Perform search for sounds with Quality Diversity algorithms
 
@@ -80,6 +83,10 @@ const cli = meow(`
 		--classification-graph-model	A key for a classification model. Example: "yamnet"
 		--use-gpu		Flag controlling the use of a GPU during classification
 
+		Command: <evolution-runs>
+		--evolution-runs-config-json-file		File containing configuration parameters for sequential execution of evolution runs
+		--evolution-runs-config-json-string	JSON string containing configuration parameters for sequential execution of evolution runs
+
 		Command: <quality-diversity-search>
 		--evolution-run-id	ID of the evolution run, for restarting a previous run; if none is supplied, a new one is created
 		--evolution-run-config-json-file	File containing configuration parameters for evolution runs with Quality Diversity search algorithms
@@ -92,6 +99,7 @@ const cli = meow(`
 		--step-size Resolution: How many iterations to step over when calculating QD scores (trend) for one entire QD search run; 1, every iteration, is the default
 
 		Command: <evo-run-play-elite-map, ...>
+		--evolution-run-id	See above
 		--score-threshold minimum score for an elite to be taken into consideration
 
 	Examples
@@ -103,10 +111,12 @@ const cli = meow(`
 
 		QD search:
 		$ kromosynth quality-diversity-search --evo-params-json-file config/evolutionary-hyperparameters.jsonc --evolution-run-config-json-file config/evolution-run-config.jsonc
+		$ kromosynth evolution-runs --evolution-runs-config-json-file config/evolution-runs.jsonc
 
 		QD search analysis:
 		$ kromosynth elite-map-qd-score --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
 		$ kromosynth evo-run-qd-scores --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
+		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc
 
 		👉 more in the project's readme (at https://github.com/synth-is/kromosynth-cli)
 `, {
@@ -209,6 +219,9 @@ const cli = meow(`
 			type: 'number',
 			default: 1
 		},
+		evoRunsConfigFile: {
+			type: 'string'
+		},
 		evolutionRunConfigJsonFile: {
 			type: 'string'
 		},
@@ -244,6 +257,9 @@ async function executeEvolutionTask() {
 			break;
 		case "classify-genome":
 			classifyGenome();
+			break;
+		case "evolution-runs":
+			await evolutionRuns();
 			break;
 		case "quality-diversity-search":
 			await qualityDiversitySearch();
@@ -416,14 +432,44 @@ async function classifyGenome() {
 	}
 }
 
-async function qualityDiversitySearch() {
-	let {evolutionRunId} = cli.flags;
-	if( ! evolutionRunId ) {
-		evolutionRunId = ulid();
+async function evolutionRuns() {
+	const evoRunsConfig = getEvolutionRunsConfig();
+	while( evoRunsConfig.currentEvolutionRunIndex < evoRunsConfig.evoRuns.length ) {
+		let { currentEvolutionRunId } = evoRunsConfig;
+		const currentEvoConfig = evoRunsConfig.evoRuns[evoRunsConfig.currentEvolutionRunIndex];
+		if( ! currentEvolutionRunId ) {
+			currentEvolutionRunId = ulid() + "_" + currentEvoConfig.label;
+		}
+		
+		const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
+		const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
+		const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
+	
+		const evoParamsMain = getEvoParams( evoRunsConfig.baseEvolutionaryHyperparametersFile );
+		const evoParamsDiff = getEvoParams( currentEvoConfig.diffEvolutionaryHyperparametersFile );
+		const evoParams = {...evoParamsMain, ...evoParamsDiff};
+		
+		await qualityDiversitySearch( currentEvolutionRunId, evoRunConfig, evoParams );
+	
+		if( cli.flags.evolutionRunsConfigJsonFile ) {
+			evoRunsConfig.currentEvolutionRunIndex++;
+			const evoRunsConfigString = JSON.stringify( evoRunsConfig, null, 2 );
+			fs.writeFileSync( cli.flags.evolutionRunsConfigJsonFile, evoRunsConfigString );
+		}
 	}
-	const evoRunConfig = getEvolutionRunConfig();
-	const evoParams = getEvoParams();
-	await mapElites( evolutionRunId, evoRunConfig, evoParams );
+	process.exit();
+}
+
+async function qualityDiversitySearch( evolutionRunId, evoRunConfig, evoParams ) {
+	let _evolutionRunId = evolutionRunId || cli.flags.evolutionRunId;
+	if( ! _evolutionRunId ) {
+		_evolutionRunId = ulid();
+	}
+	const _evoRunConfig = evoRunConfig || getEvolutionRunConfig();
+	const _evoParams = evoParams || getEvoParams();
+	if( "mapElites" === evoRunConfig.algorithm ) {
+		await mapElites( _evolutionRunId, _evoRunConfig, _evoParams, false );
+	} // TODO deepGridMapElites etc.
 }
 
 async function qdAnalysis_eliteMapQDScore() {
@@ -572,10 +618,11 @@ function getParamsFromJSONFile( fileName ) {
 	return getParamsFromJSONString( evoParamsJsonString );
 }
 
-export function getEvoParams() {
+export function getEvoParams( evoParamsJsonFile ) {
 	let evoParams;
-	if( cli.flags.evoParamsJsonFile ) {
-		evoParams = getParamsFromJSONFile( cli.flags.evoParamsJsonFile );
+	const _evoParamsJsonFile = evoParamsJsonFile || cli.flags.evoParamsJsonFile;
+	if( _evoParamsJsonFile ) {
+		evoParams = getParamsFromJSONFile( _evoParamsJsonFile );
 	} else if( cli.flags.evoParamsJsonString ) {
 		evoParams = getParamsFromJSONString( cli.flags.evoParamsJsonString );
 	} else {
@@ -584,10 +631,23 @@ export function getEvoParams() {
 	return evoParams;
 }
 
-function getEvolutionRunConfig() {
+function getEvolutionRunsConfig() {
+	let evoRunsConfig;
+	if( cli.flags.evolutionRunsConfigJsonFile ) {
+		evoRunsConfig = getParamsFromJSONFile( cli.flags.evolutionRunsConfigJsonFile );
+	} else if( cli.flags.evolutionRunsConfigJsonString ) {
+		evoRunsConfig = getParamsFromJSONString( cli.flags.evolutionRunsConfigJsonString );
+	} else {
+		evoRunsConfig = {};
+	}
+	return evoRunsConfig;
+}
+
+function getEvolutionRunConfig( evolutionRunConfigJsonFile ) {
 	let evoRunConfig;
-	if( cli.flags.evolutionRunConfigJsonFile ) {
-		evoRunConfig = getParamsFromJSONFile( cli.flags.evolutionRunConfigJsonFile );
+	const _evolutionRunConfigJsonFile = evolutionRunConfigJsonFile || cli.flags.evolutionRunConfigJsonFile;
+	if( _evolutionRunConfigJsonFile ) {
+		evoRunConfig = getParamsFromJSONFile( _evolutionRunConfigJsonFile );
 	} else if( cli.flags.evolutionRunConfigJsonString ) {
 		evoRunConfig = getParamsFromJSONString( cli.flags.evolutionRunConfigJsonString );
 	} else {

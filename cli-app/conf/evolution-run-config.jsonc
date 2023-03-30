@@ -1,4 +1,5 @@
 {
+  "algorithm": "mapElites",
   "seedEvals": 4,
   "terminationCondition": {
    "numberOfEvals": 10000

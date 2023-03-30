@@ -43,7 +43,9 @@ import {
  * }
  * @param {object} evolutionaryHyperparameters
  */
-export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionaryHyperparameters
+export async function mapElites( 
+  evolutionRunId, evolutionRunConfig, evolutionaryHyperparameters,
+  exitWhenDone = true
   // seedEvals, terminationCondition, evoRunsDirPath 
 ) {
   const algorithmKey = 'mapElites_with_uBC';
@@ -229,7 +231,6 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
             eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap );
           }
           if( eliteClassKeys.length > 0 ) {
-            console.log("eliteClassKeys.length:",eliteClassKeys.length);
             // const classScoresSD = getClassScoresStandardDeviation( newGenomeClassScores );
             // console.log("classScoresSD", classScoresSD);
             eliteMap.newEliteCount = eliteClassKeys.length;
@@ -279,8 +280,8 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
             // bias search away from exploring niches that produce fewer innovations
             eliteMap.cells[randomClassKey].uBC -= 1; // TODO should stop at zero?
           }
-
-          console.log("iteration", eliteMap.generationNumber);
+          console.log("iteration", eliteMap.generationNumber,"eliteCountAtGeneration:",eliteClassKeys.length);
+          eliteMap.eliteCountAtGeneration = eliteClassKeys.length;
           saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
           if( eliteMap.generationNumber % eliteMapSnapshotEvery === 0 ) {
             // saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, eliteMap.generationNumber ); // generation specific map
@@ -300,10 +301,12 @@ export async function mapElites( evolutionRunId, evolutionRunConfig, evolutionar
     }); // await Promise.all( searchPromises ).then( async (batchIterationResult) => {
 
   } // while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
+  eliteMap.terminated = true;
+  saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId );
   console.log("eliteMap",eliteMap);
   // collect git garbage 
   runCmd(`git -C ${evoRunDirPath} gc`);
-  process.exit();
+  if( exitWhenDone ) process.exit();
 }
 
 function getClassKeysWhereScoresAreElite( classScores, eliteMap ) {
@@ -320,6 +323,8 @@ function initializeGrid( evolutionRunId, algorithm, evolutionRunConfig, evolutio
     algorithm,
     evolutionRunConfig, evolutionaryHyperparameters,
     generationNumber: 0,
+    eliteCountAtGeneration: 0,
+    terminated: false,
     cells: {} // aka classes or niches
   };
   const classifierTags = getClassifierTags(classificationGraphModel, dummyRun);

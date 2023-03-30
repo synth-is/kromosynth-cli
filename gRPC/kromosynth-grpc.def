@@ -1,0 +1,22 @@
+Bootstrap: docker
+From: node
+
+%files
+    . /app/
+    asound.conf /etc/asound.conf
+
+%post
+    apt-get update && apt-get install -y g++ make python libxi-dev libgl1-mesa-dev libasound2
+    cd /app
+    npm install --quiet
+    npm rebuild @tensorflow/tfjs-node --build-from-source
+    npm rebuild @tensorflow/tfjs-node-gpu --build-from-source
+    mkdir tfjs-model_yamnet_tfjs_1
+    curl https://storage.googleapis.com/tfhub-tfjs-modules/google/tfjs-model/yamnet/tfjs/1.tar.gz | tar -xz -C ./tfjs-model_yamnet_tfjs_1
+    npm install pm2 -g
+    cp node-web-audio-api.linux-arm64-gnu.node /app/node_modules/kromosynth/node_modules/node-web-audio-api/
+    cp node-web-audio-api.linux-arm64-gnu.node /app/node_modules/node-web-audio-api/
+
+%runscript
+    cd /app
+    pm2-runtime container_ecosystem.config.cjs

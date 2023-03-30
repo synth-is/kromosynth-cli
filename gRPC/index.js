@@ -14,7 +14,7 @@ let audioCtx;
 
 const SAMPLE_RATE = 48000;
 
-const PROTO_PATH = '../protos/gene.proto';
+const PROTO_PATH = './protos/gene.proto';
 const packageDefinition = protoLoader.loadSync(
   PROTO_PATH,
   {keepCase: true,

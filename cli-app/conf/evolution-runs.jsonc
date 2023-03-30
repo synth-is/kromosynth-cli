@@ -1,0 +1,18 @@
+{
+  "baseEvolutionRunConfigFile": "conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "4dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "conf/evoRunDiffs/evolution-run-config_4dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null
+    },
+    {
+      "label": "3dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "conf/evoRunDiffs/evolution-run-config_3dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null
+    }
+  ],
+  "currentEvolutionRunIndex": 2,
+  "currentEvolutionRunId": null
+}

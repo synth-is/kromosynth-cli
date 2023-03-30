@@ -142,6 +142,8 @@ cat genes/kromosynth_gene_01GPVVQV1Y0FQ2J6RJ4AC5DTEE.json | kromosynth --read-fr
 
 ## Quality Diversity search
 
+### Controller
+
 Within `gRPC`:
 
 Starting a QD search controller, without pm2:
@@ -154,9 +156,43 @@ Starting a controller, managed by pm2:
 pm2 start kromosynth.js -- quality-diversity-search --evo-params-json-file conf/evolutionary-hyperparameters.jsonc --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GRM1W26X4H704V9RSP97YN6
 ```
 
+### Service cluster for variation and evaluation
+
+#### Bare metal
+
 Starting a service cluster, managed by pm2:
 ```
 pm2 delete all && pm2 start ecosystem.config.cjs
+```
+
+#### Containerised
+
+##### Podman:
+
+Build:
+```
+podman build -t kromosynth-grpc .
+```
+Run:
+```
+podman run --expose=50051-50058 --expose=50061-50068 --publish=50051-50058:50051-50058 --publish=50061-50068:50061-50068 kromosynth-grpc
+```
+Pushing to a registry:
+```
+podman login -u <user> -p <pwd>  docker.io/bthj/kromosynth-grpc
+podman images
+podman push <image id> docker://docker.io/bthj/kromosynth-grpc:1.0.0
+```
+
+##### Apptainer:
+
+Build:
+```
+apptainer build kromosynth-grpc.sif docker://bthj/kromosynth-grpc:1.0.0
+```
+or
+```
+apptainer build --fakeroot kromosynth-grpc.sif kromosynth-grpc.def
 ```
 
 ### QD search data analysis
