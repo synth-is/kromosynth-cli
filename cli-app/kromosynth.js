@@ -467,7 +467,7 @@ async function qualityDiversitySearch( evolutionRunId, evoRunConfig, evoParams )
 	}
 	const _evoRunConfig = evoRunConfig || getEvolutionRunConfig();
 	const _evoParams = evoParams || getEvoParams();
-	if( "mapElites" === evoRunConfig.algorithm ) {
+	if( "mapElites" === _evoRunConfig.algorithm ) {
 		await mapElites( _evolutionRunId, _evoRunConfig, _evoParams, false );
 	} // TODO deepGridMapElites etc.
 }
