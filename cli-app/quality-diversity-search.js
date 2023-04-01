@@ -7,7 +7,7 @@ import {
   getGenomeFromGenomeString
 } from 'kromosynth';
 // import { callRandomGeneService } from './service/gene-random-worker-client.js';
-import { 
+import {
   callRandomGeneService,
   callGeneVariationService,
   callGeneEvaluationService,
@@ -18,7 +18,7 @@ import {
 } from './util/qd-common.js';
 
 /**
- * 
+ *
  * @param {string} evolutionRunId Identifier for the evolution run
  * @param {object} evolutionRunConfig Configuration JSON for this evolution run, such as:
  * {
@@ -43,10 +43,10 @@ import {
  * }
  * @param {object} evolutionaryHyperparameters
  */
-export async function mapElites( 
+export async function mapElites(
   evolutionRunId, evolutionRunConfig, evolutionaryHyperparameters,
   exitWhenDone = true
-  // seedEvals, terminationCondition, evoRunsDirPath 
+  // seedEvals, terminationCondition, evoRunsDirPath
 ) {
   const algorithmKey = 'mapElites_with_uBC';
   const {
@@ -87,7 +87,7 @@ export async function mapElites(
     searchBatchSize = geneEvaluationServers.length;
   }
 
-  // turn of automatic garbage collection, 
+  // turn of automatic garbage collection,
   // as automatic background runs seem to affect performance when performing rapid successive commits
   // - gc will be triggered manually at regular intervals below
   runCmd('git config --global gc.auto 0');
@@ -111,49 +111,53 @@ export async function mapElites(
 
         let randomClassKey;
         const parentGenomes = [];
-    
+
         ///// gene initialisation
-    
+
         let newGenomeString;
         if( eliteMap.generationNumber < seedEvals ) {
-    
+
           try {
-            newGenomeString = await callRandomGeneService( 
-              evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters, 
+            newGenomeString = await callRandomGeneService(
+              evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters,
               geneVariationServerHost
-            );  
+            );
           } catch (error) {
             console.error("Error calling gene seed service: " + error);
             clearServiceConnectionList(geneVariationServerHost);
           }
 
         } else {
-    
-          ///// selection 
-    
+          ///// selection
           const classKeys = Object.keys(eliteMap.cells);
           const classBiases = classKeys.map( ck =>
             undefined === eliteMap.cells[ck].uBC ? 10 : eliteMap.cells[ck].uBC
           );
-          randomClassKey = chance.weighted(classKeys, classBiases);
+          const nonzeroClassBiasCount = classBiases.filter(b => b > 0).length;
+          if( nonzeroClassBiasCount > 0 ) {
+            randomClassKey = chance.weighted(classKeys, classBiases);
+          } else { // if all are zero or below, .weighted complains
+            randomClassKey = chance.pickone(classKeys);
+          }
+
           const {
-            // genome: classEliteGenomeId, 
-            // score, 
+            // genome: classEliteGenomeId,
+            // score,
             // generationNumber
-            g: classEliteGenomeId, 
-            s, 
+            g: classEliteGenomeId,
+            s,
             gN
           } = getCurrentClassElite(randomClassKey, eliteMap);
-          
+
           const classEliteGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, classEliteGenomeId, evoRunDirPath );
-    
+
           parentGenomes.push( {
             genomeId: classEliteGenomeId,
             eliteClass: randomClassKey,
             // score, generationNumber,
             s, gN,
           } );
-    
+
           if( dummyRun ) {
             newGenomeString = classEliteGenomeString;
           } else {
@@ -177,16 +181,16 @@ export async function mapElites(
 
           }
         } // if( eliteMap.generationNumber < seedEvals ) {
-    
+
         const genomeId = ulid();
-    
+
         let newGenomeClassScores;
         if( dummyRun && dummyRun.iterations ) {
           newGenomeClassScores = getDummyClassScoresForGenome( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
         } else if( newGenomeString ) {
-    
+
           ///// evaluate
-    
+
           newGenomeClassScores = await callGeneEvaluationService(
             newGenomeString,
             classScoringDurations,
@@ -195,19 +199,19 @@ export async function mapElites(
             classificationGraphModel,
             useGpuForTensorflow,
             geneEvaluationServerHost
-          ).catch( 
+          ).catch(
             e => {
               console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
               clearServiceConnectionList(geneEvaluationServerHost);
-            } 
+            }
           );
         }
-
+console.log("Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined) );
         resolve({
           genomeId,
           randomClassKey,
           newGenomeString,
-          newGenomeClassScores, 
+          newGenomeClassScores,
           parentGenomes
         });
 
@@ -217,12 +221,12 @@ export async function mapElites(
     await Promise.all( searchPromises ).then( async (batchIterationResults) => {
       for( let oneBatchIterationResult of batchIterationResults ) {
 
-        const { 
+        const {
           genomeId, randomClassKey, newGenomeString, newGenomeClassScores,  parentGenomes
         } = oneBatchIterationResult;
 
         ///// add to archive
-  
+
         if( newGenomeClassScores !== undefined ) {
           let eliteClassKeys;
           if( dummyRun && dummyRun.iterations ) {
@@ -297,14 +301,14 @@ export async function mapElites(
         } // if( newGenomeClassScores !== undefined ) {
 
       } // for( let oneBatchIterationResult of batchIterationResults ) {
-      
+
     }); // await Promise.all( searchPromises ).then( async (batchIterationResult) => {
 
   } // while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
   eliteMap.terminated = true;
   saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId );
   console.log("eliteMap",eliteMap);
-  // collect git garbage 
+  // collect git garbage
   runCmd(`git -C ${evoRunDirPath} gc`);
   if( exitWhenDone ) process.exit();
 }
@@ -345,7 +349,7 @@ function saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, generation
   const eliteMapFilePath = `${evoRunDirPath}${eliteMapFileName}`;
   const eliteMapStringified = JSON.stringify(eliteMap, null, 2); // prettified to obtain the benefits (compression of git diffs)
   fs.writeFileSync( eliteMapFilePath, eliteMapStringified );
-  
+
   // add file to git (possibly redundantly)
   // runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
 }
@@ -393,7 +397,7 @@ function getClassifierTags( graphModel, dummyRun ) {
       case "yamnet":
         return yamnetTags;
       default:
-  
+
     }
   }
 }
@@ -420,7 +424,7 @@ function getClassScoresStandardDeviation( genomeClassScores ) {
 }
 
 /**
- * 
+ *
  * @param {object} terminationCondition object with one key indicating the type of termination condition, mapping to a respective value or object:
  * {numberOfEvals: x}
  * or
