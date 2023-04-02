@@ -206,7 +206,7 @@ export async function mapElites(
             }
           );
         }
-console.log("Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined) );
+        console.log("Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined) + ", evaluation host: " + geneEvaluationServerHost );
         resolve({
           genomeId,
           randomClassKey,
