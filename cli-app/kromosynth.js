@@ -457,6 +457,7 @@ async function evolutionRuns() {
 	
 		if( cli.flags.evolutionRunsConfigJsonFile ) {
 			evoRunsConfig.currentEvolutionRunIndex++;
+			evoRunsConfig.currentEvolutionRunId = null;
 			saveEvolutionRunsConfig( evoRunsConfig );
 		}
 	}
