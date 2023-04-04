@@ -1,6 +1,6 @@
 import fs from 'fs';
 import {
-  runCmd, spawnCmd, 
+  runCmd, spawnCmd,
   getEvoRunDirPath,
   readGenomeAndMetaFromDisk
 } from './util/qd-common.js';
@@ -9,6 +9,7 @@ import {
 	getAudioBufferFromGenomeAndMeta
 } from 'kromosynth';
 import { getAudioContext, getNewOfflineAudioContext, playAudio } from './util/rendering-common.js';
+import figlet from 'figlet';
 
 export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId );
@@ -16,7 +17,7 @@ export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId,
   const qdScores = new Array(Math.ceil(commitCount / stepSize));
   for( let iterationIndex = 0, qdScoreIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, qdScoreIndex++ ) {
     if( iterationIndex % stepSize === 0 ) {
-      qdScores[qdScoreIndex] = await calculateQDScoreForOneIteration( 
+      qdScores[qdScoreIndex] = await calculateQDScoreForOneIteration(
         evoRunConfig, evoRunId, iterationIndex
       );
     }
@@ -42,12 +43,34 @@ export async function calculateQDScoreForOneIteration( evoRunConfig, evoRunId, i
   return qdScore;
 }
 
+function bindNavKeys() { // https://itecnote.com/tecnote/node-js-how-to-capture-the-arrow-keys-in-node-js/
+  var stdin = process.stdin;
+  stdin.setRawMode(true);
+  stdin.resume();
+  stdin.setEncoding('utf8');
+  stdin.on('data', function(key){
+      if( key === '\u001b[A' && 0 < cellKeyIndex) {
+        cellKeyIndex--;
+      }
+      if (key === '\u001b[B') {
+        cellKeyIndex++;
+      }
+      if (key == 'p') {
+        paused = !paused;
+      }
+      if (key == '\u0003') { process.exit(); }    // ctrl-c
+  });
+}
+let cellKeyIndex = 0;
+let paused = false;
 export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iterationIndex, scoreThreshold, toTermination) {
+  bindNavKeys();
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
   do {
-    for( const oneCellKey of cellKeys ) {
+    while( cellKeyIndex < cellKeys.length ) {
+      const oneCellKey = cellKeys[cellKeyIndex];
       if( eliteMap.cells[oneCellKey].elts.length ) {
         const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
         const score = eliteMap.cells[oneCellKey].elts[0].s;
@@ -58,19 +81,33 @@ export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iteration
           const { duration, noteDelta, velocity } = tagForCell;
           const audioBuffer = await getAudioBufferFromGenomeAndMeta(
             genomeAndMeta,
-            duration, noteDelta, velocity, 
+            duration, noteDelta, velocity,
             false, // reverse,
             false, // asDataArray
             getNewOfflineAudioContext( duration ),
             getAudioContext(),
             true, // useOvertoneInharmonicityFactors
           );
+          figlet(oneCellKey, function(err, data) {
+              if (err) {
+                  console.log('Something went wrong...');
+                  console.dir(err);
+                  return;
+              }
+              console.log(data);
+          });
           console.log("Playing class", oneCellKey, "for", (iterationIndex === undefined ? "last iteration ("+eliteMap.generationNumber+")": "iteration "+iterationIndex), "in evo run", evoRunId, "; duration", duration, ", note delta", noteDelta, ", velocity", velocity + " and score: " + score );
           playAudio( audioBuffer );
           await new Promise(resolve => setTimeout(resolve, duration*1000));
         }
       }
+      if( ! paused ) {
+        cellKeyIndex++;
+      } else if( scoreThreshold ) { // otherwise we may get stuck in an infinite loop, not able to capture keyboard input
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
+    cellKeyIndex = 0;
   } while (toTermination && ! eliteMap.terminated);
   process.exit();
 }

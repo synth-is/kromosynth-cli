@@ -15,11 +15,11 @@ import {
 	getClassScoresForGenome
 } from 'kromosynth';
 import { mapElites } from './quality-diversity-search.js';
-import { 
-	calculateQDScoreForOneIteration, 
+import {
+	calculateQDScoreForOneIteration,
 	calculateQDScoresForAllIterations,
 	playAllClassesInEliteMap
-} from './qd-run-analysis.js';	
+} from './qd-run-analysis.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
 } from './util/rendering-common.js';
@@ -418,7 +418,7 @@ async function classifyGenome() {
 			cli.flags.useGpu,
 			true // supplyAudioContextInstances
 		);
-		
+
 		const classScoresForGenomeStringified = JSON.stringify(classScoresForGenome);
 		if( cli.flags.writeToOutput ) {
 			printGeneToOutput( classScoresForGenomeStringified, "CLASSIFICATION_OUTPUT_BEGIN", "CLASSIFICATION_OUTPUT_END" );
@@ -435,29 +435,36 @@ async function classifyGenome() {
 async function evolutionRuns() {
 	const evoRunsConfig = getEvolutionRunsConfig();
 	while( evoRunsConfig.currentEvolutionRunIndex < evoRunsConfig.evoRuns.length ) {
-		let { currentEvolutionRunId } = evoRunsConfig;
 		const currentEvoConfig = evoRunsConfig.evoRuns[evoRunsConfig.currentEvolutionRunIndex];
-		if( ! currentEvolutionRunId ) {
-			currentEvolutionRunId = ulid() + "_" + currentEvoConfig.label;
-			evoRunsConfig.currentEvolutionRunId = currentEvolutionRunId;
+		while( evoRunsConfig.currentEvolutionRunIteration < currentEvoConfig.iterations.length ) {
+			let { id: currentEvolutionRunId } = currentEvoConfig.iterations[evoRunsConfig.currentEvolutionRunIteration];
+
+			if( ! currentEvolutionRunId ) {
+				currentEvolutionRunId = ulid() + "_" + currentEvoConfig.label;
+				currentEvoConfig.iterations[evoRunsConfig.currentEvolutionRunIteration].id = currentEvolutionRunId;
+				if( cli.flags.evolutionRunsConfigJsonFile ) {
+					saveEvolutionRunsConfig( evoRunsConfig );
+				}
+			}
+
+			const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
+			const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
+			const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
+
+			const evoParamsMain = getEvoParams( evoRunsConfig.baseEvolutionaryHyperparametersFile );
+			const evoParamsDiff = getEvoParams( currentEvoConfig.diffEvolutionaryHyperparametersFile );
+			const evoParams = {...evoParamsMain, ...evoParamsDiff};
+
+			await qualityDiversitySearch( currentEvolutionRunId, evoRunConfig, evoParams );
+
 			if( cli.flags.evolutionRunsConfigJsonFile ) {
+				evoRunsConfig.currentEvolutionRunIteration++;
 				saveEvolutionRunsConfig( evoRunsConfig );
 			}
 		}
-		
-		const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
-		const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
-		const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
-	
-		const evoParamsMain = getEvoParams( evoRunsConfig.baseEvolutionaryHyperparametersFile );
-		const evoParamsDiff = getEvoParams( currentEvoConfig.diffEvolutionaryHyperparametersFile );
-		const evoParams = {...evoParamsMain, ...evoParamsDiff};
-		
-		await qualityDiversitySearch( currentEvolutionRunId, evoRunConfig, evoParams );
-	
+		evoRunsConfig.currentEvolutionRunIteration = 0;
 		if( cli.flags.evolutionRunsConfigJsonFile ) {
 			evoRunsConfig.currentEvolutionRunIndex++;
-			evoRunsConfig.currentEvolutionRunId = null;
 			saveEvolutionRunsConfig( evoRunsConfig );
 		}
 	}
@@ -666,7 +673,7 @@ function getEvolutionRunConfig( evolutionRunConfigJsonFile ) {
 }
 
 export function getAudioGraphMutationParams( evoParams ) {
-	return evoParams && evoParams["audioGraph"] && evoParams["audioGraph"]["mutationParams"] || undefined; 
+	return evoParams && evoParams["audioGraph"] && evoParams["audioGraph"]["mutationParams"] || undefined;
 }
 
 await executeEvolutionTask();
