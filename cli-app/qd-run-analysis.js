@@ -58,11 +58,20 @@ function bindNavKeys() { // https://itecnote.com/tecnote/node-js-how-to-capture-
       if (key == 'p') {
         paused = !paused;
       }
+      if (key == 'f') {
+        console.log(Object.keys(lastPlayedGenomeAndMeta.genome));
+        const lastPlayedGenomeAndMetaStringified = JSON.stringify(lastPlayedGenomeAndMeta);
+        const favoritesDir = favoritesDirPath.substring(0, favoritesDirPath.lastIndexOf("/"));
+        if( !fs.existsSync(favoritesDir) ) fs.mkdirSync(favoritesDir);
+        fs.writeFileSync( favoritesDirPath, lastPlayedGenomeAndMetaStringified );
+      }
       if (key == '\u0003') { process.exit(); }    // ctrl-c
   });
 }
 let cellKeyIndex = 0;
 let paused = false;
+let lastPlayedGenomeAndMeta;
+let favoritesDirPath;
 export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iterationIndex, scoreThreshold, toTermination) {
   bindNavKeys();
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
@@ -78,7 +87,7 @@ export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iteration
           const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
           const genomeAndMeta = JSON.parse( genomeString );
           const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === oneCellKey);
-          const { duration, noteDelta, velocity } = tagForCell;
+          const { duration, noteDelta, velocity, updated } = tagForCell;
           const audioBuffer = await getAudioBufferFromGenomeAndMeta(
             genomeAndMeta,
             duration, noteDelta, velocity,
@@ -88,6 +97,16 @@ export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iteration
             getAudioContext(),
             true, // useOvertoneInharmonicityFactors
           );
+
+          lastPlayedGenomeAndMeta = genomeAndMeta;
+          lastPlayedGenomeAndMeta.genome.evoRun = {
+            evoRunId,
+            cellKey: oneCellKey,
+            duration, noteDelta, velocity, updated
+          };
+          const monthDir = new Date(updated).toISOString().substring(0, 7);
+          favoritesDirPath = `${evoRunConfig.favoritesDirPath}/${monthDir}/genome_${genomeId}.json`;
+
           figlet(oneCellKey, function(err, data) {
               if (err) {
                   console.log('Something went wrong...');
@@ -148,7 +167,7 @@ function getCommitIdsFilePath( evoRunConfig, evoRunId ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const commitIdsFileName = "commit-ids.txt";
   const commitIdsFilePath = `${evoRunDirPath}${commitIdsFileName}`;
-  if( ! fs.existsSync(`${evoRunDirPath}/commit-ids.txt`) ) {
+  if( true /* ! fs.existsSync(`${evoRunDirPath}/commit-ids.txt`) */ ) {
     runCmd(`git -C ${evoRunDirPath} rev-list master --first-parent --reverse > ${commitIdsFilePath}`);
   }
   return commitIdsFilePath;
