@@ -369,9 +369,19 @@ async function renderAudioFromGenome() {
 		const inputGenomeParsed = JSON.parse( inputGenome );
 		let duration, noteDelta, velocity;
 		if( cli.flags.geneMetadataOverride ) {
-			duration = inputGenomeParsed.duration || cli.flags.duration;
-			noteDelta = inputGenomeParsed.noteDelta || cli.flags.noteDelta;
-			velocity = inputGenomeParsed.velocity || cli.flags.velocity;
+			if( inputGenomeParsed.genome.evoRun ) {
+				duration = inputGenomeParsed.genome.evoRun.duration;
+				noteDelta = inputGenomeParsed.genome.evoRun.noteDelta;
+				velocity = inputGenomeParsed.genome.evoRun.velocity;
+			} else if( inputGenomeParsed.genome.tags && inputGenomeParsed.genome.tags.length ) {
+				duration = inputGenomeParsed.genome.tags[0].duration;
+				noteDelta = inputGenomeParsed.genome.tags[0].noteDelta;
+				velocity = inputGenomeParsed.genome.tags[0].velocity;
+			} else {
+				duration = inputGenomeParsed.duration || cli.flags.duration;
+				noteDelta = inputGenomeParsed.noteDelta || cli.flags.noteDelta;
+				velocity = inputGenomeParsed.velocity || cli.flags.velocity;
+			}
 		} else {
 			duration = cli.flags.duration;
 			noteDelta = cli.flags.noteDelta;
