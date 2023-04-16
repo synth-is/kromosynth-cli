@@ -24,6 +24,7 @@ import {
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
 } from './util/rendering-common.js';
+import { renderSfz } from './virtual-instrument.js';
 
 const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";
 const GENOME_OUTPUT_END = "GENOME_OUTPUT_END";
@@ -50,6 +51,9 @@ const cli = meow(`
 
 		quality-diversity-search
 			Perform search for sounds with Quality Diversity algorithms
+
+		render-virtual-instrument
+			Render a sample based virtual instrument, using the SFZ format, from the supplied genome
 
 	Options
 		Commands: <new-genome, mutate-genome, render-audio or classify-genome>
@@ -124,6 +128,13 @@ const cli = meow(`
 
 		$ kromosynth evo-run-play-class --evolution-run-id 01GXVYY4T87RYSS02FN79VVQX5_4dur-7ndelt-4vel_wavetable-bias --evolution-run-config-json-file conf/evolution-run-config.jsonc --cell-key "Narration, monologue" --step-size 100
 
+		TODO see saveRenderedSoundsToFilesWorker onwards
+
+		$ kromosynth render-virtual-instrument [--read-from-file | --read-from-input] \
+			--octave-from 0 --octave-to 9 --duration 1 --velocity-layer-count 8 \
+			--sample-rate 48000 --bit-depth 24
+			--write-to-folder ./
+
 		👉 more in the project's readme (at https://github.com/synth-is/kromosynth-cli)
 `, {
 	importMeta: import.meta,
@@ -135,6 +146,10 @@ const cli = meow(`
 		writeToFile: {
 			type: 'string',
 			alias: 'w',
+		},
+		writeToFolder: {
+			type: 'string',
+			default: './'
 		},
 		writeToOutput: {
 			type: 'boolean',
@@ -240,6 +255,27 @@ const cli = meow(`
 		},
 		cellKey: {
 			type: 'string'
+		},
+
+		octaveFrom: {
+			type: 'number',
+			default: 3
+		},
+		octaveTo: {
+			type: 'number',
+			default: 5
+		},
+		velocityLayerCount: {
+			type: 'number',
+			default: 8
+		},
+		sampleRate: {
+			type: 'number',
+			default: 48000
+		},
+		bitDepth: {
+			type: 'number',
+			default: 24
 		}
 	}
 });
@@ -292,6 +328,9 @@ async function executeEvolutionTask() {
 			break;
 		case "evo-run-play-elite-map":
 			qdAnalysis_playEliteMap();
+			break;
+		case "render-virtual-instrument":
+			renderVirtualInstrument();
 			break;
     default:
       cli.showHelp();
@@ -419,6 +458,32 @@ async function renderAudioFromGenome() {
 			writeToWavFile( Buffer.from(new Uint8Array(wav)), cli.flags.writeToFile, inputGenomeParsed._id, duration, noteDelta, velocity, reverse, !cli.flags.playOnDefaultAudioDevice );
 		}
 	}
+}
+
+async function renderVirtualInstrument() {
+	let inputGenome;
+	if( cli.flags.readFromInput ) {
+		inputGenome = await getGenomeFromInput();
+	} else if( cli.flags.readFromFile ) {
+		inputGenome = readJSONFromFile( cli.flags.readFromFile );
+	}
+	if( inputGenome ) {
+		const inputGenomeParsed = JSON.parse( inputGenome );
+		let {
+			octaveFrom, octaveTo, duration, velocityLayerCount, 
+			sampleRate, bitDepth,
+			writeToFolder,
+			useOvertoneInharmonicityFactors
+		} = cli.flags;
+		renderSfz(
+			inputGenomeParsed,
+			octaveFrom, octaveTo, duration, velocityLayerCount, 
+			sampleRate, bitDepth,
+			writeToFolder,
+			useOvertoneInharmonicityFactors
+		);
+	}
+	
 }
 
 async function classifyGenome() {

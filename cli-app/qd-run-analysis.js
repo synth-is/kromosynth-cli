@@ -153,7 +153,7 @@ export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, 
   while( 0 <= iterationIndex ) {
     if( iterationIndex % stepSize === 0 ) {
       const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
-      if( eliteMap.cells[cellKey].elts.length ) {
+      if( eliteMap.cells[cellKey] && eliteMap.cells[cellKey].elts.length ) {
         const genomeId = eliteMap.cells[cellKey].elts[0].g;
         const score = eliteMap.cells[cellKey].elts[0].s;
         if( lastPlayedGenomeId !== genomeId || paused ) {
@@ -186,6 +186,9 @@ export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, 
         } else {
           console.log("Sound unchanged for iteration", iterationIndex);
         }
+      } else {
+        console.log("Can't find elites for class", cellKey);
+        break;
       }
     }
     if( ! paused ) {
