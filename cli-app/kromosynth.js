@@ -18,11 +18,13 @@ import { mapElites } from './quality-diversity-search.js';
 import {
 	calculateQDScoreForOneIteration,
 	calculateQDScoresForAllIterations,
-	playAllClassesInEliteMap
+	playAllClassesInEliteMap,
+	playOneClassAcrossEvoRun
 } from './qd-run-analysis.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
 } from './util/rendering-common.js';
+import { renderSfz } from './virtual-instrument.js';
 
 const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";
 const GENOME_OUTPUT_END = "GENOME_OUTPUT_END";
@@ -49,6 +51,9 @@ const cli = meow(`
 
 		quality-diversity-search
 			Perform search for sounds with Quality Diversity algorithms
+
+		render-virtual-instrument
+			Render a sample based virtual instrument, using the SFZ format, from the supplied genome
 
 	Options
 		Commands: <new-genome, mutate-genome, render-audio or classify-genome>
@@ -95,12 +100,15 @@ const cli = meow(`
 		Command: <elite-map-qd-score>
 		--evolution-run-iteration The evolution run iteration number to calculate QD score for; the last iteration is used if omitted
 
-		Command: <evo-run-qd-scores>
+		Command: <evo-run-qd-scores, evo-run-play-class>
 		--step-size Resolution: How many iterations to step over when calculating QD scores (trend) for one entire QD search run; 1, every iteration, is the default
 
-		Command: <evo-run-play-elite-map, ...>
+		Command: <evo-run-play-elite-map, evo-run-play-class>
 		--evolution-run-id	See above
 		--score-threshold minimum score for an elite to be taken into consideration
+
+		Command: <evo-run-play-class>
+		--cell-key	Name of elite class to play (vertically); from latest elite to the first
 
 	Examples
 		$ kromosynth new-genome [--write-to-file]
@@ -118,6 +126,15 @@ const cli = meow(`
 		$ kromosynth evo-run-qd-scores --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc
 
+		$ kromosynth evo-run-play-class --evolution-run-id 01GXVYY4T87RYSS02FN79VVQX5_4dur-7ndelt-4vel_wavetable-bias --evolution-run-config-json-file conf/evolution-run-config.jsonc --cell-key "Narration, monologue" --step-size 100
+
+		TODO see saveRenderedSoundsToFilesWorker onwards
+
+		$ kromosynth render-virtual-instrument [--read-from-file | --read-from-input] \
+			--octave-from 0 --octave-to 9 --duration 1 --velocity-layer-count 8 \
+			--sample-rate 48000 --bit-depth 24
+			--write-to-folder ./
+
 		👉 more in the project's readme (at https://github.com/synth-is/kromosynth-cli)
 `, {
 	importMeta: import.meta,
@@ -129,6 +146,10 @@ const cli = meow(`
 		writeToFile: {
 			type: 'string',
 			alias: 'w',
+		},
+		writeToFolder: {
+			type: 'string',
+			default: './'
 		},
 		writeToOutput: {
 			type: 'boolean',
@@ -231,6 +252,30 @@ const cli = meow(`
 
 		scoreThreshold: {
 			type: 'number'
+		},
+		cellKey: {
+			type: 'string'
+		},
+
+		octaveFrom: {
+			type: 'number',
+			default: 3
+		},
+		octaveTo: {
+			type: 'number',
+			default: 5
+		},
+		velocityLayerCount: {
+			type: 'number',
+			default: 8
+		},
+		sampleRate: {
+			type: 'number',
+			default: 48000
+		},
+		bitDepth: {
+			type: 'number',
+			default: 24
 		}
 	}
 });
@@ -279,9 +324,13 @@ async function executeEvolutionTask() {
 		case "evo-run-class-lineage":
 			break;
 		case "evo-run-play-class":
+			qdAnalysis_playClass();
 			break;
 		case "evo-run-play-elite-map":
 			qdAnalysis_playEliteMap();
+			break;
+		case "render-virtual-instrument":
+			renderVirtualInstrument();
 			break;
     default:
       cli.showHelp();
@@ -369,9 +418,19 @@ async function renderAudioFromGenome() {
 		const inputGenomeParsed = JSON.parse( inputGenome );
 		let duration, noteDelta, velocity;
 		if( cli.flags.geneMetadataOverride ) {
-			duration = inputGenomeParsed.duration || cli.flags.duration;
-			noteDelta = inputGenomeParsed.noteDelta || cli.flags.noteDelta;
-			velocity = inputGenomeParsed.velocity || cli.flags.velocity;
+			if( inputGenomeParsed.genome.evoRun ) {
+				duration = inputGenomeParsed.genome.evoRun.duration;
+				noteDelta = inputGenomeParsed.genome.evoRun.noteDelta;
+				velocity = inputGenomeParsed.genome.evoRun.velocity;
+			} else if( inputGenomeParsed.genome.tags && inputGenomeParsed.genome.tags.length ) {
+				duration = inputGenomeParsed.genome.tags[0].duration;
+				noteDelta = inputGenomeParsed.genome.tags[0].noteDelta;
+				velocity = inputGenomeParsed.genome.tags[0].velocity;
+			} else {
+				duration = inputGenomeParsed.duration || cli.flags.duration;
+				noteDelta = inputGenomeParsed.noteDelta || cli.flags.noteDelta;
+				velocity = inputGenomeParsed.velocity || cli.flags.velocity;
+			}
 		} else {
 			duration = cli.flags.duration;
 			noteDelta = cli.flags.noteDelta;
@@ -399,6 +458,32 @@ async function renderAudioFromGenome() {
 			writeToWavFile( Buffer.from(new Uint8Array(wav)), cli.flags.writeToFile, inputGenomeParsed._id, duration, noteDelta, velocity, reverse, !cli.flags.playOnDefaultAudioDevice );
 		}
 	}
+}
+
+async function renderVirtualInstrument() {
+	let inputGenome;
+	if( cli.flags.readFromInput ) {
+		inputGenome = await getGenomeFromInput();
+	} else if( cli.flags.readFromFile ) {
+		inputGenome = readJSONFromFile( cli.flags.readFromFile );
+	}
+	if( inputGenome ) {
+		const inputGenomeParsed = JSON.parse( inputGenome );
+		let {
+			octaveFrom, octaveTo, duration, velocityLayerCount, 
+			sampleRate, bitDepth,
+			writeToFolder,
+			useOvertoneInharmonicityFactors
+		} = cli.flags;
+		renderSfz(
+			inputGenomeParsed,
+			octaveFrom, octaveTo, duration, velocityLayerCount, 
+			sampleRate, bitDepth,
+			writeToFolder,
+			useOvertoneInharmonicityFactors
+		);
+	}
+	
 }
 
 async function classifyGenome() {
@@ -511,6 +596,14 @@ async function qdAnalysis_playEliteMap() {
 	if( evolutionRunId ) {
 		const evoRunConfig = getEvolutionRunConfig();
 		await playAllClassesInEliteMap(evoRunConfig, evolutionRunId, evolutionRunIteration, scoreThreshold);
+	}
+}
+
+async function qdAnalysis_playClass() {
+	let {evolutionRunId, cellKey, stepSize} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		await playOneClassAcrossEvoRun( cellKey, evoRunConfig, evolutionRunId, stepSize );
 	}
 }
 

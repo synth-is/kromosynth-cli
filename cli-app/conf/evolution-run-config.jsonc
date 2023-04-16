@@ -11,6 +11,7 @@
   //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
   },
   "evoRunsDirPath": "evoruns/",
+  "favoritesDirPath": "/Users/bjornpjo/iCloud/Documents/synth.is/favoriteGenomes",
   "probabilityMutatingWaveNetwork": 0.5,
   "probabilityMutatingPatch": 0.5,
   "classScoringDurations": [0.5, 1, 2, 5],
