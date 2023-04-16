@@ -1,6 +1,6 @@
 {
   "terminationCondition": {
-    "numberOfEvals": 150000
+    "numberOfEvals": 100000
   },
   "classScoringDurations": [0.5, 1, 2],
   "classScoringNoteDeltas": [-36, -24, -12, 0, 12, 24, 36],

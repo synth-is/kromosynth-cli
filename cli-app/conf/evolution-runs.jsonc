@@ -11,16 +11,10 @@
           "id": "01GWT7XQS6NW752VVKFP3M7NYY_4dur-7ndelt-4vel"
         },
         {
-          "id": null
+          "id": "01GXCEN2H6RRCKC5CSG0AESA1A_4dur-7ndelt-4vel"
         },
         {
-          "id": null
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
+          "id": "01GXVJ70BEATFCA7C61CXAEY52_4dur-7ndelt-4vel"
         }
       ]
     },
@@ -31,12 +25,6 @@
       "iterations": [
         {
           "id": "01GX0MWR8DTJY8A3TPN0ZG00KC_3dur-7ndelt-4vel"
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
         },
         {
           "id": null
@@ -59,12 +47,6 @@
         },
         {
           "id": null
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
         }
       ]
     },
@@ -75,12 +57,6 @@
       "iterations": [
         {
           "id": "01GX2MQ3JK89SDCA5QKW7WRZMC_1dur-7ndelt-4vel"
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
         },
         {
           "id": null
@@ -103,12 +79,6 @@
         },
         {
           "id": null
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
         }
       ]
     },
@@ -125,12 +95,6 @@
         },
         {
           "id": null
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
         }
       ]
     },
@@ -139,12 +103,6 @@
       "diffEvolutionRunConfigFile": "conf/evoRunDiffs/evolution-run-config_4dur-1ndelt-4vel.jsonc",
       "diffEvolutionaryHyperparametersFile": null,
       "iterations": [
-        {
-          "id": null
-        },
-        {
-          "id": null
-        },
         {
           "id": null
         },
@@ -169,16 +127,10 @@
         },
         {
           "id": null
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
         }
       ]
     }
   ],
   "currentEvolutionRunIndex": 0,
-  "currentEvolutionRunIteration": 0
+  "currentEvolutionRunIteration": 2
 }
