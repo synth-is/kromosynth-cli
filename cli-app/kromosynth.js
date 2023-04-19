@@ -131,9 +131,9 @@ const cli = meow(`
 		TODO see saveRenderedSoundsToFilesWorker onwards
 
 		$ kromosynth render-virtual-instrument [--read-from-file | --read-from-input] \
-			--octave-from 0 --octave-to 9 --duration 1 --velocity-layer-count 8 \
-			--sample-rate 48000 --bit-depth 24
-			--write-to-folder ./
+			[--octave-from 0] [--octave-to 9] [--duration 1] [--velocity-layer-count 8] \
+			[--sample-rate 48000] [--bit-depth 24]
+			[--write-to-folder ./]
 
 		👉 more in the project's readme (at https://github.com/synth-is/kromosynth-cli)
 `, {
@@ -470,20 +470,20 @@ async function renderVirtualInstrument() {
 	if( inputGenome ) {
 		const inputGenomeParsed = JSON.parse( inputGenome );
 		let {
-			octaveFrom, octaveTo, duration, velocityLayerCount, 
+			octaveFrom, octaveTo, duration, velocityLayerCount,
 			sampleRate, bitDepth,
 			writeToFolder,
 			useOvertoneInharmonicityFactors
 		} = cli.flags;
 		renderSfz(
 			inputGenomeParsed,
-			octaveFrom, octaveTo, duration, velocityLayerCount, 
+			octaveFrom, octaveTo, duration, velocityLayerCount,
 			sampleRate, bitDepth,
 			writeToFolder,
 			useOvertoneInharmonicityFactors
 		);
 	}
-	
+
 }
 
 async function classifyGenome() {

@@ -1,58 +1,89 @@
-export function renderSfz( 
-  genomeAndMeta, 
-  octaveFrom, octaveTo, duration, velocityLayerCount, 
+import {
+  getOctaveMidiNumberRanges, getBaseNoteFrequencyFromASNEATPatch,
+  frequencyToNote, getNoteMarksAndMidiNumbersArray
+} from 'kromosynth';
+
+export function renderSfz(
+  genomeAndMeta,
+  octaveFrom, octaveTo, duration, velocityLayerCount,
   sampleRate, bitDepth,
   writeToFolder,
   useOvertoneInharmonicityFactors
 ) {
-  const genomeAndMetaParsed = JSON.parse(genomeAndMeta);
-  const renderBaseNote = getBasenote( genomeAndMetaParsed );
-  const noteDeltas = this.getNoteDeltasForRenderOctaves(octaveFrom, octaveTo, renderBaseNote);
-  const velocities = this.getVelocitiesForSelectedVelocityLayerCount( velocityLayerCount );
+  const renderBaseNote = getBasenote( genomeAndMeta );
+  console.log("renderBaseNote",renderBaseNote);
+  const noteDeltas = getNoteDeltasForRenderOctaves(octaveFrom, octaveTo, renderBaseNote);
+  const velocities = getVelocitiesForSelectedVelocityLayerCount( velocityLayerCount );
+  for( const noteDelta of noteDeltas ) {
+    for( const velocity of velocities ) {
+      console.log("noteDelta",noteDelta,", velocity",velocity);
+    }
+  }
 }
 
 function getBasenote( genomeAndMeta ) {
-  const baseNote = getBaseNoteFrequencyFromASNEATPatch( genomeAndMeta.asNEATPatch );
-  return baseNote;
+  const baseNoteFrequency = getBaseNoteFrequencyFromASNEATPatch( genomeAndMeta.genome.asNEATPatch );
+  const renderBaseNoteMark = frequencyToNote(baseNoteFrequency);
+  const renderBaseNote = getMidiNoteNumberFromNoteMark(renderBaseNoteMark);
+  return renderBaseNote;
 }
 
-// TODO
-// form renderedSoundExport.jsx in synth.is project
+
+///// from renderedSoundExport.jsx in the synth.is web app project:
+
 function getNoteDeltasForRenderOctaves(
   renderOctaveNumberMin, renderOctaveNumberMax, renderBaseNote
 ) {
-const _renderOctaveNumberMin = renderOctaveNumberMin || this.state.renderOctaveNumberMin;
-const _renderOctaveNumberMax = renderOctaveNumberMax || this.state.renderOctaveNumberMax;
-const _renderBaseNote = renderBaseNote || this.state.renderBaseNote;
-let noteDeltas;
+  let noteDeltas;
 
-  let startNoteNr = getOctaveMidiNumberRanges()[_renderOctaveNumberMin][0];
-  let endNoteNr = getOctaveMidiNumberRanges()[_renderOctaveNumberMax][1];
+  let startNoteNr = getOctaveMidiNumberRanges()[renderOctaveNumberMin][0];
+  let endNoteNr = getOctaveMidiNumberRanges()[renderOctaveNumberMax][1];
   let noteDelta;
-  // if( startNoteNr > this.state.renderBaseNote || endNoteNr < this.state.renderBaseNote ) {
-  //   noteDelta = startNoteNr - this.state.renderBaseNote;
-  // } else {
-  //   noteDelta = 0;
-  // }
   noteDelta = 0;
-  if( _renderBaseNote < startNoteNr ) {
-    startNoteNr = _renderBaseNote;
+  if( renderBaseNote < startNoteNr ) {
+    startNoteNr = renderBaseNote;
   }
-  if( _renderBaseNote > endNoteNr ) {
-    endNoteNr = _renderBaseNote;
+  if( renderBaseNote > endNoteNr ) {
+    endNoteNr = renderBaseNote;
   }
   noteDeltas = [noteDelta];
   let noteDeltaCounter = noteDelta;
   noteDeltaCounter--;
-  while( _renderBaseNote + noteDeltaCounter >= startNoteNr ) {
+  while( renderBaseNote + noteDeltaCounter >= startNoteNr ) {
     noteDeltas.push(noteDeltaCounter);
     noteDeltaCounter--;
   }
   noteDeltaCounter = noteDelta + 1;
-  while( _renderBaseNote + noteDeltaCounter <= endNoteNr ) {
+  while( renderBaseNote + noteDeltaCounter <= endNoteNr ) {
     noteDeltas.push(noteDeltaCounter);
     noteDeltaCounter++;
   }
+  return noteDeltas;
+}
 
-return noteDeltas;
+
+function getVelocitiesForSelectedVelocityLayerCount( velocityLayerCount ) {
+  let velocities;
+  if( velocityLayerCount === 0 ) {
+    velocities = [ 1 ];
+  } else {
+    velocities = new Array(velocityLayerCount);
+    for( let i=0; i < velocityLayerCount; i++ ) {
+      const velocityLayerNumber = i+1;
+      velocities[i] = 1 / ( velocityLayerCount / velocityLayerNumber );
+    }
+  }
+  return velocities;
+}
+
+function getMidiNoteNumberFromNoteMark(noteMark) {
+  const noteMarksAndMidiNumbersArray = getNoteMarksAndMidiNumbersArray(0,127);
+  let midiNoteNr;
+  for( let oneOneNoteMarkAndMidiNumber of noteMarksAndMidiNumbersArray ) {
+    if( oneOneNoteMarkAndMidiNumber.noteMark === noteMark ) {
+      midiNoteNr = oneOneNoteMarkAndMidiNumber.midiNoteNr;
+      break;
+    }
+  }
+  return midiNoteNr;
 }

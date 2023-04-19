@@ -61,6 +61,7 @@ export async function mapElites(
     dummyRun
   } = evolutionRunConfig;
   const evoRunDirPath = `${evoRunsDirPath}${evolutionRunId}/`;
+  const evoRunFailedGenesDirPath = `${evoRunsDirPath}${evolutionRunId}_failed-genes/`;
   let eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath );
   if( ! eliteMap ) {
     eliteMap = initializeGrid( evolutionRunId, algorithmKey, evolutionRunConfig, evolutionaryHyperparameters );
@@ -69,6 +70,7 @@ export async function mapElites(
     runCmd(`git init ${evoRunDirPath}`);
 
     createEvoRunDir( evoRunDirPath );
+    createEvoRunDir( evoRunFailedGenesDirPath );
     saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
     saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, 0 ); // generation specific map
 
@@ -203,6 +205,9 @@ export async function mapElites(
             e => {
               console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
               clearServiceConnectionList(geneEvaluationServerHost);
+              getGenomeFromGenomeString( newGenomeString ).then( failedGenome =>
+                saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
+              );
             }
           );
         }
@@ -275,7 +280,7 @@ export async function mapElites(
               // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
               eliteMap.cells[classKey].uBC = 10;
             }
-            await saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath );
+            await saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, true );
             if( randomClassKey ) {
               eliteMap.cells[randomClassKey].uBC = 10;
             }
@@ -368,7 +373,7 @@ function readEliteMapFromDisk( evolutionRunId, evoRunDirPath ) {
   return eliteMap;
 }
 
-function saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath ) {
+function saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath, addToGit ) {
   const genomeKey = getGenomeKey(evolutionRunId, genomeId);
   const genomeFileName = `${genomeKey}.json`;
   const genomeFilePath = `${evoRunDirPath}${genomeFileName}`;
@@ -377,8 +382,10 @@ function saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath ) {
     genome
   });
   fs.writeFileSync( genomeFilePath, genomeString );
-  // add file to git (without committing)
-  runCmd(`git -C ${evoRunDirPath} add ${genomeFileName}`);
+  if( addToGit ) {
+    // add file to git (without committing)
+    runCmd(`git -C ${evoRunDirPath} add ${genomeFileName}`);
+  }
 }
 
 function getEliteMapKey( evolutionRunId, generationNumber ) {
