@@ -23,8 +23,13 @@ export function renderSfz(
 
 function getBasenote( genomeAndMeta ) {
   const baseNoteFrequency = getBaseNoteFrequencyFromASNEATPatch( genomeAndMeta.genome.asNEATPatch );
-  const renderBaseNoteMark = frequencyToNote(baseNoteFrequency);
-  const renderBaseNote = getMidiNoteNumberFromNoteMark(renderBaseNoteMark);
+  let renderBaseNote;
+  if( baseNoteFrequency > 0 ) {
+    const renderBaseNoteMark = frequencyToNote(baseNoteFrequency);
+    renderBaseNote = getMidiNoteNumberFromNoteMark(renderBaseNoteMark);
+  } else {
+    renderBaseNote = 69;
+  }
   return renderBaseNote;
 }
 
