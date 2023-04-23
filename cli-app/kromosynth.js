@@ -126,7 +126,7 @@ const cli = meow(`
 		$ kromosynth evo-run-qd-scores --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc
 
-		$ kromosynth evo-run-play-class --evolution-run-id 01GXVYY4T87RYSS02FN79VVQX5_4dur-7ndelt-4vel_wavetable-bias --evolution-run-config-json-file conf/evolution-run-config.jsonc --cell-key "Narration, monologue" --step-size 100
+		$ kromosynth evo-run-play-class --evolution-run-id 01GXVYY4T87RYSS02FN79VVQX5_4dur-7ndelt-4vel_wavetable-bias --evolution-run-config-json-file conf/evolution-run-config.jsonc --cell-key "Narration, monologue" --step-size 100 --ascending false
 
 		TODO see saveRenderedSoundsToFilesWorker onwards
 
@@ -239,6 +239,10 @@ const cli = meow(`
 		stepSize: {
 			type: 'number',
 			default: 1
+		},
+		ascending: {
+			type: 'boolean',
+			default: true
 		},
 		evoRunsConfigFile: {
 			type: 'string'
@@ -600,10 +604,10 @@ async function qdAnalysis_playEliteMap() {
 }
 
 async function qdAnalysis_playClass() {
-	let {evolutionRunId, cellKey, stepSize} = cli.flags;
+	let {evolutionRunId, cellKey, stepSize, ascending} = cli.flags;
 	if( evolutionRunId ) {
 		const evoRunConfig = getEvolutionRunConfig();
-		await playOneClassAcrossEvoRun( cellKey, evoRunConfig, evolutionRunId, stepSize );
+		await playOneClassAcrossEvoRun( cellKey, evoRunConfig, evolutionRunId, stepSize, ascending );
 	}
 }
 

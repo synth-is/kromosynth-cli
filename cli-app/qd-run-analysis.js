@@ -59,7 +59,7 @@ function bindNavKeys() { // https://itecnote.com/tecnote/node-js-how-to-capture-
         paused = !paused;
       }
       if (key == 'f') {
-        console.log(Object.keys(lastPlayedGenomeAndMeta.genome));
+        console.log("Favourite added:", favoritesDirPath);
         const lastPlayedGenomeAndMetaStringified = JSON.stringify(lastPlayedGenomeAndMeta);
         const favoritesDir = favoritesDirPath.substring(0, favoritesDirPath.lastIndexOf("/"));
         if( !fs.existsSync(favoritesDir) ) fs.mkdirSync(favoritesDir);
@@ -113,8 +113,8 @@ export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iteration
           );
 
           updateKeyboardNavigationGlobals(
-            genomeAndMeta, 
-            evoRunId, evoRunConfig, 
+            genomeAndMeta,
+            evoRunId, evoRunConfig,
             genomeId, oneCellKey,
             duration, noteDelta, velocity, updated
           );
@@ -143,14 +143,14 @@ export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iteration
   process.exit();
 }
 
-export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, stepSize = 1) {
+export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, stepSize = 1, ascending = true) {
   bindNavKeys();
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   let lastPlayedGenomeId;
-  let iterationIndex = commitCount-1;
-  while( 0 <= iterationIndex ) {
+  let iterationIndex = ascending ? 0 : commitCount-1;
+  while( ascending ? iterationIndex < commitCount : 0 <= iterationIndex ) {
     if( iterationIndex % stepSize === 0 ) {
       const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
       if( eliteMap.cells[cellKey] && eliteMap.cells[cellKey].elts.length ) {
@@ -170,18 +170,18 @@ export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, 
             getAudioContext(),
             true, // useOvertoneInharmonicityFactors
           );
-      
+
           updateKeyboardNavigationGlobals(
-            genomeAndMeta, 
+            genomeAndMeta,
             evoRunId, evoRunConfig,
             genomeId, cellKey,
             duration, noteDelta, velocity, updated
           );
-    
+
           console.log( "Playing class", cellKey, "for iteration", iterationIndex, "in evo run", evoRunId, "; duration", duration, ", note delta", noteDelta, ", velocity", velocity + " and score: " + score );
           playAudio( audioBuffer );
           await new Promise(resolve => setTimeout(resolve, duration*1000));
-  
+
           lastPlayedGenomeId = genomeId;
         } else {
           console.log("Sound unchanged for iteration", iterationIndex);
@@ -192,7 +192,7 @@ export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, 
       }
     }
     if( ! paused ) {
-      iterationIndex--;
+      ascending ? iterationIndex++ : iterationIndex--;
     }
   }
   process.exit();
