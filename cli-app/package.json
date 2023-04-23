@@ -24,7 +24,7 @@
     "figlet": "^1.5.2",
     "jsonc-parser": "^3.2.0",
     "jszip": "^3.10.1",
-    "kromosynth": "file:../../kromosynth",
+    "kromosynth": "^1.0.5",
     "meow": "^11.0.0",
     "minimist": "^1.2.7",
     "node-web-audio-api": "^0.6.0",
