@@ -1,13 +1,16 @@
 Bootstrap: docker
 # From: node
-From: nvidia/cuda:12.1.0-runtime-ubuntu22.04
+# From: nvidia/cuda:12.1.0-runtime-ubuntu22.04
+# From: nvidia/cuda:11.8.0-runtime-ubuntu22.04
+From: nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
 %files
     . /app/
     asound.conf /etc/asound.conf
 
 %post
-    apt-get update && apt-get install -y g++ make python-is-python3 libxi-dev libgl1-mesa-dev libasound2 curl
+    apt-get update && apt-get install -y g++ make python-is-python3 libxi-dev libgl1-mesa-dev libasound2 curl pkg-config
+    # apt-get install --yes nvidia-cudnn
 
     # CUDA in Apptainer
     # via https://stackoverflow.com/a/74209551/169858
@@ -16,15 +19,39 @@ From: nvidia/cuda:12.1.0-runtime-ubuntu22.04
     apt-get install -y nodejs
 
     cd app
+    rm -fr node_modules
     npm install --quiet
-    npm rebuild @tensorflow/tfjs-node --build-from-source
-    npm rebuild @tensorflow/tfjs-node-gpu --build-from-source
+    # npm rebuild @tensorflow/tfjs-node --build-from-source
+    # npm rebuild @tensorflow/tfjs-node-gpu --build-from-source
     mkdir tfjs-model_yamnet_tfjs_1
     curl https://storage.googleapis.com/tfhub-tfjs-modules/google/tfjs-model/yamnet/tfjs/1.tar.gz | tar -xz -C ./tfjs-model_yamnet_tfjs_1
     npm install pm2 -g
-    cp node-web-audio-api.linux-arm64-gnu.node /app/node_modules/kromosynth/node_modules/node-web-audio-api/
-    cp node-web-audio-api.linux-arm64-gnu.node /app/node_modules/node-web-audio-api/
+    # cp node-web-audio-api.linux-arm64-gnu.node /app/node_modules/kromosynth/node_modules/node-web-audio-api/
+    # cp node-web-audio-api.linux-arm64-gnu.node /app/node_modules/node-web-audio-api/
+
+    # https://gist.github.com/zrruziev/b93e1292bf2ee39284f834ec7397ee9f
+    # echo 0 | tee -a /sys/bus/pci/devices/0000\:01\:00.0/numa_node
+
+
+    # from https://www.tensorflow.org/install/pip
+
+    #curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o Miniconda3-latest-Linux-x86_64.sh
+    #bash Miniconda3-latest-Linux-x86_64.sh
+    #conda create --name tf python=3.9
+
+    #conda install -c conda-forge cudatoolkit=11.8.0
+    #python3 -m pip install nvidia-cudnn-cu11==8.6.0.163 tensorflow==2.12.*
+    #mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+    #echo 'CUDNN_PATH=$(dirname $(python -c "import nvidia.cudnn;print(nvidia.cudnn.__file__)"))' >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+    #echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/:$CUDNN_PATH/lib' >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+    #source $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+    ## Verify install:
+    #python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+
+    ln -s /usr/local/cuda-11.8/targets/x86_64-linux/lib/libnvrtc.so.11.2 /usr/local/cuda-11.8/targets/x86_64-linux/lib/libnvrtc.so
 
 %runscript
     cd /app
+    # export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/conda/lib
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/cuda-11.8/targets/x86_64-linux/lib
     pm2-runtime container_ecosystem.config.cjs

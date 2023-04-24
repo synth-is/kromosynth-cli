@@ -211,7 +211,7 @@ export async function mapElites(
             }
           );
         }
-        console.log("Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined) + ", evaluation host: " + geneEvaluationServerHost );
+        console.log("Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined) + ", evaluation host: " + geneEvaluationServerHost, " - Music score:", newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : "N/A" );
         resolve({
           genomeId,
           randomClassKey,
@@ -232,7 +232,7 @@ export async function mapElites(
 
         ///// add to archive
 
-        if( newGenomeClassScores !== undefined ) {
+        if( newGenomeClassScores !== undefined && Object.keys(newGenomeClassScores).length ) {
           let eliteClassKeys;
           if( dummyRun && dummyRun.iterations ) {
             eliteClassKeys = getDummyClassKeysWhereScoresAreElite( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
