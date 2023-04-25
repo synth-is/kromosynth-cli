@@ -1,0 +1,33 @@
+Bootstrap: docker
+From: nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+
+%files
+    ./gRPC /app/gRPC
+    ./gRPC/asound.conf /etc/asound.conf
+    ./cli-app /app/cli
+
+%post
+    apt-get update && apt-get install -y g++ make python-is-python3 libxi-dev libgl1-mesa-dev libasound2 curl pkg-config
+
+    curl -fsSL https://deb.nodesource.com/setup_19.x | bash - &&\
+    apt-get install -y nodejs
+
+    cd /app/gRPC
+    rm -fr node_modules
+    npm install --quiet
+
+    mkdir tfjs-model_yamnet_tfjs_1
+    curl https://storage.googleapis.com/tfhub-tfjs-modules/google/tfjs-model/yamnet/tfjs/1.tar.gz | tar -xz -C ./tfjs-model_yamnet_tfjs_1
+
+    cd /app/cli
+    rm -fr node_modules
+    npm install --quiet
+
+    npm install pm2 -g
+
+    ln -s /usr/local/cuda-11.8/targets/x86_64-linux/lib/libnvrtc.so.11.2 /usr/local/cuda-11.8/targets/x86_64-linux/lib/libnvrtc.so
+
+%runscript
+    cd /app/gRPC
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu:/usr/local/cuda-11.8/targets/x86_64-linux/lib
+    pm2-runtime container_ecosystem.config.cjs

@@ -213,7 +213,7 @@ kromosynth evo-run-qd-scores --evolution-run-config-json-file conf/evolution-run
 
 Play all sounds / classes / niches / cells in the elite map:
 
-- from the last iteration 
+- from the last iteration
 ```
 kromosynth evo-run-play-elite-map --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J
 ```
@@ -234,3 +234,18 @@ Obtain the elite map at one specific iteration / revsiont / git commit:
 ```
 git -C evoruns/01GT9HMJNTVB6ZD4K6CAN1H6ZX show 50a581e44b5f07d61ca1660b002f4c31698a4bee:elites_01GT9HMJNTVB6ZD4K6CAN1H6ZX.json
 ```
+
+## Containerisation
+
+Build an [Apptainer](https://apptainer.org) for the CLI and gRPC server:
+```
+sudo apptainer build kromosynth.sif kromosynth.def
+```
+
+The gRPC server starts by default, managed by PM2, when run with:
+```
+apptainer run --nv kromosynth.sif
+```
+- the `--nv` flag facilitates access to an NVIDIA GPU.
+
+Otherwise the CLI commands can be [run through the container](https://documentation.sigma2.no/code_development/guides/container_env.html): The CLI app is located at `/app/cli` within the container.
