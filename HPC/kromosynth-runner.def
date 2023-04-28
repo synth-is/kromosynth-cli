@@ -1,0 +1,18 @@
+Bootstrap: docker
+From: tensorflow/tensorflow:latest-gpu
+
+# Apptainer definition file for building a container to run kromosynth-cli commands _through_ (see README.md)
+# - to control the location of work directories (so you won't get pesky squashfs "No space left on device errors"),
+#   a container can be built with a command like:
+# APPTAINER_LOCALCACHEDIR=/mnt/evoruns01/apptainer-tmp/localcache APPTAINER_CACHEDIR=/mnt/evoruns01/apptainer-tmp/cache APPTAINER_TMPDIR=/mnt/evoruns01/apptainer-tmp/tmp apptainer build kromosynth-runner.sif kromosynth-runner.def
+
+%files
+    asound.conf /etc/asound.conf
+
+%post
+    apt-get update && apt-get install -y mesa-common-dev libxi-dev python-is-python3 libasound2 curl pkg-config git
+
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - &&\
+    apt-get install -y nodejs
+
+    npm install pm2 -g

@@ -237,15 +237,24 @@ git -C evoruns/01GT9HMJNTVB6ZD4K6CAN1H6ZX show 50a581e44b5f07d61ca1660b002f4c316
 
 ## Containerisation
 
-Build an [Apptainer](https://apptainer.org) for the CLI and gRPC server:
+Build an [Apptainer](https://apptainer.org) for runniing the the CLI and gRPC server _through_:
 ```
-sudo apptainer build kromosynth.sif kromosynth.def
+mkdir -p /mnt/spacious-device/apptainer-workdirs/localcache
+mkdir -p /mnt/spacious-device/apptainer-workdirs/cache
+mkdir -p /mnt/spacious-device/apptainer-workdirs/tmp
+cd /path/to/kromosynth-cli/HPC
+APPTAINER_LOCALCACHEDIR=/mnt/spacious-device/apptainer-workdirs/localcache APPTAINER_CACHEDIR=/mnt/spacious-device/apptainer-workdirs/cache APPTAINER_TMPDIR=/mnt/spacious-device/apptainer-workdirs/tmp apptainer build kromosynth-runner.sif kromosynth-runner.def
 ```
 
-The gRPC server starts by default, managed by PM2, when run with:
+Start a cluster of [gRPC](https://grpc.io) services for gene variation and mutation, managed by PM2, according to a configuration in `container_ecosystem.config.cjs`:
 ```
-apptainer run --nv kromosynth.sif
+cd /path/to/kromosynth-cli/gRPC
+apptainer exec --nv /path/to/kromosynth-cli/HCP/kromosynth-runner.sif pm2-runtime container_ecosystem.config.cjs
 ```
 - the `--nv` flag facilitates access to an NVIDIA GPU.
 
-Otherwise the CLI commands can be [run through the container](https://documentation.sigma2.no/code_development/guides/container_env.html): The CLI app is located at `/app/cli` within the container.
+Start an evolutionary run of quality diversity search:
+```
+cd /path/to/kromosynth-cli/cli-app
+apptainer exec --nv /path/to/kromosynth-cli/cli-app/HPC/kromosynth-runner.sif node kromosynth.js evolution-runs --evolution-runs-config-json-file conf/evolution-runs.jsonc
+```
