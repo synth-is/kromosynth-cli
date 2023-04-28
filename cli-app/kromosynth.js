@@ -504,6 +504,7 @@ async function classifyGenome() {
 			genomeAndMetaParsed.genome,
 			cli.flags.classScoringDurations, cli.flags.classScoringNoteDeltas, cli.flags.classScoringVelocities,
 			cli.flags.classificationGraphModel,
+			undefined, //modelUrl, will download if not present
 			cli.flags.useGpu,
 			true // supplyAudioContextInstances
 		);
