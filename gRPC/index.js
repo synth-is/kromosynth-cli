@@ -12,7 +12,7 @@ import NodeWebAudioAPI from 'node-web-audio-api';
 const { AudioContext, OfflineAudioContext } = NodeWebAudioAPI;
 let audioCtx;
 
-const SAMPLE_RATE = 48000;
+const SAMPLE_RATE = 16000;
 
 const PROTO_PATH = './protos/gene.proto';
 const packageDefinition = protoLoader.loadSync(

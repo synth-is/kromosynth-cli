@@ -4,7 +4,7 @@ import Chance from 'chance';
 import { getAudioGraphMutationParams } from "./kromosynth.js";
 import { yamnetTags } from 'kromosynth/workers/audio-classification/classificationTags.js';
 import {
-  getGenomeFromGenomeString
+  getGenomeFromGenomeString, getNewAudioSynthesisGenomeByMutation
 } from 'kromosynth';
 // import { callRandomGeneService } from './service/gene-random-worker-client.js';
 import {
@@ -16,6 +16,8 @@ import {
 import {
   runCmd, readGenomeAndMetaFromDisk, getGenomeKey
 } from './util/qd-common.js';
+import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker } from './service/workers/gene-child-process-forker.js';
+import { evaluate } from './service/gene-evaluation.js';
 
 /**
  *
@@ -51,9 +53,10 @@ export async function mapElites(
   const algorithmKey = 'mapElites_with_uBC';
   const {
     seedEvals, terminationCondition, evoRunsDirPath,
+    geneEvaluationProtocol, childProcessBatchSize,
     probabilityMutatingWaveNetwork, probabilityMutatingPatch,
     classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
-    classificationGraphModel,
+    classificationGraphModel, yamnetModelUrl,
     useGpuForTensorflow,
     eliteMapSnapshotEvery,
     geneVariationServers,
@@ -85,6 +88,8 @@ export async function mapElites(
   let searchBatchSize;
   if( dummyRun ) {
     searchBatchSize = dummyRun.searchBatchSize;
+  } else if( geneEvaluationProtocol === "worker" ) {
+    searchBatchSize = childProcessBatchSize;
   } else {
     searchBatchSize = geneEvaluationServers.length;
   }
@@ -107,8 +112,10 @@ export async function mapElites(
         geneVariationServerHost = geneVariationServers[ batchIteration % geneVariationServers.length ];
         geneEvaluationServerHost = geneEvaluationServers[ batchIteration % geneEvaluationServers.length ];
       }
-      console.log("geneVariationServerHost",geneVariationServerHost);
-      console.log("geneEvaluationServerHost",geneEvaluationServerHost);
+      if( geneEvaluationProtocol === "grpc" ) {
+        console.log("geneVariationServerHost",geneVariationServerHost);
+        console.log("geneEvaluationServerHost",geneEvaluationServerHost);
+      }
       searchPromises[batchIteration] = new Promise( async (resolve, reject) => {
 
         let randomClassKey;
@@ -119,15 +126,31 @@ export async function mapElites(
         let newGenomeString;
         if( eliteMap.generationNumber < seedEvals ) {
 
-          try {
-            newGenomeString = await callRandomGeneService(
-              evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters,
-              geneVariationServerHost
+          if( geneEvaluationProtocol === "grpc" ) {
+            try {
+              newGenomeString = await callRandomGeneService(
+                evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters,
+                geneVariationServerHost
+              );
+            } catch (error) {
+              console.error("Error calling gene seed service: " + error);
+              clearServiceConnectionList(geneVariationServerHost);
+            }
+          } else if( geneEvaluationProtocol === "worker" ) {
+             const randomGeneWorkerResponse = await callRandomGeneWorker(
+              evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters
             );
-          } catch (error) {
-            console.error("Error calling gene seed service: " + error);
-            clearServiceConnectionList(geneVariationServerHost);
+            newGenomeString = randomGeneWorkerResponse.genomeString;
           }
+          // else {
+          //   const genome = getNewAudioSynthesisGenome(
+          //     evolutionRunId,
+          //     generationNumber,
+          //     undefined,
+          //     evolutionaryHyperparameters
+          //   );
+          //   newGenomeString = JSON.stringify(genome);
+          // }
 
         } else {
           ///// selection
@@ -166,16 +189,43 @@ export async function mapElites(
 
             try {
               ///// variation
-              newGenomeString = await callGeneVariationService(
-                classEliteGenomeString,
-                evolutionRunId, eliteMap.generationNumber, algorithmKey,
-                probabilityMutatingWaveNetwork,
-                probabilityMutatingPatch,
-                audioGraphMutationParams,
-                evolutionaryHyperparameters,
-                patchFitnessTestDuration,
-                geneVariationServerHost
-              );
+              if( geneEvaluationProtocol === "grpc" ) {
+                newGenomeString = await callGeneVariationService(
+                  classEliteGenomeString,
+                  evolutionRunId, eliteMap.generationNumber, algorithmKey,
+                  probabilityMutatingWaveNetwork,
+                  probabilityMutatingPatch,
+                  audioGraphMutationParams,
+                  evolutionaryHyperparameters,
+                  patchFitnessTestDuration,
+                  geneVariationServerHost
+                );
+              } else if( geneEvaluationProtocol === "worker" ) {
+                 const geneVariationWorkerResponse = await callGeneVariationWorker(
+                  classEliteGenomeString,
+                  evolutionRunId, eliteMap.generationNumber, algorithmKey,
+                  probabilityMutatingWaveNetwork,
+                  probabilityMutatingPatch,
+                  audioGraphMutationParams,
+                  evolutionaryHyperparameters,
+                  patchFitnessTestDuration
+                );
+                newGenomeString = geneVariationWorkerResponse.newGenomeString;
+              }
+              // else {
+              //   const classEliteGenome = getGenomeFromGenomeString(classEliteGenomeString);
+              //   const newGenome = getNewAudioSynthesisGenomeByMutation(
+              //     classEliteGenome,
+              //     evolutionRunId, generationNumber, -1, algorithmKey,
+              //     getAudioContext(),
+              //     probabilityMutatingWaveNetwork,
+              //     probabilityMutatingPatch,
+              //     audioGraphMutationParams,
+              //     evolutionaryHyperparameters,
+              //     patchFitnessTestDuration
+              //   );
+              //   newGenomeString = JSON.stringify(newGenome);  
+              // }
             } catch (error) {
               console.error("Error calling gene variation service: " + error);
               clearServiceConnectionList(geneVariationServerHost);
@@ -193,23 +243,53 @@ export async function mapElites(
 
           ///// evaluate
 
-          newGenomeClassScores = await callGeneEvaluationService(
-            newGenomeString,
-            classScoringDurations,
-            classScoringNoteDeltas,
-            classScoringVelocities,
-            classificationGraphModel,
-            useGpuForTensorflow,
-            geneEvaluationServerHost
-          ).catch(
-            e => {
-              console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
-              clearServiceConnectionList(geneEvaluationServerHost);
-              getGenomeFromGenomeString( newGenomeString ).then( failedGenome =>
-                saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
-              );
-            }
-          );
+          if( geneEvaluationProtocol === "grpc" ) {
+            newGenomeClassScores = await callGeneEvaluationService(
+              newGenomeString,
+              classScoringDurations,
+              classScoringNoteDeltas,
+              classScoringVelocities,
+              classificationGraphModel,
+              useGpuForTensorflow,
+              geneEvaluationServerHost
+            ).catch(
+              e => {
+                console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+                clearServiceConnectionList(geneEvaluationServerHost);
+                getGenomeFromGenomeString( newGenomeString ).then( failedGenome =>
+                  saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
+                );
+              }
+            );
+          } else if( geneEvaluationProtocol === "worker" ) {
+            newGenomeClassScores = await callGeneEvaluationWorker(
+              newGenomeString,
+              classScoringDurations,
+              classScoringNoteDeltas,
+              classScoringVelocities,
+              classificationGraphModel,
+              yamnetModelUrl,
+              useGpuForTensorflow,
+              true // supplyAudioContextInstances
+            ).catch(
+              e => {
+                console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+              }
+            );
+          } 
+          // else {
+          //   newGenomeClassScores = evaluate(
+          //     newGenomeString,
+          //     classScoringDurations,
+          //     classScoringNoteDeltas,
+          //     classScoringVelocities,
+          //     classificationGraphModel,
+          //     useGpuForTensorflow,
+          //     geneEvaluationServerHost
+          //   );
+          // }
+
+          
         }
         console.log("Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined) + ", evaluation host: " + geneEvaluationServerHost, " - Music score:", newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : "N/A" );
         resolve({

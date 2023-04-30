@@ -12,12 +12,15 @@
   },
   "evoRunsDirPath": "evoruns/",
   "favoritesDirPath": "/Users/bjornpjo/iCloud/Documents/synth.is/favoriteGenomes",
+  "geneEvaluationProtocol": "worker", // grpc or worker
+  "childProcessBatchSize": 6,
   "probabilityMutatingWaveNetwork": 0.5,
   "probabilityMutatingPatch": 0.5,
   "classScoringDurations": [0.5, 1, 2, 5],
   "classScoringNoteDeltas": [-36, -24, -12, 0, 12, 24, 36],
   "classScoringVelocities": [0.25, 0.5, 0.75, 1],
   "classificationGraphModel": "yamnet",
+  "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
   "useGpuForTensorflow": true,
   "eliteMapSnapshotEvery": 100000,
   "geneVariationServers": [

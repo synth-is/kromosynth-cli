@@ -1,20 +1,23 @@
-import { getClassScoresForGenome } from 'kromosynth';
+import { getClassScoresForGenome, getGenomeFromGenomeString } from 'kromosynth';
 
 export async function evaluate(
-  genome, 
+  genomeString, 
   classScoringDurations,
   classScoringNoteDeltas,
   classScoringVelocities,
   classificationGraphModel,
+  modelUrl,
   useGpuForTensorflow,
   supplyAudioContextInstances
 ) {
+  const genome = await getGenomeFromGenomeString( genomeString );
   const genomeClassScores = await getClassScoresForGenome(
     genome,
     classScoringDurations,
     classScoringNoteDeltas,
     classScoringVelocities,
     classificationGraphModel,
+    modelUrl,
     useGpuForTensorflow,
     supplyAudioContextInstances
   )

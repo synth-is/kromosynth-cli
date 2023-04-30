@@ -258,3 +258,8 @@ Start an evolutionary run of quality diversity search:
 cd /path/to/kromosynth-cli/cli-app
 apptainer exec --nv /path/to/kromosynth-cli/cli-app/HPC/kromosynth-runner.sif node kromosynth.js evolution-runs --evolution-runs-config-json-file conf/evolution-runs.jsonc
 ```
+
+If a command run through `apptainer exec` fails to find a host path - such a case has been observed when running on a cloud volume mount - then the volume can be explicitly mounted into the container with the `--mount` option, like:
+```
+apptainer exec --nv --mount 'type=bind,source=/mnt/evoruns01,destination=/mnt/evoruns01' kromosynth-runner.sif npm i --prefix /mnt/evoruns01/kromosynth-cli/gRPC/
+```

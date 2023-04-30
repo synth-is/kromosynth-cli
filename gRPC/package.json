@@ -9,10 +9,11 @@
   "dependencies": {
     "@grpc/grpc-js": "^1.8.7",
     "@grpc/proto-loader": "^0.7.4",
-    "kromosynth": "^1.0.6",
+    "esm-hook": "^0.1.4",
+    "kromosynth": "file:../../kromosynth",
     "minimist": "^1.2.7",
-    "pb-util": "^1.0.3",
-    "node-web-audio-api": "^0.7.0"
+    "node-web-audio-api": "^0.7.0",
+    "pb-util": "^1.0.3"
   },
   "repository": {
     "type": "git",
@@ -30,5 +31,6 @@
     "url": "https://github.com/synth-is/kromosynth-gene-factory-grpc/issues"
   },
   "homepage": "https://github.com/synth-is/kromosynth-gene-factory-grpc#readme",
-  "type": "module"
+  "type": "module",
+  "devDependencies": {}
 }
