@@ -138,6 +138,7 @@ export async function mapElites(
             }
           } else if( geneEvaluationProtocol === "worker" ) {
              const randomGeneWorkerResponse = await callRandomGeneWorker(
+              searchBatchSize, batchIteration,
               evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters
             );
             newGenomeString = randomGeneWorkerResponse.genomeString;
@@ -202,6 +203,7 @@ export async function mapElites(
                 );
               } else if( geneEvaluationProtocol === "worker" ) {
                  const geneVariationWorkerResponse = await callGeneVariationWorker(
+                  searchBatchSize, batchIteration,
                   classEliteGenomeString,
                   evolutionRunId, eliteMap.generationNumber, algorithmKey,
                   probabilityMutatingWaveNetwork,
@@ -263,6 +265,7 @@ export async function mapElites(
             );
           } else if( geneEvaluationProtocol === "worker" ) {
             newGenomeClassScores = await callGeneEvaluationWorker(
+              searchBatchSize, batchIteration,
               newGenomeString,
               classScoringDurations,
               classScoringNoteDeltas,
@@ -291,7 +294,8 @@ export async function mapElites(
 
           
         }
-        console.log("Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined) + ", evaluation host: " + geneEvaluationServerHost, " - Music score:", newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : "N/A" );
+        console.log("Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined), (geneEvaluationProtocol === "worker" ? ", thread #"+batchIteration : ", evaluation host: "+geneEvaluationServerHost), " - Music score:", newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : "N/A" 
+        );
         resolve({
           genomeId,
           randomClassKey,

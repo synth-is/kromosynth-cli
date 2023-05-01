@@ -1,11 +1,23 @@
 import { fork } from 'child_process';
 
+let randomGeneChildProcesses;
+let geneVariationChildProcesses;
+let geneEvaluationChildProcesses;
+
 export function callRandomGeneWorker(
+  threadCount, threadNumber,
   evolutionRunId, generationNumber, evolutionaryHyperparameters
 ) {
+  if( ! randomGeneChildProcesses ) randomGeneChildProcesses = new Array(threadCount);
   // Fork a new process with a call to the gene evaluation worker
   return new Promise( (resolve, reject) => {
-    const childProcess = fork('./service/workers/random-gene-worker.js');
+    let childProcess;
+    if( randomGeneChildProcesses[threadNumber] ) {
+      childProcess = randomGeneChildProcesses[threadNumber];
+    } else {
+      childProcess = fork('./service/workers/random-gene-worker.js');
+      randomGeneChildProcesses[threadNumber] = childProcess;
+    }
     childProcess.on('message', resolve);
     childProcess.on('error', reject);
     childProcess.on('exit', (code) => {
@@ -18,6 +30,7 @@ export function callRandomGeneWorker(
 }
 
 export function callGeneVariationWorker(
+  threadCount, threadNumber,
   genomeString,
   evolutionRunId,
   generationNumber,
@@ -28,9 +41,16 @@ export function callGeneVariationWorker(
   evolutionaryHyperparameters,
   patchFitnessTestDuration
 ) {
+  if( ! geneVariationChildProcesses ) geneVariationChildProcesses = new Array(threadCount);
   // Fork a new process with a call to the gene evaluation worker
   return new Promise( (resolve, reject) => {
-    const childProcess = fork('./service/workers/gene-variation-worker.js');
+    let childProcess;
+    if( geneVariationChildProcesses[threadNumber] ) {
+      childProcess = geneVariationChildProcesses[threadNumber];
+    } else {
+      childProcess = fork('./service/workers/gene-variation-worker.js');
+      geneVariationChildProcesses[threadNumber] = childProcess;
+    }
     childProcess.on('message', resolve);
     childProcess.on('error', reject);
     childProcess.on('exit', (code) => {
@@ -51,6 +71,7 @@ export function callGeneVariationWorker(
 }
 
 export function callGeneEvaluationWorker(
+  threadCount, threadNumber,
   genomeString,
   classScoringDurations,
   classScoringNoteDeltas,
@@ -60,9 +81,16 @@ export function callGeneEvaluationWorker(
   useGpuForTensorflow,
   supplyAudioContextInstances
 ) {
+  if( ! geneEvaluationChildProcesses ) geneEvaluationChildProcesses = new Array(threadCount);
   // Fork a new process with a call to the gene evaluation worker
   return new Promise( (resolve, reject) => {
-    const childProcess = fork('./service/workers/gene-evaluation-worker.js');
+    let childProcess;
+    if( geneEvaluationChildProcesses[threadNumber] ) {
+      childProcess = geneEvaluationChildProcesses[threadNumber];
+    } else {
+      childProcess = fork('./service/workers/gene-evaluation-worker.js');
+      geneEvaluationChildProcesses[threadNumber] = childProcess;
+    }
     childProcess.on('message', resolve);
     childProcess.on('error', reject);
     childProcess.on('exit', (code) => {
