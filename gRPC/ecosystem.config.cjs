@@ -11,7 +11,7 @@ module.exports = {
       increment_var : 'PORT',
       env: {
         "PORT": 50051,
-        "LD_LIBRARY_PATH": "/usr/lib/x86_64-linux-gnu:/usr/local/cuda-11.8/targets/x86_64-linux/lib"
+        "TF_FORCE_GPU_ALLOW_GROWTH": true
       }
     }
     ,
@@ -26,7 +26,7 @@ module.exports = {
       increment_var : 'PORT',
       env: {
         "PORT": 50061,
-        "LD_LIBRARY_PATH": "/usr/lib/x86_64-linux-gnu:/usr/local/cuda-11.8/targets/x86_64-linux/lib"
+        "TF_FORCE_GPU_ALLOW_GROWTH": true
       }
     }
   ]

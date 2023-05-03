@@ -11,6 +11,7 @@ module.exports = {
       increment_var : 'PORT',
       env: {
         "PORT": 50051,
+        "TF_FORCE_GPU_ALLOW_GROWTH": true
       }
     }
     ,
@@ -25,6 +26,7 @@ module.exports = {
       increment_var : 'PORT',
       env: {
         "PORT": 50061,
+        "TF_FORCE_GPU_ALLOW_GROWTH": true
       }
     }
   ]
