@@ -456,7 +456,8 @@ function getClassKeysWhereScoresAreElite( classScores, eliteMap ) {
 }
 
 function initializeGrid( evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters ) {
-  const { classificationGraphModel, dummyRun } = evolutionRunConfig;
+  const { classifiers, dummyRun } = evolutionRunConfig;
+  const classificationGraphModel = classifiers[0];
   let eliteMap = {
     _id: getEliteMapKey(evolutionRunId),
     algorithm,
