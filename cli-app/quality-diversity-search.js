@@ -197,16 +197,20 @@ export async function mapElites(
             try {
               ///// variation
               if( geneEvaluationProtocol === "grpc" ) {
-                newGenomeString = await callGeneVariationService(
-                  classEliteGenomeString,
-                  evolutionRunId, eliteMap.generationNumber, algorithmKey,
-                  probabilityMutatingWaveNetwork,
-                  probabilityMutatingPatch,
-                  audioGraphMutationParams,
-                  evolutionaryHyperparameters,
-                  patchFitnessTestDuration,
-                  geneVariationServerHost
-                );
+                try {
+                  newGenomeString = await callGeneVariationService(
+                    classEliteGenomeString,
+                    evolutionRunId, eliteMap.generationNumber, algorithmKey,
+                    probabilityMutatingWaveNetwork,
+                    probabilityMutatingPatch,
+                    audioGraphMutationParams,
+                    evolutionaryHyperparameters,
+                    patchFitnessTestDuration,
+                    geneVariationServerHost
+                  );  
+                } catch (e) {
+                  console.error("Error from callGeneVariationService", e);
+                }
               } else if( geneEvaluationProtocol === "worker" ) {
                  const geneVariationWorkerResponse = await callGeneVariationWorker(
                   searchBatchSize, batchIteration,
@@ -220,20 +224,20 @@ export async function mapElites(
                 );
                 newGenomeString = geneVariationWorkerResponse.newGenomeString;
               }
-              // else {
-              //   const classEliteGenome = getGenomeFromGenomeString(classEliteGenomeString);
-              //   const newGenome = getNewAudioSynthesisGenomeByMutation(
-              //     classEliteGenome,
-              //     evolutionRunId, generationNumber, -1, algorithmKey,
-              //     getAudioContext(),
-              //     probabilityMutatingWaveNetwork,
-              //     probabilityMutatingPatch,
-              //     audioGraphMutationParams,
-              //     evolutionaryHyperparameters,
-              //     patchFitnessTestDuration
-              //   );
-              //   newGenomeString = JSON.stringify(newGenome);  
-              // }
+              else {
+                const classEliteGenome = getGenomeFromGenomeString(classEliteGenomeString, evolutionaryHyperparameters);
+                const newGenome = getNewAudioSynthesisGenomeByMutation(
+                  classEliteGenome,
+                  evolutionRunId, generationNumber, -1, algorithmKey,
+                  getAudioContext(),
+                  probabilityMutatingWaveNetwork,
+                  probabilityMutatingPatch,
+                  audioGraphMutationParams,
+                  evolutionaryHyperparameters,
+                  patchFitnessTestDuration
+                );
+                newGenomeString = JSON.stringify(newGenome);
+              }
             } catch (error) {
               console.error("Error calling gene variation service: " + error);
               clearServiceConnectionList(geneVariationServerHost);
@@ -320,10 +324,9 @@ export async function mapElites(
           //   );
           // }
 
-          
+
         }
-        console.log("Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined), (geneEvaluationProtocol === "worker" ? ", thread #"+batchIteration : ", evaluation host: "+geneEvaluationServerHost), " - Music score:", newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : "N/A" 
-        );
+        console.log("Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined), (geneEvaluationProtocol === "worker" ? ", thread #"+batchIteration : ", evaluation host: "+geneEvaluationServerHost), " - Music score:", newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : "N/A");
         resolve({
           genomeId,
           randomClassKey,

@@ -54,21 +54,34 @@ async function mutatedGenome( call, callback ) {
     evolutionaryHyperparameters,
     patchFitnessTestDuration
   } = call.request;
-  const genome = await getGenomeFromGenomeString( genomeString );
-  const newGenome = await getNewAudioSynthesisGenomeByMutation(
-    genome,
-    evolutionRunId, generationNumber, -1, algorithmKey, 
-    getAudioContext(),
-    probabilityMutatingWaveNetwork,
-    probabilityMutatingPatch,
-    struct.decode( audioGraphMutationParams ),
-    struct.decode( evolutionaryHyperparameters ),
-    OfflineAudioContext,
-    patchFitnessTestDuration
-  );
+  let error = null;
+  let newGenome;
+  try {
+    const genome = await getGenomeFromGenomeString( genomeString );
+    newGenome = await getNewAudioSynthesisGenomeByMutation(
+      genome,
+      evolutionRunId, generationNumber, -1, algorithmKey, 
+      getAudioContext(),
+      probabilityMutatingWaveNetwork,
+      probabilityMutatingPatch,
+      struct.decode( audioGraphMutationParams ),
+      struct.decode( evolutionaryHyperparameters ),
+      OfflineAudioContext,
+      patchFitnessTestDuration
+    );  
+  } catch (e) {
+    console.error("gRPC -> mutatedGenome", e);
+    error = e;
+  }
+  
   // TODO conditional getNewAudioSynthesisGenomeByCrossover
   console.log("Created new genome by variation for evolution run", evolutionRunId);
-  const genome_string = JSON.stringify( newGenome );
+  let genome_string;
+  if( newGenome ) {
+    genome_string = JSON.stringify( newGenome );
+  } else {
+    genome_string = "";
+  }
 
   return callback( null, {genome_string} );
 }
