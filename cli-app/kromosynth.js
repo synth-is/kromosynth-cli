@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import meow from 'meow';
 import fs from 'fs';
+import path from 'path';
 import { parse } from 'jsonc-parser';
 import NodeWebAudioAPI from 'node-web-audio-api';
 const { OfflineAudioContext } = NodeWebAudioAPI;
@@ -19,7 +20,9 @@ import {
 	calculateQDScoreForOneIteration,
 	calculateQDScoresForAllIterations,
 	playAllClassesInEliteMap,
-	playOneClassAcrossEvoRun
+	playOneClassAcrossEvoRun,
+	getGenomeStatisticsAveragedForOneIteration,
+	getGenomeStatisticsAveragedForAllIterations
 } from './qd-run-analysis.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
@@ -123,7 +126,14 @@ const cli = meow(`
 
 		QD search analysis:
 		$ kromosynth elite-map-qd-score --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
+		$ kromosynth elite-map-genome-statistics --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
+		
 		$ kromosynth evo-run-qd-scores --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
+		$ kromosynth evo-run-genome-statistics --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
+		
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,genome-statistics --step-size 100
+		
+		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc
 
 		$ kromosynth evo-run-play-class --evolution-run-id 01GXVYY4T87RYSS02FN79VVQX5_4dur-7ndelt-4vel_wavetable-bias --evolution-run-config-json-file conf/evolution-run-config.jsonc --cell-key "Narration, monologue" --step-size 100 --ascending false
@@ -313,12 +323,21 @@ async function executeEvolutionTask() {
 		case "quality-diversity-search":
 			await qualityDiversitySearch();
 			break;
+
 		case "elite-map-qd-score":
 			qdAnalysis_eliteMapQDScore();
+			break;
+		case "elite-map-genome-statistics":
+			qdAnalysis_eliteMapGenomeStatistics();
+			break;
+
+		case "evo-run-genome-statistics":
+			qdAnalysis_evoRunGenomeStatistics();
 			break;
 		case "evo-run-qd-scores":
 			qdAnalysis_evoRunQDScores();
 			break;
+
 		case "evo-run-elite-counts":
 			break;
 		case "evo-run-variances":
@@ -327,6 +346,10 @@ async function executeEvolutionTask() {
 			break;
 		case "evo-run-class-lineage":
 			break;
+		case "evo-runs-analysis":
+			qdAnalysis_evoRuns();
+			break;
+
 		case "evo-run-play-class":
 			qdAnalysis_playClass();
 			break;
@@ -587,6 +610,18 @@ async function qdAnalysis_eliteMapQDScore() {
 	}
 }
 
+async function qdAnalysis_eliteMapGenomeStatistics() {
+	let {evolutionRunId, evolutionRunIteration} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		const {
+			averageCppnNodeCount, averageCppnConnectionCount, averageAsNEATPatchNodeCount, averageAsNEATPatchConnectionCount
+		} = await getGenomeStatisticsAveragedForOneIteration( evoRunConfig, evolutionRunId, evolutionRunIteration );
+		console.log("averageCppnNodeCount:", averageCppnNodeCount, "averageCppnConnectionCount:", averageCppnConnectionCount, "averageAsNEATPatchNodeCount:", averageAsNEATPatchNodeCount, "averageAsNEATPatchConnectionCount:", averageAsNEATPatchConnectionCount);
+		process.exit();
+	}
+}
+
 async function qdAnalysis_evoRunQDScores() {
 	let {evolutionRunId, stepSize} = cli.flags;
 	if( evolutionRunId ) {
@@ -594,6 +629,54 @@ async function qdAnalysis_evoRunQDScores() {
 		const qdScores = await calculateQDScoresForAllIterations( evoRunConfig, evolutionRunId, stepSize );
 		console.log(qdScores);
 	}
+}
+
+async function qdAnalysis_evoRunGenomeStatistics() {
+	let {evolutionRunId, stepSize} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		const genomeStatistics = await getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+		console.log(genomeStatistics);
+	}
+}
+
+async function qdAnalysis_evoRuns() {
+	const evoRunsConfig = getEvolutionRunsConfig();
+	const {analysisOperations, stepSize} = cli.flags;
+	const analysisOperationsList = analysisOperations.split(",");
+	console.log("analysisOperationsList", analysisOperationsList);
+	const evoRunsAnalysis = {...evoRunsConfig};
+	for( let currentEvolutionRunIndex = 0; currentEvolutionRunIndex < evoRunsConfig.evoRuns.length; currentEvolutionRunIndex++ ) {
+		const currentEvoConfig = evoRunsConfig.evoRuns[currentEvolutionRunIndex];
+		for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+			let { id: evolutionRunId } = currentEvoConfig.iterations[currentEvolutionRunIteration];
+			if( evolutionRunId ) {
+				const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
+				const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
+				const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
+	
+				const evoParamsMain = getEvoParams( evoRunsConfig.baseEvolutionaryHyperparametersFile );
+				const evoParamsDiff = getEvoParams( currentEvoConfig.diffEvolutionaryHyperparametersFile );
+				const evoParams = {...evoParamsMain, ...evoParamsDiff};
+	
+				for( const oneAnalysisOperation of analysisOperationsList ) {
+					if( oneAnalysisOperation === "qd-scores" ) {
+						const qdScores = await calculateQDScoresForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].qdScores = qdScores;
+						console.log(`Added ${qdScores.length} QD scores to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+					}
+					if( oneAnalysisOperation === "genome-statistics" ) {
+						const genomeStatistics = await getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].genomeStatistics = genomeStatistics;
+						console.log(`Added genome statistics to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+					}
+				}
+			}
+		}
+	}
+	const analysisResultFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}_${Date.now()}.json`;
+	const evoRunsAnalysisJSONString = JSON.stringify( evoRunsAnalysis, null, 2 );
+	fs.writeFileSync( analysisResultFilePath, evoRunsAnalysisJSONString );
 }
 
 async function qdAnalysis_playEliteMap() {

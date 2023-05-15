@@ -6,17 +6,22 @@ import {
 } from './util/qd-common.js';
 import nthline from 'nthline';
 import {
-	getAudioBufferFromGenomeAndMeta
+	getAudioBufferFromGenomeAndMeta, getGenomeFromGenomeString
 } from 'kromosynth';
 import { getAudioContext, getNewOfflineAudioContext, playAudio } from './util/rendering-common.js';
 import figlet from 'figlet';
+import { log } from 'console';
+
+
+///// QD score
 
 export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId );
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const qdScores = new Array(Math.ceil(commitCount / stepSize));
   for( let iterationIndex = 0, qdScoreIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, qdScoreIndex++ ) {
     if( iterationIndex % stepSize === 0 ) {
+      console.log(`Calculating QD score for iteration ${iterationIndex}...`);
       qdScores[qdScoreIndex] = await calculateQDScoreForOneIteration(
         evoRunConfig, evoRunId, iterationIndex
       );
@@ -24,7 +29,7 @@ export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId,
   }
   const qdScoresStringified = JSON.stringify(qdScores);
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  const qdScoresFilePath = `${evoRunDirPath}qd-scores.json`;
+  const qdScoresFilePath = `${evoRunDirPath}qd-scores_step-${stepSize}.json`;
   fs.writeFileSync( qdScoresFilePath, qdScoresStringified );
   return qdScores;
 }
@@ -41,6 +46,72 @@ export async function calculateQDScoreForOneIteration( evoRunConfig, evoRunId, i
   }
   const qdScore = cumulativeScore / cellCount;
   return qdScore;
+}
+
+
+///// network complexity
+
+export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const genomeStatistics = new Array(Math.ceil(commitCount / stepSize));
+  for( let iterationIndex = 0, genomeStatisticsIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, genomeStatisticsIndex++ ) {
+    if( iterationIndex % stepSize === 0 ) {
+      console.log(`Calculating genome statistics for iteration ${iterationIndex}...`);
+      genomeStatistics[genomeStatisticsIndex] = await getGenomeStatisticsAveragedForOneIteration(
+        evoRunConfig, evoRunId, iterationIndex
+      );
+    }
+  }
+  const genomeStatisticsStringified = JSON.stringify(genomeStatistics);
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const genomeStatisticsFilePath = `${evoRunDirPath}genome-statistics_step-${stepSize}.json`;
+  fs.writeFileSync( genomeStatisticsFilePath, genomeStatisticsStringified );
+  return genomeStatistics;
+}
+
+export async function getGenomeStatisticsAveragedForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const cellKeys = Object.keys(eliteMap.cells);
+  const cellCount = cellKeys.length;
+  let cumulativeCppnNodeCount = 0;
+  let cumulativeCppnConnectionCount = 0;
+  let cumulativeAsNEATPatchNodeCount = 0;
+  let cumulativeAsNEATPatchConnectionCount = 0;
+  for( const oneCellKey of cellKeys ) {
+    if( eliteMap.cells[oneCellKey].elts.length ) {
+      const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
+      // TODO might want to ensure this is done only once per unique genomeId, to avoid unnecessary disk reads
+      const {
+        cppnNodeCount, cppnConnectionCount, asNEATPatchNodeCount, asNEATPatchConnectionCount
+      } = await getGenomeStatistics( genomeId, evoRunConfig, evoRunId );
+      cumulativeCppnNodeCount += cppnNodeCount;
+      cumulativeCppnConnectionCount += cppnConnectionCount;
+      cumulativeAsNEATPatchNodeCount += asNEATPatchNodeCount;
+      cumulativeAsNEATPatchConnectionCount += asNEATPatchConnectionCount;
+    }
+  }
+  const averageCppnNodeCount = cumulativeCppnNodeCount / cellCount;
+  const averageCppnConnectionCount = cumulativeCppnConnectionCount / cellCount;
+  const averageAsNEATPatchNodeCount = cumulativeAsNEATPatchNodeCount / cellCount;
+  const averageAsNEATPatchConnectionCount = cumulativeAsNEATPatchConnectionCount / cellCount;
+  return {
+    averageCppnNodeCount, averageCppnConnectionCount, averageAsNEATPatchNodeCount, averageAsNEATPatchConnectionCount
+  };
+}
+
+async function getGenomeStatistics( genomeId, evoRunConfig, evoRunId ) {
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+  const genomeAndMeta = await getGenomeFromGenomeString( genomeString, {} /*evoParams*/ );
+  const cppnNodeCount = genomeAndMeta.waveNetwork.offspring.nodes.length;
+  const cppnConnectionCount = genomeAndMeta.waveNetwork.offspring.connections.length;
+  const asNEATPatchNodeCount = genomeAndMeta.asNEATPatch.nodes.length;
+  const asNEATPatchConnectionCount = genomeAndMeta.asNEATPatch.connections.length;
+  // console.log("genomeId:", genomeId, "cppnNodeCount:", cppnNodeCount, "cppnConnectionCount:", cppnConnectionCount, "asNEATPatchNodeCount:", asNEATPatchNodeCount, "asNEATPatchConnectionCount:", asNEATPatchConnectionCount);
+  return { 
+    cppnNodeCount, cppnConnectionCount, asNEATPatchNodeCount, asNEATPatchConnectionCount
+  };
 }
 
 function bindNavKeys() { // https://itecnote.com/tecnote/node-js-how-to-capture-the-arrow-keys-in-node-js/
@@ -231,7 +302,7 @@ function getCommitIdsFilePath( evoRunConfig, evoRunId, forceCreateCommitIdsList 
   const commitIdsFileName = "commit-ids.txt";
   const commitIdsFilePath = `${evoRunDirPath}${commitIdsFileName}`;
   if( forceCreateCommitIdsList || ! fs.existsSync(`${evoRunDirPath}/commit-ids.txt`) ) {
-    runCmd(`git -C ${evoRunDirPath} rev-list master --first-parent --reverse > ${commitIdsFilePath}`);
+    runCmd(`git -C ${evoRunDirPath} rev-list HEAD --first-parent --reverse > ${commitIdsFilePath}`);
   }
   return commitIdsFilePath;
 }
