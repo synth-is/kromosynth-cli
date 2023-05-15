@@ -165,6 +165,16 @@ Starting a service cluster, managed by pm2:
 pm2 delete all && pm2 start ecosystem.config.cjs
 ```
 
+Without pm2:
+```
+node index.js --modelUrl file:///Users/bthj/Developer/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-evaluation
+```
+- automatically finding a free port and writhing <host>:<port> information to a file, specified by the `--hostInfoFilePath` argument, to be read by the QD search controller (see attributes `geneVariationServerPaths` and `geneEvaluationServerPaths` in `cli-app/conf/evolution-run-config.jsonc`):
+```
+node index.js --hostInfoFilePath /tmp/grpc1.txt --modelUrl file:///Users/bthj/Developer/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-evaluation
+```
+
+
 #### Containerised
 
 ##### Podman:

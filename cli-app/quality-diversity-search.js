@@ -61,13 +61,28 @@ export async function mapElites(
     classifiers, yamnetModelUrl,
     useGpuForTensorflow,
     eliteMapSnapshotEvery,
-    geneVariationServers,
-    geneEvaluationServers,
+    geneVariationServerPaths, geneEvaluationServerPaths,
+    geneVariationServers, geneEvaluationServers,
     dummyRun
   } = evolutionRunConfig;
 
   // TODO temporary?
   const classificationGraphModel = classifiers[0];
+
+  let _geneVariationServers;
+  if( geneVariationServerPaths && geneVariationServerPaths.length ) {
+    _geneVariationServers = [];
+    geneVariationServerPaths.forEach( oneServerPath => _geneVariationServers.push(fs.readFileSync(oneServerPath, 'utf8')) );
+  } else {
+    _geneVariationServers = geneVariationServers;
+  }
+  let _geneEvaluationServers;
+  if( geneEvaluationServerPaths && geneEvaluationServerPaths.length ) {
+    _geneEvaluationServers = [];
+    geneEvaluationServerPaths.forEach( oneServerPath => _geneEvaluationServers.push(fs.readFileSync(oneServerPath, 'utf-8')) );
+  } else {
+    _geneEvaluationServers = geneEvaluationServers;
+  }
 
   const evoRunDirPath = `${evoRunsDirPath}${evolutionRunId}/`;
   const evoRunFailedGenesDirPath = `${evoRunsDirPath}${evolutionRunId}_failed-genes/`;
@@ -97,7 +112,7 @@ export async function mapElites(
   } else if( geneEvaluationProtocol === "worker" ) {
     searchBatchSize = childProcessBatchSize;
   } else {
-    searchBatchSize = geneEvaluationServers.length;
+    searchBatchSize = _geneEvaluationServers.length;
   }
 
   // turn of automatic garbage collection,
@@ -112,11 +127,11 @@ export async function mapElites(
       let geneVariationServerHost;
       let geneEvaluationServerHost;
       if( dummyRun ) {
-        geneVariationServerHost = geneVariationServers[0];
-        geneEvaluationServerHost = geneEvaluationServers[0];
+        geneVariationServerHost = _geneVariationServers[0];
+        geneEvaluationServerHost = _geneEvaluationServers[0];
       } else {
-        geneVariationServerHost = geneVariationServers[ batchIteration % geneVariationServers.length ];
-        geneEvaluationServerHost = geneEvaluationServers[ batchIteration % geneEvaluationServers.length ];
+        geneVariationServerHost = _geneVariationServers[ batchIteration % _geneVariationServers.length ];
+        geneEvaluationServerHost = _geneEvaluationServers[ batchIteration % _geneEvaluationServers.length ];
       }
       if( geneEvaluationProtocol === "grpc" ) {
         console.log("geneVariationServerHost",geneVariationServerHost);

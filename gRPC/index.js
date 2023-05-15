@@ -11,6 +11,9 @@ import {
 import NodeWebAudioAPI from 'node-web-audio-api';
 const { AudioContext, OfflineAudioContext } = NodeWebAudioAPI;
 let audioCtx;
+import findFreePorts from "find-free-ports";
+import fs from "fs";
+import os from "os";
 
 const SAMPLE_RATE = 16000;
 
@@ -123,10 +126,20 @@ function getAudioContext() {
 	return audioCtx;
 }
 
-function main() {
+async function main() {
   const argv = parseArgs(process.argv.slice(2));
   console.log("process.env.PORT:",process.env.PORT);
-  const port = argv.port || process.env.PORT || '50051';
+
+  let port;
+  if( argv.hostInfoFilePath ) {
+    // automatically assign port and write the info to the specified file path
+    const freePort = await findFreePorts(1, {startPort: 50051});
+    port = freePort[0];
+    const hostname = `${os.hostname()}:${port}`;
+    fs.writeFile(argv.hostInfoFilePath, hostname, () => console.log(`Wrote hostname to ${argv.hostInfoFilePath}`));
+  } else {
+    port = argv.port || process.env.PORT || '50051';
+  }
   console.log("port:",port);
   modelUrl = argv.modelUrl;
   console.log("modelUrl:",modelUrl);

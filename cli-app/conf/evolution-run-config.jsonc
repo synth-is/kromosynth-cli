@@ -12,7 +12,7 @@
   },
   "evoRunsDirPath": "evoruns/",
   "favoritesDirPath": "/Users/bjornpjo/iCloud/Documents/synth.is/favoriteGenomes",
-  "geneEvaluationProtocol": "worker", // grpc or worker
+  "geneEvaluationProtocol": "grpc", // grpc or worker
   "childProcessBatchSize": 2,
   "evaluationCandidateWavFilesDirPath": null, // "/Users/bjornpjo/Documents/synth.is/evaluationCandidates",
   "probabilityMutatingWaveNetwork": 0.5,
@@ -24,6 +24,12 @@
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
   "useGpuForTensorflow": true,
   "eliteMapSnapshotEvery": 100000,
+  "geneVariationServerPaths": [
+    "/tmp/grpc1.txt"
+  ],
+  "geneEvaluationServerPaths": [
+    "/tmp/grpc1.txt"
+  ],
   "geneVariationServers": [
     "localhost:50051"
 //    ,
