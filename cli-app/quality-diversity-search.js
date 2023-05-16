@@ -446,6 +446,8 @@ export async function mapElites(
             // runCmd(`git -C ${evoRunDirPath} gc`);
           }
 
+          eliteMap.searchBatchSize = searchBatchSize;
+
           // git commit iteration
           runCmd(`git -C ${evoRunDirPath} commit -a -m "Iteration ${eliteMap.generationNumber}"`);
 
