@@ -1,6 +1,9 @@
 {
   "algorithm": "mapElites",
   "seedEvals": 20,
+  // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution, 
+  // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
+  "eliteWinsOnlyOneCell": true,
   "terminationCondition": {
    "numberOfEvals": 10000
   //  or

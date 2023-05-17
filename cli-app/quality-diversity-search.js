@@ -51,9 +51,9 @@ export async function mapElites(
   exitWhenDone = true
   // seedEvals, terminationCondition, evoRunsDirPath
 ) {
-  const algorithmKey = 'mapElites_with_uBC';
+  const algorithmKey = 'mapElites_with_uBC'; // TODO from evolution-runs-config.jsonc
   const {
-    seedEvals, terminationCondition, evoRunsDirPath,
+    seedEvals, eliteWinsOnlyOneCell, terminationCondition, evoRunsDirPath,
     geneEvaluationProtocol, childProcessBatchSize,
     evaluationCandidateWavFilesDirPath,
     probabilityMutatingWaveNetwork, probabilityMutatingPatch,
@@ -176,7 +176,13 @@ export async function mapElites(
 
         } else {
           ///// selection
-          const classKeys = Object.keys(eliteMap.cells);
+          let classKeys;
+          if( eliteWinsOnlyOneCell ) {
+            // select only cell keys where the elts attribute referes to a non-empty array
+            classKeys = Object.keys(eliteMap.cells).filter( ck => eliteMap.cells[ck].elts.length > 0 );
+          } else {
+            classKeys = Object.keys(eliteMap.cells);
+          }
           const classBiases = classKeys.map( ck =>
             undefined === eliteMap.cells[ck].uBC ? 10 : eliteMap.cells[ck].uBC
           );
@@ -385,7 +391,7 @@ export async function mapElites(
           if( dummyRun && dummyRun.iterations ) {
             eliteClassKeys = getDummyClassKeysWhereScoresAreElite( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
           } else {
-            eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap );
+            eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap, eliteWinsOnlyOneCell );
           }
           if( eliteClassKeys.length > 0 ) {
             // const classScoresSD = getClassScoresStandardDeviation( newGenomeClassScores );
@@ -468,11 +474,24 @@ export async function mapElites(
   if( exitWhenDone ) process.exit();
 }
 
-function getClassKeysWhereScoresAreElite( classScores, eliteMap ) {
-  return Object.keys(classScores).filter( classKey =>
-    ! getCurrentClassElite(classKey, eliteMap)
-    || getCurrentClassElite(classKey, eliteMap).s < classScores[classKey].score
-  );
+function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOneCell ) {
+  if( eliteWinsOnlyOneCell ) {
+    const highestScoreClassKey = Object.keys(classScores).reduce((maxKey, oneClassKey) => 
+      classScores[maxKey].score > classScores[oneClassKey].score ? maxKey : oneClassKey
+    );
+    const eliteScoreKeys = [];
+    if( ! getCurrentClassElite(highestScoreClassKey, eliteMap)
+        || getCurrentClassElite(highestScoreClassKey, eliteMap).s < classScores[highestScoreClassKey].score
+    ) {
+      eliteScoreKeys.push(highestScoreClassKey);
+    }
+    return eliteScoreKeys;
+  } else {
+    return Object.keys(classScores).filter( classKey =>
+      ! getCurrentClassElite(classKey, eliteMap)
+      || getCurrentClassElite(classKey, eliteMap).s < classScores[classKey].score
+    );
+  }
 }
 
 function initializeGrid( evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters ) {
