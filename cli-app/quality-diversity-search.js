@@ -61,6 +61,8 @@ export async function mapElites(
     classifiers, yamnetModelUrl,
     useGpuForTensorflow,
     eliteMapSnapshotEvery,
+    batchDurationMs,
+    gRpcHostFilePathPrefix, gRpcServerCount,
     geneVariationServerPaths, geneEvaluationServerPaths,
     geneVariationServers, geneEvaluationServers,
     dummyRun
@@ -69,15 +71,31 @@ export async function mapElites(
   // TODO temporary?
   const classificationGraphModel = classifiers[0];
 
+  const startTimeMs = Date.now();
+
   let _geneVariationServers;
-  if( geneVariationServerPaths && geneVariationServerPaths.length ) {
+  if( gRpcHostFilePathPrefix && gRpcServerCount ) {
+    _geneVariationServers = [];
+    for( let i=1; i <= gRpcServerCount; i++ ) {
+      const hostFilePath = `${gRpcHostFilePathPrefix}${i}`;
+      const variationHost = await readFromFileWhenItExists(hostFilePath);
+      _geneVariationServers.push(variationHost);
+    }
+  } else if( geneVariationServerPaths && geneVariationServerPaths.length ) {
     _geneVariationServers = [];
     geneVariationServerPaths.forEach( oneServerPath => _geneVariationServers.push(fs.readFileSync(oneServerPath, 'utf8')) );
   } else {
     _geneVariationServers = geneVariationServers;
   }
   let _geneEvaluationServers;
-  if( geneEvaluationServerPaths && geneEvaluationServerPaths.length ) {
+  if( gRpcHostFilePathPrefix && gRpcServerCount ) {
+    _geneEvaluationServers = [];
+    for( let i=1; i <= gRpcServerCount; i++ ) {
+      const hostFilePath = `${gRpcHostFilePathPrefix}${i}`;
+      const evaluationHost = await readFromFileWhenItExists(hostFilePath);
+      _geneEvaluationServers.push(evaluationHost);
+    }
+  } else if( geneEvaluationServerPaths && geneEvaluationServerPaths.length ) {
     _geneEvaluationServers = [];
     geneEvaluationServerPaths.forEach( oneServerPath => _geneEvaluationServers.push(fs.readFileSync(oneServerPath, 'utf-8')) );
   } else {
@@ -120,7 +138,11 @@ export async function mapElites(
   // - gc will be triggered manually at regular intervals below
   runCmd('git config --global gc.auto 0');
 
-  while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
+  while( 
+      ! shouldTerminate(terminationCondition, eliteMap, dummyRun)
+      &&
+      ! ( batchDurationMs && batchDurationMs < Date.now() - startTimeMs )
+  ) {
     const searchPromises = new Array(searchBatchSize);
     for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
       console.log("batchIteration", batchIteration);
@@ -466,11 +488,14 @@ export async function mapElites(
     }); // await Promise.all( searchPromises ).then( async (batchIterationResult) => {
 
   } // while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
-  eliteMap.terminated = true;
-  saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId );
-  console.log("eliteMap",eliteMap);
-  // collect git garbage
-  runCmd(`git -C ${evoRunDirPath} gc`);
+  if( ! (batchDurationMs && batchDurationMs < Date.now() - startTimeMs) ) {
+    // process not stopped due to time limit, but should now have reached a general termination contidtion
+    eliteMap.terminated = true;
+    saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId );
+    console.log("eliteMap",eliteMap);
+    // collect git garbage
+    runCmd(`git -C ${evoRunDirPath} gc`);
+  }
   if( exitWhenDone ) process.exit();
 }
 
@@ -684,6 +709,25 @@ const getDummyClassKeysWhereScoresAreElite = (cellLabels, generationNumber, tota
   return classKeysWhereScoresAreElite;
 };
 
+// read text from a file: if it doesn't exist, wait for it to be created and then read it
+function readFromFileWhenItExists( filePath ) {
+  return new Promise( (resolve, reject) => {
+    fs.readFile( filePath, 'utf8', (err, data) => {
+      if( err ) {
+        if( err.code === 'ENOENT' ) {
+          console.log(`waiting for ${filePath} to be created`);
+          setTimeout( () => {
+            resolve( readFromFileWhenItExists(filePath) );
+          }, 1000 );
+        } else {
+          reject(err);
+        }
+      } else {
+        resolve(data);
+      }
+    });
+  });
+}
 
 // https://chat-gpt.org/chat
 function calcStandardDeviation(numbers) {

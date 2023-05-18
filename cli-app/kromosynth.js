@@ -547,6 +547,8 @@ async function classifyGenome() {
 
 async function evolutionRuns() {
 	const evoRunsConfig = getEvolutionRunsConfig();
+	const startTimeMs = Date.now();
+	evoRunsOuterLoop:
 	while( evoRunsConfig.currentEvolutionRunIndex < evoRunsConfig.evoRuns.length ) {
 		const currentEvoConfig = evoRunsConfig.evoRuns[evoRunsConfig.currentEvolutionRunIndex];
 		while( evoRunsConfig.currentEvolutionRunIteration < currentEvoConfig.iterations.length ) {
@@ -569,6 +571,11 @@ async function evolutionRuns() {
 			const evoParams = {...evoParamsMain, ...evoParamsDiff};
 
 			await qualityDiversitySearch( currentEvolutionRunId, evoRunConfig, evoParams );
+
+			if( evoRunConfig.batchDurationMs && evoRunConfig.batchDurationMs < Date.now() - startTimeMs ) {
+				// time's up
+				break evoRunsOuterLoop;
+			}
 
 			if( cli.flags.evolutionRunsConfigJsonFile ) {
 				evoRunsConfig.currentEvolutionRunIteration++;

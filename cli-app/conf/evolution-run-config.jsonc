@@ -27,12 +27,15 @@
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
   "useGpuForTensorflow": true,
   "eliteMapSnapshotEvery": 100000,
-  "geneVariationServerPaths": [
-    "/tmp/grpc1.txt"
-  ],
-  "geneEvaluationServerPaths": [
-    "/tmp/grpc1.txt"
-  ],
+  "batchDurationMs": 60000,
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-",
+  "gRpcServerCount": 1,
+  // "geneVariationServerPaths": [
+  //   "/tmp/grpc1.txt"
+  // ],
+  // "geneEvaluationServerPaths": [
+  //   "/tmp/grpc1.txt"
+  // ],
   "geneVariationServers": [
     "localhost:50051"
 //    ,
