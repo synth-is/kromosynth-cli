@@ -110,6 +110,10 @@ const cli = meow(`
 		--evolution-run-id	See above
 		--score-threshold minimum score for an elite to be taken into consideration
 
+		Command: <evo-run-play-elite-map>
+		--start-cell-key	Name of elite class to start playing from (horizontally); from the first to the latest elite
+		--start-cell-key-index	Index of elite class to start playing from (horizontally); from the first to the latest elite
+
 		Command: <evo-run-play-class>
 		--cell-key	Name of elite class to play (vertically); from latest elite to the first
 
@@ -134,7 +138,7 @@ const cli = meow(`
 		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,genome-statistics --step-size 100
 		
 		
-		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc
+		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
 		$ kromosynth evo-run-play-class --evolution-run-id 01GXVYY4T87RYSS02FN79VVQX5_4dur-7ndelt-4vel_wavetable-bias --evolution-run-config-json-file conf/evolution-run-config.jsonc --cell-key "Narration, monologue" --step-size 100 --ascending false
 
@@ -265,6 +269,12 @@ const cli = meow(`
 		},
 
 		scoreThreshold: {
+			type: 'number'
+		},
+		startCellKey: {
+			type: 'string'
+		},
+		startCellKeyIndex: {
 			type: 'number'
 		},
 		cellKey: {
@@ -687,10 +697,16 @@ async function qdAnalysis_evoRuns() {
 }
 
 async function qdAnalysis_playEliteMap() {
-	let {evolutionRunId, evolutionRunIteration, scoreThreshold} = cli.flags;
+	let {
+		evolutionRunId, evolutionRunIteration, scoreThreshold,
+		startCellKey, startCellKeyIndex,
+	} = cli.flags;
 	if( evolutionRunId ) {
 		const evoRunConfig = getEvolutionRunConfig();
-		await playAllClassesInEliteMap(evoRunConfig, evolutionRunId, evolutionRunIteration, scoreThreshold);
+		await playAllClassesInEliteMap(
+			evoRunConfig, evolutionRunId, evolutionRunIteration, scoreThreshold,
+			startCellKey, startCellKeyIndex
+		);
 	}
 }
 

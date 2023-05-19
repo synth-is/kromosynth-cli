@@ -157,11 +157,20 @@ function updateKeyboardNavigationGlobals(
   favoritesDirPath = `${evoRunConfig.favoritesDirPath}/${monthDir}/genome_${genomeId}.json`;
 }
 
-export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iterationIndex, scoreThreshold, toTermination) {
+export async function playAllClassesInEliteMap(
+    evoRunConfig, evoRunId, iterationIndex, scoreThreshold,
+    startCellKey, startCellKeyIndex,
+    toTermination
+) {
   bindNavKeys();
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex, true );
   const cellKeys = Object.keys(eliteMap.cells);
+  if( startCellKey ) {
+    cellKeyIndex = cellKeys.indexOf(startCellKey);
+  } else if ( startCellKeyIndex ) {
+    cellKeyIndex = startCellKeyIndex;
+  }
   do {
     while( cellKeyIndex < cellKeys.length ) {
       const oneCellKey = cellKeys[cellKeyIndex];
@@ -189,8 +198,8 @@ export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iteration
             genomeId, oneCellKey,
             duration, noteDelta, velocity, updated
           );
-
-          figlet(oneCellKey, function(err, data) {
+          const precentScoreString = `${Math.round(100*score)}%`;
+          figlet(oneCellKey+" @ "+precentScoreString, function(err, data) {
               if (err) {
                   console.log('Something went wrong...');
                   console.dir(err);
@@ -198,7 +207,7 @@ export async function playAllClassesInEliteMap(evoRunConfig, evoRunId, iteration
               }
               console.log(data);
           });
-          console.log("Playing class", oneCellKey, "for", (iterationIndex === undefined ? "last iteration ("+eliteMap.generationNumber+")": "iteration "+iterationIndex), "in evo run", evoRunId, "; duration", duration, ", note delta", noteDelta, ", velocity", velocity + " and score: " + score );
+          console.log("Playing class", oneCellKey, "#", cellKeyIndex, "for", (iterationIndex === undefined ? "last iteration ("+eliteMap.generationNumber+")": "iteration "+iterationIndex), "in evo run", evoRunId, "; duration", duration, ", note delta", noteDelta, ", velocity", velocity + " and score: " + score );
           playAudio( audioBuffer );
           await new Promise(resolve => setTimeout(resolve, duration*1000));
         }
