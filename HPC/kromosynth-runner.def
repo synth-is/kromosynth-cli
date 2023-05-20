@@ -16,3 +16,4 @@ From: tensorflow/tensorflow:latest-gpu
     apt-get install -y nodejs
 
     npm install pm2 -g
+    npm install -g yarn
