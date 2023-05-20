@@ -119,6 +119,12 @@ export async function mapElites(
     // add file to git
     const eliteMapFileName = `${getEliteMapKey(evolutionRunId)}.json`;
     runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
+  } else {
+    // delete git file lock at evoRunDirPath if it exists
+    const gitFileLockPath = `${evoRunDirPath}.git/index.lock`;
+    if( fs.existsSync(gitFileLockPath) ) {
+      fs.unlinkSync(gitFileLockPath);
+    }
   }
   const audioGraphMutationParams = getAudioGraphMutationParams( evolutionaryHyperparameters );
   const patchFitnessTestDuration = 0.1;
@@ -253,6 +259,7 @@ export async function mapElites(
                   );  
                 } catch (e) {
                   console.error("Error from callGeneVariationService", e);
+                  clearServiceConnectionList(geneEvaluationServerHost);
                 }
               } else if( geneEvaluationProtocol === "worker" ) {
                  const geneVariationWorkerResponse = await callGeneVariationWorker(
