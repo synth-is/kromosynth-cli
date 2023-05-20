@@ -7,6 +7,7 @@ import NodeWebAudioAPI from 'node-web-audio-api';
 const { OfflineAudioContext } = NodeWebAudioAPI;
 import {ulid} from 'ulid';
 import toWav from 'audiobuffer-to-wav';
+import merge from 'deepmerge';
 import {
 	getNewAudioSynthesisGenome,
 	getNewAudioSynthesisGenomeByMutation,
@@ -574,11 +575,11 @@ async function evolutionRuns() {
 
 			const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
 			const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
-			const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
+			const evoRunConfig = merge(evoRunConfigMain, evoRunConfigDiff);
 
 			const evoParamsMain = getEvoParams( evoRunsConfig.baseEvolutionaryHyperparametersFile );
 			const evoParamsDiff = getEvoParams( currentEvoConfig.diffEvolutionaryHyperparametersFile );
-			const evoParams = {...evoParamsMain, ...evoParamsDiff};
+			const evoParams = merge(evoParamsMain, evoParamsDiff);
 
 			await qualityDiversitySearch( currentEvolutionRunId, evoRunConfig, evoParams );
 
@@ -670,11 +671,7 @@ async function qdAnalysis_evoRuns() {
 			if( evolutionRunId ) {
 				const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
 				const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
-				const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
-	
-				const evoParamsMain = getEvoParams( evoRunsConfig.baseEvolutionaryHyperparametersFile );
-				const evoParamsDiff = getEvoParams( currentEvoConfig.diffEvolutionaryHyperparametersFile );
-				const evoParams = {...evoParamsMain, ...evoParamsDiff};
+				const evoRunConfig = merge(evoRunConfigMain, ...evoRunConfigDiff);
 	
 				for( const oneAnalysisOperation of analysisOperationsList ) {
 					if( oneAnalysisOperation === "qd-scores" ) {
