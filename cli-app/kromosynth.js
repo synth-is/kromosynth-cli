@@ -29,6 +29,7 @@ import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
 } from './util/rendering-common.js';
 import { renderSfz } from './virtual-instrument.js';
+import { runCmd } from './util/qd-common.js';
 
 const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";
 const GENOME_OUTPUT_END = "GENOME_OUTPUT_END";
@@ -50,14 +51,37 @@ const cli = meow(`
 		classify-genome
 			Get class scores for genome
 
+
+		QD search:
+
 		evolution-runs
 			Execute (potentially several) evolution runs sequentially, each corresponding to one execution of the command quality-diversity-search
 
 		quality-diversity-search
 			Perform search for sounds with Quality Diversity algorithms
 
+
+		Analysis:
+		evo-runs-git-gc
+			Perform git garbage collection on all evolution runs (specified in the --evolution-runs-config-json-file)
+
+		elite-map-qd-score
+			Collect QD score for one iteration of an evolution run
+		evo-run-qd-scores
+			Collect QD scores for all iterations of an evolution run
+
+		elite-map-genome-statistics
+			Collect genome statistics (average CPPN and patch network node and connection counts) for one iteration of an evolution run
+		evo-run-genome-statistics
+			Collect genome statistics (average CPPN and patch network node and connection counts) for all iterations of an evolution run
+
+		evo-runs-analysis
+			Perform a selection of analysis steps (see above) for all evolution runs (specified in the --evolution-runs-config-json-file)
+
+		Sound rendering:
+
 		render-virtual-instrument
-			Render a sample based virtual instrument, using the SFZ format, from the supplied genome
+			TODO: Render a sample based virtual instrument, using the SFZ format, from the supplied genome
 
 	Options
 		Commands: <new-genome, mutate-genome, render-audio or classify-genome>
@@ -130,6 +154,8 @@ const cli = meow(`
 		$ kromosynth evolution-runs --evolution-runs-config-json-file config/evolution-runs.jsonc
 
 		QD search analysis:
+		$ kromosynth evo-runs-git-gc --evolution-runs-config-json-file config/evolution-runs.jsonc
+
 		$ kromosynth elite-map-qd-score --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
 		$ kromosynth elite-map-genome-statistics --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
 		
@@ -333,6 +359,10 @@ async function executeEvolutionTask() {
 			break;
 		case "quality-diversity-search":
 			await qualityDiversitySearch();
+			break;
+
+		case "evo-runs-git-gc":
+			qdAnalysis_gitGC();
 			break;
 
 		case "elite-map-qd-score":
@@ -655,6 +685,25 @@ async function qdAnalysis_evoRunGenomeStatistics() {
 		const evoRunConfig = getEvolutionRunConfig();
 		const genomeStatistics = await getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evolutionRunId, stepSize );
 		console.log(genomeStatistics);
+	}
+}
+
+// run git garbage collection on all evolution run iterations
+function qdAnalysis_gitGC() {
+	const evoRunsConfig = getEvolutionRunsConfig();
+	for( let currentEvolutionRunIndex = 0; currentEvolutionRunIndex < evoRunsConfig.evoRuns.length; currentEvolutionRunIndex++ ) {
+		const currentEvoConfig = evoRunsConfig.evoRuns[currentEvolutionRunIndex];
+		for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+			let { id: evolutionRunId } = currentEvoConfig.iterations[currentEvolutionRunIteration];
+			if( evolutionRunId ) {
+				const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
+				const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
+				const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
+				const evoRunDirPath = `${evoRunConfig.evoRunsDirPath}${evolutionRunId}/`;
+				console.log(`Performing git garbage collection on ${evoRunDirPath}...`);
+				runCmd(`git -C ${evoRunDirPath} gc`);
+			}
+		}
 	}
 }
 
