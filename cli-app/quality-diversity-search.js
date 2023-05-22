@@ -16,7 +16,7 @@ import {
   clearServiceConnectionList
 } from './service/gRPC/gene_client.js';
 import {
-  runCmd, readGenomeAndMetaFromDisk, getGenomeKey
+  runCmd, runCmdAsync, readGenomeAndMetaFromDisk, getGenomeKey
 } from './util/qd-common.js';
 import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker } from './service/workers/gene-child-process-forker.js';
 
@@ -463,7 +463,7 @@ export async function mapElites(
               // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
               eliteMap.cells[classKey].uBC = 10;
             }
-            await saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, true );
+            saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, true );
             if( randomClassKey ) {
               eliteMap.cells[randomClassKey].uBC = 10;
             }
@@ -474,14 +474,13 @@ export async function mapElites(
           }
           console.log("iteration", eliteMap.generationNumber,"eliteCountAtGeneration:",eliteClassKeys.length);
           eliteMap.eliteCountAtGeneration = eliteClassKeys.length;
+          eliteMap.searchBatchSize = searchBatchSize;
           saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
           if( eliteMap.generationNumber % eliteMapSnapshotEvery === 0 ) {
             // saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, eliteMap.generationNumber ); // generation specific map
             // runCmd(`git -C ${evoRunDirPath} gc --prune=now`);
             // runCmd(`git -C ${evoRunDirPath} gc`);
           }
-
-          eliteMap.searchBatchSize = searchBatchSize;
 
           // git commit iteration
           runCmd(`git -C ${evoRunDirPath} commit -a -m "Iteration ${eliteMap.generationNumber}"`);
@@ -500,8 +499,8 @@ export async function mapElites(
     eliteMap.terminated = true;
     saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId );
     console.log("eliteMap",eliteMap);
-    // collect git garbage
-    runCmd(`git -C ${evoRunDirPath} gc`);
+    // collect git garbage - UPDATE: this should be run separately, as part of one of the qd-run-analysis routines:
+    // runCmdAsync(`git -C ${evoRunDirPath} gc`);
   }
   if( exitWhenDone ) process.exit();
 }

@@ -575,7 +575,7 @@ async function evolutionRuns() {
 
 			const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
 			const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
-			const evoRunConfig = merge(evoRunConfigMain, evoRunConfigDiff);
+			const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
 
 			const evoParamsMain = getEvoParams( evoRunsConfig.baseEvolutionaryHyperparametersFile );
 			const evoParamsDiff = getEvoParams( currentEvoConfig.diffEvolutionaryHyperparametersFile );
@@ -671,7 +671,7 @@ async function qdAnalysis_evoRuns() {
 			if( evolutionRunId ) {
 				const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
 				const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
-				const evoRunConfig = merge(evoRunConfigMain, ...evoRunConfigDiff);
+				const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
 	
 				for( const oneAnalysisOperation of analysisOperationsList ) {
 					if( oneAnalysisOperation === "qd-scores" ) {
@@ -691,6 +691,7 @@ async function qdAnalysis_evoRuns() {
 	const analysisResultFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}_${Date.now()}.json`;
 	const evoRunsAnalysisJSONString = JSON.stringify( evoRunsAnalysis, null, 2 );
 	fs.writeFileSync( analysisResultFilePath, evoRunsAnalysisJSONString );
+	console.log(`Wrote: ${analysisResultFilePath}`);
 }
 
 async function qdAnalysis_playEliteMap() {

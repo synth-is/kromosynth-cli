@@ -1,4 +1,4 @@
-import { execSync, spawn } from 'child_process';
+import { execSync, exec, spawn } from 'child_process';
 import fs from 'fs';
 
 export function getEvoRunDirPath( evoRunConfig, evoRunId ) {
@@ -37,6 +37,17 @@ export function runCmd( cmd ) {
 
 export function runCmdAsLines( cmd ) {
   return runCmd( cmd ).split('\n');
+}
+
+export function runCmdAsync( cmd ) {
+  exec( cmd, (err, stdout, stderr) => {
+    if (err) {
+      console.error(`exec error for cmd ${cmd}: ${err}`);
+      return;
+    }
+  
+    console.log(`result of ${cmd}: ${stdout}`);
+  });
 }
 
 // https://stackoverflow.com/a/68958420/169858 (not restricted by the shell buffer limitation (as `runCmd*` are))
