@@ -54,7 +54,7 @@ export async function mapElites(
   const algorithmKey = 'mapElites_with_uBC'; // TODO from evolution-runs-config.jsonc
   const {
     seedEvals, eliteWinsOnlyOneCell, terminationCondition, evoRunsDirPath,
-    geneEvaluationProtocol, childProcessBatchSize,
+    geneEvaluationProtocol, childProcessBatchSize, batchMultiplicationFactor,
     evaluationCandidateWavFilesDirPath,
     probabilityMutatingWaveNetwork, probabilityMutatingPatch,
     classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
@@ -136,7 +136,7 @@ export async function mapElites(
   } else if( geneEvaluationProtocol === "worker" ) {
     searchBatchSize = childProcessBatchSize;
   } else {
-    searchBatchSize = _geneEvaluationServers.length;
+    searchBatchSize = _geneEvaluationServers.length * (batchMultiplicationFactor || 1);
   }
 
   // turn of automatic garbage collection,
