@@ -472,7 +472,7 @@ export async function mapElites(
             // bias search away from exploring niches that produce fewer innovations
             eliteMap.cells[randomClassKey].uBC -= 1; // TODO should stop at zero?
           }
-          console.log("iteration", eliteMap.generationNumber,"eliteCountAtGeneration:",eliteClassKeys.length);
+          console.log("iteration", eliteMap.generationNumber,"eliteCountAtGeneration:",eliteClassKeys.length, "evo run ID:", evolutionRunId);
           eliteMap.eliteCountAtGeneration = eliteClassKeys.length;
           eliteMap.searchBatchSize = searchBatchSize;
           saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
