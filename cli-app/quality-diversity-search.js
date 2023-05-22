@@ -79,7 +79,7 @@ export async function mapElites(
     for( let i=1; i <= gRpcServerCount; i++ ) {
       const hostFilePath = `${gRpcHostFilePathPrefix}${i}`;
       const variationHost = await readFromFileWhenItExists(hostFilePath);
-      _geneVariationServers.push(variationHost);
+      if( variationHost ) _geneVariationServers.push(variationHost);
     }
   } else if( geneVariationServerPaths && geneVariationServerPaths.length ) {
     _geneVariationServers = [];
@@ -93,7 +93,7 @@ export async function mapElites(
     for( let i=1; i <= gRpcServerCount; i++ ) {
       const hostFilePath = `${gRpcHostFilePathPrefix}${i}`;
       const evaluationHost = await readFromFileWhenItExists(hostFilePath);
-      _geneEvaluationServers.push(evaluationHost);
+      if( evaluationHost ) _geneEvaluationServers.push(evaluationHost);
     }
   } else if( geneEvaluationServerPaths && geneEvaluationServerPaths.length ) {
     _geneEvaluationServers = [];
@@ -717,14 +717,21 @@ const getDummyClassKeysWhereScoresAreElite = (cellLabels, generationNumber, tota
 
 // read text from a file: if it doesn't exist, wait for it to be created and then read it
 function readFromFileWhenItExists( filePath ) {
+  let tries = 0;
   return new Promise( (resolve, reject) => {
     fs.readFile( filePath, 'utf8', (err, data) => {
       if( err ) {
         if( err.code === 'ENOENT' ) {
-          console.log(`waiting for ${filePath} to be created`);
-          setTimeout( () => {
-            resolve( readFromFileWhenItExists(filePath) );
-          }, 1000 );
+          if( tries < 10 ) {
+            console.log(`waiting for ${filePath} to be created`);
+            setTimeout( () => {
+              resolve( readFromFileWhenItExists(filePath) );
+            }, 1000 );
+            tries++;
+          } else {
+            console.log(`gave up on waiting for ${filePath} to be created`);
+            resolve(undefined);
+          }
         } else {
           reject(err);
         }
