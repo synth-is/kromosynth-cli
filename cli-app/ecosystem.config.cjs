@@ -8,12 +8,7 @@ module.exports = {
         instances : 1,
         exec_mode : "fork",
         max_memory_restart: '4G',
-        cron_restart: '*/30 * * * *',
-        increment_var : 'PORT',
-        env: {
-          "PORT": 50051,
-          "TF_FORCE_GPU_ALLOW_GROWTH": true
-        }
+        cron_restart: '*/30 * * * *'
       }
     ]
   }
