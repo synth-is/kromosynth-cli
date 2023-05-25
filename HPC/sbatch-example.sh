@@ -11,7 +11,7 @@ for iteration in {1..100}; do
 #SBATCH --job-name=kromosynth-conf-duration_delta_pitch_combinations-singleCellWin
 #SBATCH --output=/fp/projects01/ec12/bthj/kromosynth/slurm-output/kromosynth-conf-duration_delta_pitch_combinations-singleCellWin-${iteration}.out
 #SBATCH --ntasks=35
-#SBATCH --mem-per-cpu=16G
+#SBATCH --mem-per-cpu=32G
 # #SBATCH --mem-per-gpu=16G
 #SBATCH --partition=ifi_accel
 #SBATCH --gpus=1

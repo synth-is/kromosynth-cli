@@ -128,8 +128,6 @@ function getAudioContext() {
 
 async function main() {
   const argv = parseArgs(process.argv.slice(2));
-  console.log("process.env.PORT:",process.env.PORT);
-
   let port;
   let hostname;
   if( argv.hostInfoFilePath ) {
@@ -137,8 +135,8 @@ async function main() {
     // const freePort = await findFreePorts(1, {startPort: 50051});
     // port = freePort[0];
     console.log("--- argv.hostInfoFilePath:", argv.hostInfoFilePath);
-    const hostNumber = parseInt(argv.hostInfoFilePath.substring(argv.hostInfoFilePath.lastIndexOf("-")+1));
-    port = 50051 + hostNumber;
+    port = 50051;
+    argv.hostInfoFilePath.substring(argv.hostInfoFilePath.lastIndexOf("host-")+5).split("-").forEach( i => port += parseInt(i) );
     hostname = `${os.hostname()}:${port}`;
     console.log("--- hostname:", hostname);
     fs.writeFile(argv.hostInfoFilePath, hostname, () => console.log(`Wrote hostname to ${argv.hostInfoFilePath}`));
