@@ -1,4 +1,5 @@
 import fs from 'fs';
+import glob from 'glob';
 import {ulid} from 'ulid';
 import Chance from 'chance';
 import { getAudioGraphMutationParams } from "./kromosynth.js";
@@ -120,11 +121,13 @@ export async function mapElites(
     const eliteMapFileName = `${getEliteMapKey(evolutionRunId)}.json`;
     runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
   } else {
-    // delete git file lock at evoRunDirPath if it exists
-    const gitFileLockPath = `${evoRunDirPath}.git/index.lock`;
-    if( fs.existsSync(gitFileLockPath) ) {
-      fs.unlinkSync(gitFileLockPath);
-    }
+    // delete all git lock files at evoRunDirPath if they exist
+    const gitLockFilePaths = [...glob.sync(`${evoRunDirPath}.git/objects/pack/*.lock`), ...glob.sync(`${evoRunDirPath}.git/*.lock`)];
+    gitLockFilePaths.forEach( oneGitLockFilePath => {
+      if( fs.existsSync(oneGitLockFilePath) ) {
+        fs.unlinkSync(oneGitLockFilePath);
+      }
+    });
   }
   const audioGraphMutationParams = getAudioGraphMutationParams( evolutionaryHyperparameters );
   const patchFitnessTestDuration = 0.1;
