@@ -55,7 +55,7 @@ export async function mapElites(
   const algorithmKey = 'mapElites_with_uBC'; // TODO from evolution-runs-config.jsonc
   const {
     seedEvals, eliteWinsOnlyOneCell, terminationCondition, evoRunsDirPath,
-    geneEvaluationProtocol, childProcessBatchSize,
+    geneEvaluationProtocol, childProcessBatchSize, batchMultiplicationFactor,
     evaluationCandidateWavFilesDirPath,
     probabilityMutatingWaveNetwork, probabilityMutatingPatch,
     classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
@@ -79,8 +79,8 @@ export async function mapElites(
     _geneVariationServers = [];
     for( let i=1; i <= gRpcServerCount; i++ ) {
       const hostFilePath = `${gRpcHostFilePathPrefix}${i}`;
-      const variationHost = await readFromFileWhenItExists(hostFilePath);
-      _geneVariationServers.push(variationHost);
+      const variationHost = await readFromFileWhenItExists(hostFilePath, 0);
+      if( variationHost ) _geneVariationServers.push(variationHost);
     }
   } else if( geneVariationServerPaths && geneVariationServerPaths.length ) {
     _geneVariationServers = [];
@@ -93,8 +93,8 @@ export async function mapElites(
     _geneEvaluationServers = [];
     for( let i=1; i <= gRpcServerCount; i++ ) {
       const hostFilePath = `${gRpcHostFilePathPrefix}${i}`;
-      const evaluationHost = await readFromFileWhenItExists(hostFilePath);
-      _geneEvaluationServers.push(evaluationHost);
+      const evaluationHost = await readFromFileWhenItExists(hostFilePath, 0);
+      if( evaluationHost ) _geneEvaluationServers.push(evaluationHost);
     }
   } else if( geneEvaluationServerPaths && geneEvaluationServerPaths.length ) {
     _geneEvaluationServers = [];
@@ -139,7 +139,7 @@ export async function mapElites(
   } else if( geneEvaluationProtocol === "worker" ) {
     searchBatchSize = childProcessBatchSize;
   } else {
-    searchBatchSize = _geneEvaluationServers.length;
+    searchBatchSize = _geneEvaluationServers.length * (batchMultiplicationFactor || 1);
   }
 
   // turn of automatic garbage collection,
@@ -719,15 +719,20 @@ const getDummyClassKeysWhereScoresAreElite = (cellLabels, generationNumber, tota
 };
 
 // read text from a file: if it doesn't exist, wait for it to be created and then read it
-function readFromFileWhenItExists( filePath ) {
+function readFromFileWhenItExists( filePath, tries ) {
   return new Promise( (resolve, reject) => {
     fs.readFile( filePath, 'utf8', (err, data) => {
       if( err ) {
         if( err.code === 'ENOENT' ) {
-          console.log(`waiting for ${filePath} to be created`);
-          setTimeout( () => {
-            resolve( readFromFileWhenItExists(filePath) );
-          }, 1000 );
+          if( tries < 10 ) {
+            console.log(`waiting for ${filePath} to be created`);
+            setTimeout( () => {
+              resolve( readFromFileWhenItExists(filePath), tries + 1 );
+            }, 1000 );
+          } else {
+            console.log(`gave up on waiting for ${filePath} to be created`);
+            resolve(undefined);
+          }
         } else {
           reject(err);
         }

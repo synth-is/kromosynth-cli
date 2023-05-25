@@ -131,11 +131,16 @@ async function main() {
   console.log("process.env.PORT:",process.env.PORT);
 
   let port;
+  let hostname;
   if( argv.hostInfoFilePath ) {
     // automatically assign port and write the info to the specified file path
-    const freePort = await findFreePorts(1, {startPort: 50051});
-    port = freePort[0];
-    const hostname = `${os.hostname()}:${port}`;
+    // const freePort = await findFreePorts(1, {startPort: 50051});
+    // port = freePort[0];
+    console.log("--- argv.hostInfoFilePath:", argv.hostInfoFilePath);
+    const hostNumber = parseInt(argv.hostInfoFilePath.substring(argv.hostInfoFilePath.lastIndexOf("-")+1));
+    port = 50051 + hostNumber;
+    hostname = `${os.hostname()}:${port}`;
+    console.log("--- hostname:", hostname);
     fs.writeFile(argv.hostInfoFilePath, hostname, () => console.log(`Wrote hostname to ${argv.hostInfoFilePath}`));
   } else {
     port = argv.port || process.env.PORT || '50051';
@@ -152,10 +157,17 @@ async function main() {
     genomeVariation: mutatedGenome,
     genomeEvaluation: evaluateGenome
   });
-  server.bindAsync( `0.0.0.0:${port}`, grpc.ServerCredentials.createInsecure(), (error, port) => {
-    server.start();
-    console.log("Listenig on port", port);
-  } );
+  if( hostname ) {
+    server.bindAsync( hostname, grpc.ServerCredentials.createInsecure(), (error, port) => {
+      server.start();
+      console.log("Listenig on host:port", hostname);
+    } );
+  } else {
+    server.bindAsync( `0.0.0.0:${port}`, grpc.ServerCredentials.createInsecure(), (error, port) => {
+      server.start();
+      console.log("Listenig on port", port);
+    } );  
+  }
 }
 
 main();
