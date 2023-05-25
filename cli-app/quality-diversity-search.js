@@ -122,7 +122,7 @@ export async function mapElites(
     runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
   } else {
     // delete all git lock files at evoRunDirPath if they exist
-    const gitLockFilePaths = [...glob.sync(`${evoRunDirPath}.git/objects/pack/*.lock`), ...glob.sync(`${evoRunDirPath}.git/*.lock`), `${evoRunDirPath}.git/refs/heads/master.lock`];
+    const gitLockFilePaths = [...glob.sync(`${evoRunDirPath}.git/objects/pack/*.lock`), ...glob.sync(`${evoRunDirPath}.git/*.lock`), ...glob.sync(`${evoRunDirPath}.git/refs/heads/*.lock`)];
     gitLockFilePaths.forEach( oneGitLockFilePath => {
       if( fs.existsSync(oneGitLockFilePath) ) {
         fs.unlinkSync(oneGitLockFilePath);
