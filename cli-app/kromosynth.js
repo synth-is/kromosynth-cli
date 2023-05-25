@@ -285,9 +285,17 @@ const cli = meow(`
 			type: 'boolean',
 			default: true
 		},
-		evoRunsConfigFile: {
+
+		evolutionRunsConfigJsonFile: {
 			type: 'string'
 		},
+		evolutionRunsConfigJsonFileRunIndex: {
+			type: 'number'
+		},
+		evolutionRunsConfigJsonFileRunIteration: {
+			type: 'number'
+		},
+
 		evolutionRunConfigJsonFile: {
 			type: 'string'
 		},
@@ -589,10 +597,24 @@ async function classifyGenome() {
 async function evolutionRuns() {
 	const evoRunsConfig = getEvolutionRunsConfig();
 	const startTimeMs = Date.now();
+	if( cli.flags.evolutionRunsConfigJsonFileRunIndex !== undefined ) {
+		evoRunsConfig.currentEvolutionRunIndex = cli.flags.evolutionRunsConfigJsonFileRunIndex;
+	}
+	if( cli.flags.evolutionRunsConfigJsonFileRunIteration ) {
+		evoRunsConfig.currentEvolutionRunIteration = cli.flags.evolutionRunsConfigJsonFileRunIteration;
+	}
 	evoRunsOuterLoop:
 	while( evoRunsConfig.currentEvolutionRunIndex < evoRunsConfig.evoRuns.length ) {
 		const currentEvoConfig = evoRunsConfig.evoRuns[evoRunsConfig.currentEvolutionRunIndex];
 		while( evoRunsConfig.currentEvolutionRunIteration < currentEvoConfig.iterations.length ) {
+			if( 
+				( cli.flags.evolutionRunsConfigJsonFileRunIndex !== undefined && evoRunsConfig.currentEvolutionRunIndex !== cli.flags.evolutionRunsConfigJsonFileRunIndex )
+				||
+				( cli.flags.evolutionRunsConfigJsonFileRunIteration !== undefined && evoRunsConfig.currentEvolutionRunIteration !== cli.flags.evolutionRunsConfigJsonFileRunIteration )
+			) { // we're targetting a specific evo run and don't want to conflict with another run possibly running in parallel
+				break evoRunsOuterLoop;
+			}
+
 			let { id: currentEvolutionRunId } = currentEvoConfig.iterations[evoRunsConfig.currentEvolutionRunIteration];
 
 			if( ! currentEvolutionRunId ) {
@@ -606,6 +628,10 @@ async function evolutionRuns() {
 			const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
 			const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
 			const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
+			if( cli.flags.evolutionRunsConfigJsonFileRunIndex !== undefined && cli.flags.evolutionRunsConfigJsonFileRunIteration !== undefined ) {
+				evoRunConfig.gRpcHostFilePathPrefix = `${evoRunConfig.gRpcHostFilePathPrefix}${cli.flags.evolutionRunsConfigJsonFileRunIndex}-${cli.flags.evolutionRunsConfigJsonFileRunIteration}-`;
+			}
+			
 
 			const evoParamsMain = getEvoParams( evoRunsConfig.baseEvolutionaryHyperparametersFile );
 			const evoParamsDiff = getEvoParams( currentEvoConfig.diffEvolutionaryHyperparametersFile );
