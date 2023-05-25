@@ -136,7 +136,7 @@ async function main() {
     // port = freePort[0];
     console.log("--- argv.hostInfoFilePath:", argv.hostInfoFilePath);
     port = 50051;
-    argv.hostInfoFilePath.substring(argv.hostInfoFilePath.lastIndexOf("host-")+5).split("-").forEach( i => port += parseInt(i) );
+    argv.hostInfoFilePath.substring(argv.hostInfoFilePath.lastIndexOf("host-")+5).split("-").reverse().forEach( (i, idx) => port += parseInt(i) * (idx+1*10) );
     hostname = `${os.hostname()}:${port}`;
     console.log("--- hostname:", hostname);
     fs.writeFile(argv.hostInfoFilePath, hostname, () => console.log(`Wrote hostname to ${argv.hostInfoFilePath}`));
