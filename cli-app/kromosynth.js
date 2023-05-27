@@ -155,6 +155,7 @@ const cli = meow(`
 
 		QD search analysis:
 		$ kromosynth evo-runs-git-gc --evolution-runs-config-json-file config/evolution-runs.jsonc
+		$ kromosynth evo-runs-percent-completion --evolution-runs-config-json-file config/evolution-runs.jsonc
 
 		$ kromosynth elite-map-qd-score --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
 		$ kromosynth elite-map-genome-statistics --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
@@ -371,6 +372,9 @@ async function executeEvolutionTask() {
 
 		case "evo-runs-git-gc":
 			qdAnalysis_gitGC();
+			break;
+		case "evo-runs-percent-completion":
+			qdAnalysis_percentCompletion();
 			break;
 
 		case "elite-map-qd-score":
@@ -731,6 +735,40 @@ function qdAnalysis_gitGC() {
 			}
 		}
 	}
+}
+
+async function qdAnalysis_percentCompletion() {
+	const evoRunsConfig = getEvolutionRunsConfig();
+	const evoRunsPercentCompleted = {...evoRunsConfig};
+	let sumTerminationConditionNumberOfEvals = 0;
+	let sumNumberOfGenerations = 0;
+	for( let currentEvolutionRunIndex = 0; currentEvolutionRunIndex < evoRunsConfig.evoRuns.length; currentEvolutionRunIndex++ ) {
+		const currentEvoConfig = evoRunsConfig.evoRuns[currentEvolutionRunIndex];
+		const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
+		const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
+		const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
+		if( evoRunConfig.terminationCondition.numberOfEvals ) {
+			for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+				sumTerminationConditionNumberOfEvals += evoRunConfig.terminationCondition.numberOfEvals;
+				let { id: evolutionRunId } = currentEvoConfig.iterations[currentEvolutionRunIteration];
+				if( evolutionRunId ) {
+					const evoRunDirPath = `${evoRunConfig.evoRunsDirPath}${evolutionRunId}/`;
+					const eliteMapFileName = `${evoRunDirPath}elites_${evoRunsConfig.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].id}.json`;
+					const eliteMap = JSON.parse(fs.readFileSync( eliteMapFileName, "utf8" ));
+					const generationNumber = eliteMap.generationNumber;
+					sumNumberOfGenerations += generationNumber;
+					const percentCompleted = generationNumber / evoRunConfig.terminationCondition.numberOfEvals;
+					evoRunsPercentCompleted.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].percentCompleted = percentCompleted;
+				}
+			}
+		}
+	}
+	const totalPercentCompleted = sumNumberOfGenerations / sumTerminationConditionNumberOfEvals;
+	evoRunsPercentCompleted.totalPercentCompleted = totalPercentCompleted;
+	const percentCompletedResultsFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evoRunsPercentCompleted.json`;
+	const percentCompletedResultsFileContents = JSON.stringify(evoRunsPercentCompleted, null, 2);
+	fs.writeFileSync(percentCompletedResultsFilePath, percentCompletedResultsFileContents);
+	console.log(`Wrote percent completed results to ${percentCompletedResultsFilePath}`);
 }
 
 async function qdAnalysis_evoRuns() {
