@@ -48,6 +48,39 @@ export async function calculateQDScoreForOneIteration( evoRunConfig, evoRunId, i
   return qdScore;
 }
 
+///// cell scores
+
+export async function getCellScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const cellScores = new Array(Math.ceil(commitCount / stepSize));
+  for( let iterationIndex = 0, cellScoresIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, cellScoresIndex++ ) {
+    if( iterationIndex % stepSize === 0 ) {
+      console.log(`Calculating cell scores for iteration ${iterationIndex}...`);
+      cellScores[cellScoresIndex] = await getCellScoresForOneIteration(
+        evoRunConfig, evoRunId, iterationIndex
+      );
+    }
+  }
+  const cellScoresStringified = JSON.stringify(cellScores);
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const cellScoresFilePath = `${evoRunDirPath}cell-scores_step-${stepSize}.json`;
+  fs.writeFileSync( cellScoresFilePath, cellScoresStringified );
+  return cellScores;
+}
+
+export async function getCellScoresForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const cellKeys = Object.keys(eliteMap.cells);
+  const cellScores = cellKeys.map( oneCellKey => {
+    if( eliteMap.cells[oneCellKey].elts.length ) {
+      return parseFloat(eliteMap.cells[oneCellKey].elts[0].s);
+    } else {
+      return 0;
+    }
+  });
+  return cellScores;
+}
 
 ///// network complexity
 
