@@ -140,6 +140,22 @@ export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig,
   return genomeStatistics;
 }
 
+export async function getCellSaturationGenerations( evoRunConfig, evoRunId ) {
+  const cellEliteGenerations = {};
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const iterationIndex = commitCount - 1;
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const cellKeys = Object.keys(eliteMap.cells);
+  for( const oneCellKey of cellKeys ) {
+    if( eliteMap.cells[oneCellKey].elts.length ) {
+      const cellEliteGenerationNumber = eliteMap.cells[oneCellKey].elts[0].gN;
+      cellEliteGenerations[oneCellKey] = cellEliteGenerationNumber;
+    }
+  }
+  return cellEliteGenerations;
+}
+
 export async function getGenomeStatisticsAveragedForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
