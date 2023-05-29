@@ -82,6 +82,43 @@ export async function getCellScoresForOneIteration( evoRunConfig, evoRunId, iter
   return cellScores;
 }
 
+///// map coverage
+
+export async function getCoverageForOneIteration( evoRunConfig, evoRunId, iterationIndex, scoreThreshold = 0 ) {
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const cellKeys = Object.keys(eliteMap.cells);
+  const cellCount = cellKeys.length;
+  let coveredCellCount = 0;
+  for( const oneCellKey of cellKeys ) {
+    if( eliteMap.cells[oneCellKey].elts.length ) {
+      if( parseFloat(eliteMap.cells[oneCellKey].elts[0].s) >= scoreThreshold ) {
+        coveredCellCount++;
+      }
+    }
+  }
+  const coverage = coveredCellCount / cellCount;
+  return coverage;
+}
+
+export async function getCoverageForAllIterations( evoRunConfig, evoRunId, stepSize = 1, scoreThreshold = 0 ) {
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const coverages = new Array(Math.ceil(commitCount / stepSize));
+  for( let iterationIndex = 0, coverageIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, coverageIndex++ ) {
+    if( iterationIndex % stepSize === 0 ) {
+      console.log(`Calculating coverage for iteration ${iterationIndex}...`);
+      coverages[coverageIndex] = await getCoverageForOneIteration(
+        evoRunConfig, evoRunId, iterationIndex, scoreThreshold
+      );
+    }
+  }
+  const coveragesStringified = JSON.stringify(coverages);
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const coveragesFilePath = `${evoRunDirPath}coverages_step-${stepSize}_threshold-${scoreThreshold}.json`;
+  fs.writeFileSync( coveragesFilePath, coveragesStringified );
+  return coverages;
+}
+
 ///// network complexity
 
 export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
