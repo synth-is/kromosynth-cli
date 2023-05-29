@@ -119,6 +119,49 @@ export async function getCoverageForAllIterations( evoRunConfig, evoRunId, stepS
   return coverages;
 }
 
+///// genome sets
+
+export async function getGenomeSetsForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const cellKeys = Object.keys(eliteMap.cells);
+  const genomeKeys = cellKeys.map( oneCellKey => {
+    if( eliteMap.cells[oneCellKey].elts.length ) {
+      return eliteMap.cells[oneCellKey].elts[0].g;
+    }
+  });
+  const genomeSet = new Set(genomeKeys);
+  return genomeSet;
+}
+
+export async function getGenomeSetsForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const genomeSets = new Array(Math.ceil(commitCount / stepSize));
+  const genomeSetsAdditions = new Array(Math.ceil(commitCount / stepSize)); // new genomes added in each iteration
+  const genomeSetsRemovals = new Array(Math.ceil(commitCount / stepSize)); // genomes removed in each iteration
+  for( let iterationIndex = 0, genomeSetsIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, genomeSetsIndex++ ) {
+    if( iterationIndex % stepSize === 0 ) {
+      console.log(`Calculating genome sets for iteration ${iterationIndex}...`);
+      genomeSets[genomeSetsIndex] = await getGenomeSetsForOneIteration(
+        evoRunConfig, evoRunId, iterationIndex
+      );
+      if( genomeSetsIndex > 0 ) {
+        genomeSetsAdditions[genomeSetsIndex] = new Set(
+          [...genomeSets[genomeSetsIndex]].filter(x => !genomeSets[genomeSetsIndex-1].has(x))
+        );
+        genomeSetsRemovals[genomeSetsIndex] = new Set(
+          [...genomeSets[genomeSetsIndex-1]].filter(x => !genomeSets[genomeSetsIndex].has(x))
+        );
+      }
+    }
+  }
+  return { // conversion to arrays for JSON.stringify
+    genomeCount: genomeSets.map( oneSet => [...oneSet].length ), 
+    genomeSetsAdditions: genomeSetsAdditions.map( oneSet => [...oneSet].length ),
+    genomeSetsRemovals: genomeSetsRemovals.map( oneSet => [...oneSet].length )
+  };
+}
+
 ///// network complexity
 
 export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {

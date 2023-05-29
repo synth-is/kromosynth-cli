@@ -29,6 +29,8 @@ import {
 	getCoverageForOneIteration,
 	getCoverageForAllIterations,
 	getCellSaturationGenerations,
+	getGenomeSetsForOneIteration,
+	getGenomeSetsForAllIterations,
 } from './qd-run-analysis.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
@@ -92,6 +94,11 @@ const cli = meow(`
 			Obtain the map coverage (number of cells with at least one elite) for one iteration of an evolution run, optionally above a certain QD score threshold
 		evo-run-coverage
 			Obtain the map coverage (number of cells with at least one elite) for all iterations of an evolution run, optionally above a certain QD score threshold
+
+		elite-map-geneome-sets
+			Unique genomes across the elite map, plus count of new additions and disappearance of genomes from the map
+		evo-run-genome-sets
+			Unique genomes accross the elite map, for all iterations of an evolution run
 
 		evo-run-cell-saturation-generations
 			Last generation number for which a cell received a new top elite
@@ -182,14 +189,16 @@ const cli = meow(`
 		$ kromosynth elite-map-genome-statistics --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
 		$ kromosynth elite-map-cell-scores	--evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
 		$ kromosynth elite-map-coverage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --score-threshold 0.5
+		$ kromosynth elite-map-geneome-sets --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J
 		
 		$ kromosynth evo-run-qd-scores --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		$ kromosynth evo-run-genome-statistics --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		$ kromosynth evo-run-cell-scores --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		$ kromosynth evo-run-coverage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --score-threshold 0.5 --step-size 100
 		$ kromosynth evo-run-cell-saturation-generations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J
+		$ kromosynth evo-run-genome-sets --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics --step-size 100
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets --step-size 100
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
@@ -417,6 +426,9 @@ async function executeEvolutionTask() {
 		case "elite-map-coverage":
 			qdAnalysis_eliteMapCoverage();
 			break;
+		case "elite-map-geneome-sets":
+			qdAnalysis_eliteMapGenomeSets();
+			break;
 
 		///// QD evo run analysis
 		case "evo-run-genome-statistics":
@@ -430,7 +442,10 @@ async function executeEvolutionTask() {
 			break;
 		case "evo-run-coverage":
 			qdAnalysis_evoRunCoverage();
-		break;
+			break;
+		case "evo-run-genome-sets":
+			qdAnalysis_evoRunGenomeSets();
+			break;
 		case "evo-run-cell-saturation-generations":
 			qdAnalysis_evoRunCellSaturationGenerations();
 			break;
@@ -764,6 +779,15 @@ async function qdAnalysis_eliteMapCoverage() {
 	}
 }
 
+async function qdAnalysis_eliteMapGenomeSets() {
+	let {evolutionRunId, evolutionRunIteration, scoreThreshold} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		const genomeSets = await getGenomeSetsForOneIteration( evoRunConfig, evolutionRunId, evolutionRunIteration, scoreThreshold );
+		console.log(genomeSets);
+	}
+}
+
 ///// evo runs analysis
 
 async function qdAnalysis_evoRunQDScores() {
@@ -799,6 +823,15 @@ async function qdAnalysis_evoRunCoverage() {
 		const evoRunConfig = getEvolutionRunConfig();
 		const coverage = await getCoverageForAllIterations( evoRunConfig, evolutionRunId, stepSize, scoreThreshold );
 		console.log(coverage);
+	}
+}
+
+async function qdAnalysis_evoRunGenomeSets() {
+	let {evolutionRunId, stepSize, scoreThreshold} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		const genomeSets = await getGenomeSetsForAllIterations( evoRunConfig, evolutionRunId, stepSize, scoreThreshold );
+		console.log(genomeSets);
 	}
 }
 
@@ -905,6 +938,11 @@ async function qdAnalysis_evoRuns() {
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].eliteGenerationsLabeled = eliteGenerations;
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].eliteGenerations = Object.values(eliteGenerations);
 						console.log(`Added elite generations to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+					}
+					if( oneAnalysisOperation === "genome-sets" ) {
+						const genomeSets = await getGenomeSetsForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].genomeSets = genomeSets;
+						console.log(`Added genome sets to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 					}
 				}
 			}
