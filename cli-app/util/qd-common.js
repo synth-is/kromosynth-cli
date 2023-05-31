@@ -93,3 +93,63 @@ export function spawnCmd(instruction, spawnOpts = {}, silenceOutput = false) {
       });
   });
 }
+
+
+///// stats
+
+// https://chat-gpt.org/chat
+
+export function calcVariance(numbers) {
+  // calculate the mean
+  const mean = numbers.reduce((total, num) => total + num) / numbers.length;
+
+  // calculate the sum of squared deviations from the mean
+  const deviations = numbers.map(num => (num - mean) ** 2);
+  const sumOfDeviations = deviations.reduce((total, deviation) => total + deviation);
+
+  // calculate the variance
+  const variance = sumOfDeviations / numbers.length;
+
+  return variance;
+}
+
+export function calcStandardDeviation(numbers) { 
+  // calculate the standard deviation
+  const variance = calcVariance(numbers);
+  const standardDeviation = Math.sqrt(variance);
+
+  return standardDeviation;
+}
+
+export function calcMeanDeviation(numbers) {
+  // Calculate the mean of the array
+  const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
+
+  // Calculate the deviations of each number from the mean
+  const deviations = numbers.map(num => Math.abs(num - mean));
+
+  // Calculate the mean deviation
+  const meanDeviation = deviations.reduce((a, b) => a + b, 0) / deviations.length;
+
+  // Return the result
+  return meanDeviation;
+}
+
+// https://github.com/30-seconds/30-seconds-of-code/blob/master/snippets/median.md
+export const median = arr => {
+  const mid = Math.floor(arr.length / 2),
+    nums = [...arr].sort((a, b) => a - b);
+  return arr.length % 2 !== 0 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+};
+
+// function median(arr) {
+//   const mid = Math.floor(arr.length / 2);
+//   const nums = [...arr].sort((a, b) => a - b);
+//   return arr.length % 2 !== 0 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+// }
+
+export function medianAbsoluteDeviation(arr) {
+  const med = median(arr);
+  const absDeviation = arr.map((el) => Math.abs(el - med));
+  return median(absDeviation);
+}

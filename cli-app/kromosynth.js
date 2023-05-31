@@ -30,7 +30,9 @@ import {
 	getCoverageForAllIterations,
 	getCellSaturationGenerations,
 	getGenomeSetsForOneIteration,
-	getGenomeSetsForAllIterations,
+	getGenomeCountsForAllIterations,
+	getScoreVarianceForAllIterations,
+	getScoreStatsForOneIteration
 } from './qd-run-analysis.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
@@ -100,8 +102,16 @@ const cli = meow(`
 		evo-run-genome-sets
 			Unique genomes accross the elite map, for all iterations of an evolution run
 
+		elite-map-score-variance
+			Collect the variance of the QD scores for each new genome in the elite map, for one iteration of an evolution run
+		evo-run-score-variance
+			Collect the variance of the QD scores for each new genome in the elite map, for all iterations of an evolution run
+
 		evo-run-cell-saturation-generations
 			Last generation number for which a cell received a new top elite
+
+		evo-run-elite-count-at-generation
+			Elite count at each generation
 
 		evo-runs-analysis
 			Perform a selection of analysis steps (see above) for all evolution runs (specified in the --evolution-runs-config-json-file)
@@ -190,6 +200,7 @@ const cli = meow(`
 		$ kromosynth elite-map-cell-scores	--evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evolution-run-iteration 9000
 		$ kromosynth elite-map-coverage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --score-threshold 0.5
 		$ kromosynth elite-map-geneome-sets --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J
+		$ kromosynth elite-map-score-variance --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J
 		
 		$ kromosynth evo-run-qd-scores --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		$ kromosynth evo-run-genome-statistics --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
@@ -197,8 +208,9 @@ const cli = meow(`
 		$ kromosynth evo-run-coverage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --score-threshold 0.5 --step-size 100
 		$ kromosynth evo-run-cell-saturation-generations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J
 		$ kromosynth evo-run-genome-sets --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
+		$ kromosynth evo-run-score-variance --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets --step-size 100
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance --step-size 100
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
@@ -429,6 +441,8 @@ async function executeEvolutionTask() {
 		case "elite-map-geneome-sets":
 			qdAnalysis_eliteMapGenomeSets();
 			break;
+		case "elite-map-score-variance":
+			qdAnalysis_eliteMapScoreVariance();
 
 		///// QD evo run analysis
 		case "evo-run-genome-statistics":
@@ -445,6 +459,9 @@ async function executeEvolutionTask() {
 			break;
 		case "evo-run-genome-sets":
 			qdAnalysis_evoRunGenomeSets();
+			break;
+		case "evo-run-score-variance":
+			qdAnalysis_evoRunScoreVariances();
 			break;
 		case "evo-run-cell-saturation-generations":
 			qdAnalysis_evoRunCellSaturationGenerations();
@@ -788,6 +805,15 @@ async function qdAnalysis_eliteMapGenomeSets() {
 	}
 }
 
+async function qdAnalysis_eliteMapScoreVariance() {
+	let {evolutionRunId, evolutionRunIteration} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		const scoreVariance = await getScoreStatsForOneIteration( evoRunConfig, evolutionRunId, evolutionRunIteration );
+		console.log(scoreVariance);
+	}
+}
+
 ///// evo runs analysis
 
 async function qdAnalysis_evoRunQDScores() {
@@ -830,8 +856,17 @@ async function qdAnalysis_evoRunGenomeSets() {
 	let {evolutionRunId, stepSize, scoreThreshold} = cli.flags;
 	if( evolutionRunId ) {
 		const evoRunConfig = getEvolutionRunConfig();
-		const genomeSets = await getGenomeSetsForAllIterations( evoRunConfig, evolutionRunId, stepSize, scoreThreshold );
+		const genomeSets = await getGenomeCountsForAllIterations( evoRunConfig, evolutionRunId, stepSize, scoreThreshold );
 		console.log(genomeSets);
+	}
+}
+
+async function qdAnalysis_evoRunScoreVariances() {
+	let {evolutionRunId, stepSize} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		const scoreVariances = await getScoreVarianceForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+		console.log(scoreVariances);
 	}
 }
 
@@ -940,9 +975,14 @@ async function qdAnalysis_evoRuns() {
 						console.log(`Added elite generations to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 					}
 					if( oneAnalysisOperation === "genome-sets" ) {
-						const genomeSets = await getGenomeSetsForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+						const genomeSets = await getGenomeCountsForAllIterations( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].genomeSets = genomeSets;
 						console.log(`Added genome sets to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+					}
+					if( oneAnalysisOperation == "variance" ) {
+						const scoreVariances = await getScoreVarianceForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreVariances = scoreVariances;
+						console.log(`Added score variances to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 					}
 				}
 			}

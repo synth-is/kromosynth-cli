@@ -2,7 +2,8 @@ import fs from 'fs';
 import {
   runCmd, spawnCmd,
   getEvoRunDirPath,
-  readGenomeAndMetaFromDisk
+  readGenomeAndMetaFromDisk,
+  calcVariance, calcStandardDeviation, calcMeanDeviation
 } from './util/qd-common.js';
 import nthline from 'nthline';
 import {
@@ -11,6 +12,7 @@ import {
 import { getAudioContext, getNewOfflineAudioContext, playAudio } from './util/rendering-common.js';
 import figlet from 'figlet';
 import { log } from 'console';
+import { get } from 'http';
 
 
 ///// QD score
@@ -155,10 +157,15 @@ export async function getGenomeSetsForAllIterations( evoRunConfig, evoRunId, ste
       }
     }
   }
+  return { genomeSets, genomeSetsAdditions, genomeSetsRemovals };
+}
+
+export async function getGenomeCountsForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+  const genomeSetsCollection = await getGenomeSetsForAllIterations( evoRunConfig, evoRunId, stepSize );
   return { // conversion to arrays for JSON.stringify
-    genomeCount: genomeSets.map( oneSet => [...oneSet].length ), 
-    genomeSetsAdditions: genomeSetsAdditions.map( oneSet => [...oneSet].length ),
-    genomeSetsRemovals: genomeSetsRemovals.map( oneSet => [...oneSet].length )
+    genomeCount: genomeSetsCollection.genomeSets.map( oneSet => [...oneSet].length ), 
+    genomeSetsAdditions: genomeSetsCollection.genomeSetsAdditions.map( oneSet => [...oneSet].length ),
+    genomeSetsRemovals: genomeSetsCollection.genomeSetsRemovals.map( oneSet => [...oneSet].length )
   };
 }
 
@@ -181,22 +188,6 @@ export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig,
   const genomeStatisticsFilePath = `${evoRunDirPath}genome-statistics_step-${stepSize}.json`;
   fs.writeFileSync( genomeStatisticsFilePath, genomeStatisticsStringified );
   return genomeStatistics;
-}
-
-export async function getCellSaturationGenerations( evoRunConfig, evoRunId ) {
-  const cellEliteGenerations = {};
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
-  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
-  const iterationIndex = commitCount - 1;
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
-  const cellKeys = Object.keys(eliteMap.cells);
-  for( const oneCellKey of cellKeys ) {
-    if( eliteMap.cells[oneCellKey].elts.length ) {
-      const cellEliteGenerationNumber = eliteMap.cells[oneCellKey].elts[0].gN;
-      cellEliteGenerations[oneCellKey] = cellEliteGenerationNumber;
-    }
-  }
-  return cellEliteGenerations;
 }
 
 export async function getGenomeStatisticsAveragedForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
@@ -242,6 +233,153 @@ async function getGenomeStatistics( genomeId, evoRunConfig, evoRunId ) {
     cppnNodeCount, cppnConnectionCount, asNEATPatchNodeCount, asNEATPatchConnectionCount
   };
 }
+
+///// saturation generations
+
+export async function getCellSaturationGenerations( evoRunConfig, evoRunId ) {
+  const cellEliteGenerations = {};
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const iterationIndex = commitCount - 1;
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const cellKeys = Object.keys(eliteMap.cells);
+  for( const oneCellKey of cellKeys ) {
+    if( eliteMap.cells[oneCellKey].elts.length ) {
+      const cellEliteGenerationNumber = eliteMap.cells[oneCellKey].elts[0].gN;
+      cellEliteGenerations[oneCellKey] = cellEliteGenerationNumber;
+    }
+  }
+  return cellEliteGenerations;
+}
+
+///// score variance
+
+// TODO elite counts
+
+// TODO elite energy
+
+// TOODO lineages
+
+async function getCellScoreVarianceForGenomeIdSet( evoRunConfig, evoRunId, iterationIndex, genomeIds ) {
+  // TODO get scores form previous step if removed indexes?
+  const genomeScores = await getGenomeScores( evoRunConfig, evoRunId, iterationIndex, genomeIds );
+  const genomeScoreVariance = await getScoreVarianceForGenomes( genomeScores );
+  return genomeScoreVariance;
+}
+
+async function getGenomeScores( evoRunConfig, evoRunId, iterationIndex, genomeIds ) {
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const cellKeys = Object.keys(eliteMap.cells);
+  const cellCount = cellKeys.length;
+  // for each unique genomeId, collect all scores
+  const genomeScores = {};
+  for( const oneCellKey of cellKeys ) {
+    if( eliteMap.cells[oneCellKey].elts.length ) {
+      if( !genomeIds || genomeIds.includes( eliteMap.cells[oneCellKey].elts[0].g ) ) {
+        const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
+        const score = eliteMap.cells[oneCellKey].elts[0].s;
+        if( !genomeScores[genomeId] ) {
+          genomeScores[genomeId] = [];
+        }
+        genomeScores[genomeId].push( score );
+      }
+    }
+  }
+  return genomeScores;
+}
+
+async function getScoreVarianceForGenomes( genomeScores ) {
+  // for each unique genomeId, calculate variance
+  const genomeScoreVariances = {};
+  const genomeScoreStandardDeviations = {};
+  const genomeScoreMeanDeviations = {};
+  for( const oneGenomeId of Object.keys(genomeScores) ) {
+    const scores = genomeScores[oneGenomeId];
+   
+    const variance = calcVariance( scores );
+    genomeScoreVariances[oneGenomeId] = variance;
+
+    const standardDeviation = calcStandardDeviation( scores );
+    genomeScoreStandardDeviations[oneGenomeId] = standardDeviation;
+
+    const meanDeviation = calcMeanDeviation( scores );
+    genomeScoreMeanDeviations[oneGenomeId] = meanDeviation;
+  }
+  // for each unique genomeId, calculate average variance
+  const genomeScoreVarianceSum = Object.values(genomeScoreVariances).reduce( (sum, variance) => sum + variance, 0 );
+  const averageGenomeScoreVariance = genomeScoreVarianceSum / Object.keys(genomeScoreVariances).length;
+
+  // for each unique genomeId, calculate average standard deviation
+  const genomeScoreStandardDeviationSum = Object.values(genomeScoreStandardDeviations).reduce( (sum, standardDeviation) => sum + standardDeviation, 0 );
+  const averageGenomeScoreStandardDeviation = genomeScoreStandardDeviationSum / Object.keys(genomeScoreStandardDeviations).length;
+
+  // for each unique genomeId, calculate average mean deviation
+  const genomeScoreMeanDeviationSum = Object.values(genomeScoreMeanDeviations).reduce( (sum, meanDeviation) => sum + meanDeviation, 0 );
+  const averageGenomeScoreMeanDeviation = genomeScoreMeanDeviationSum / Object.keys(genomeScoreMeanDeviations).length;
+
+  return {
+    averageGenomeScoreVariance, averageGenomeScoreStandardDeviation, averageGenomeScoreMeanDeviation
+  };
+}
+
+export async function getScoreVarianceForEliteGenomes( evoRunConfig, evoRunId, iterationIndex ) {
+  const eliteGenomeIds = Array.from((await getGenomeSetsForOneIteration( evolutionConfig, evoRunId, iterationIndex )).values());
+  const genomeScores = getGenomeScores( evoRunConfig, evoRunId, iterationIndex );
+  const scoreVarianceForEliteGenomes = getScoreVarianceForGenomes( evoRunConfig, evoRunId, iterationIndex, eliteGenomeIds, genomeScores );
+  return scoreVarianceForEliteGenomes;
+}
+
+export async function getScoreVarianceForOneIteration( evoRunConfig, evoRunId, iterationIndex, stepSize = 1 ) {
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const cellKeys = Object.keys(eliteMap.cells);
+  const cellCount = cellKeys.length;
+  const mapScores = new Array( cellCount );
+  for( const [i, oneCellKey] of cellKeys.entries() ) {
+    if( eliteMap.cells[oneCellKey].elts.length ) {
+      const score = eliteMap.cells[oneCellKey].elts[0].s;
+      mapScores[i] = score;
+    }
+  }
+  const scoreVariance = calcVariance( mapScores );
+  const scoreStandardDeviation = calcStandardDeviation( mapScores );
+  const scoreMeanDeviation = calcMeanDeviation( mapScores );
+  return {
+    scoreVariance, scoreStandardDeviation, scoreMeanDeviation
+  };
+}
+
+export async function getScoreStatsForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
+  const scoreVarianceForEliteGenomes = await getScoreVarianceForEliteGenomes( evoRunConfig, evoRunId, iterationIndex );
+  const scoreVariance = await getScoreVarianceForOneIteration( evoRunConfig, evoRunId, iterationIndex );
+  return {
+    scoreVarianceForEliteGenomes, scoreVariance
+  };
+}
+
+export async function getScoreVarianceForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+  const genomeSetsCollection = await getGenomeSetsForAllIterations( evoRunConfig, evoRunId, stepSize );
+  const scoreVarianceForAllIterations = [];
+  for( let i = 0; i < genomeSetsCollection.genomeSets.length; i++ ) {
+    console.log( `Calculating score variance for step ${i}` );
+    const eliteGenomeIds = Array.from(genomeSetsCollection.genomeSets[i].values());
+    const scoreVarianceForElitesAtIteration = await getCellScoreVarianceForGenomeIdSet( evoRunConfig, evoRunId, i*stepSize, eliteGenomeIds );
+    let scoreVarianceForNewElitesAtIteration;
+    let scoreVarianceForRemovedElitesAtIteration;
+    if( i > 0 ) {
+      const newEliteGenomeIds = Array.from(genomeSetsCollection.genomeSetsAdditions[i].values());
+      const removedEliteGenomeIds = Array.from(genomeSetsCollection.genomeSetsRemovals[i].values());
+      scoreVarianceForNewElitesAtIteration = await getCellScoreVarianceForGenomeIdSet( evoRunConfig, evoRunId, i*stepSize, newEliteGenomeIds );
+      scoreVarianceForRemovedElitesAtIteration = await getCellScoreVarianceForGenomeIdSet( evoRunConfig, evoRunId, (i-1)*stepSize, removedEliteGenomeIds ); // i-1 because we want to get the score variance for the iteration before the removal
+    }
+    const scoreVarianceAtIteration = await getScoreVarianceForOneIteration( evoRunConfig, evoRunId, i*stepSize );
+    scoreVarianceForAllIterations.push( {
+      scoreVarianceAtIteration,
+      scoreVarianceForElitesAtIteration, scoreVarianceForNewElitesAtIteration, scoreVarianceForRemovedElitesAtIteration
+    } );
+  }
+  return scoreVarianceForAllIterations;
+}
+
 
 function bindNavKeys() { // https://itecnote.com/tecnote/node-js-how-to-capture-the-arrow-keys-in-node-js/
   var stdin = process.stdin;
