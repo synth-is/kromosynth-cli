@@ -254,12 +254,6 @@ export async function getCellSaturationGenerations( evoRunConfig, evoRunId ) {
 
 ///// score variance
 
-// TODO elite counts
-
-// TODO elite energy
-
-// TOODO lineages
-
 async function getCellScoreVarianceForGenomeIdSet( evoRunConfig, evoRunId, iterationIndex, genomeIds ) {
   // TODO get scores form previous step if removed indexes?
   const genomeScores = await getGenomeScores( evoRunConfig, evoRunId, iterationIndex, genomeIds );
@@ -380,6 +374,60 @@ export async function getScoreVarianceForAllIterations( evoRunConfig, evoRunId, 
   return scoreVarianceForAllIterations;
 }
 
+
+///// elites energy
+
+export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1 ) {
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const eliteEnergies = {};
+  const eliteIterationEnergies = [];
+  for( let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++ ) {
+    if( iterationIndex % stepSize === 0 ) {
+      const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+      const cellKeys = Object.keys(eliteMap.cells);
+      for( const oneCellKey of cellKeys ) {
+        const cell = eliteMap.cells[oneCellKey];
+        if( cell.elts.length ) {
+          const genomeId = cell.elts[0].g;
+          if( eliteEnergies[oneCellKey] === undefined ) {
+            eliteEnergies[oneCellKey] = [];
+            eliteEnergies[oneCellKey].push( {
+              genomeId,
+              iterationIndex,
+              energy: iterationIndex
+            } );
+            log( `Elite energy for cell ${oneCellKey} at iteration ${iterationIndex}: ${eliteEnergies[oneCellKey].at(-1).energy}` );
+          } else if( eliteEnergies[oneCellKey].at(-1).genomeId !== genomeId ) {
+            eliteEnergies[oneCellKey].push( {
+              genomeId,
+              iterationIndex,
+              energy: iterationIndex - eliteEnergies[oneCellKey].at(-1).iterationIndex
+            } );
+            log( `Elite energy for cell ${oneCellKey} at iteration ${iterationIndex}: ${eliteEnergies[oneCellKey].at(-1).energy}` );
+          }
+        }
+      }
+      const oneIterationEnergy = Object.values(eliteEnergies).reduce( (acc, cur) => acc + cur.at(-1).energy, 0 );
+      eliteIterationEnergies.push( oneIterationEnergy );
+    }
+  }
+  const averageEnergyPerCell = {};
+  for( const oneCellKey of Object.keys(eliteEnergies) ) {
+    if( eliteEnergies[oneCellKey].length ) {
+      averageEnergyPerCell[oneCellKey] = eliteEnergies[oneCellKey].reduce( (acc, cur) => acc + cur.energy, 0 ) / eliteEnergies[oneCellKey].length;
+    }
+  }
+  const averageEnergy = Object.values(averageEnergyPerCell).reduce( (acc, cur) => acc + cur, 0 ) / Object.values(averageEnergyPerCell).length;
+  return {
+    // eliteEnergies,
+    averageEnergyPerCell,
+    averageEnergy,
+    eliteIterationEnergies
+  };
+}
+
+// TOODO lineages
 
 function bindNavKeys() { // https://itecnote.com/tecnote/node-js-how-to-capture-the-arrow-keys-in-node-js/
   var stdin = process.stdin;

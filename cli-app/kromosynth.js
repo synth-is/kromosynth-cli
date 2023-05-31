@@ -32,7 +32,8 @@ import {
 	getGenomeSetsForOneIteration,
 	getGenomeCountsForAllIterations,
 	getScoreVarianceForAllIterations,
-	getScoreStatsForOneIteration
+	getScoreStatsForOneIteration,
+	getElitesEnergy
 } from './qd-run-analysis.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
@@ -110,8 +111,9 @@ const cli = meow(`
 		evo-run-cell-saturation-generations
 			Last generation number for which a cell received a new top elite
 
-		evo-run-elite-count-at-generation
-			Elite count at each generation
+		evo-run-elites-energy
+			Collect the energy of the elites in the elite map, for all iterations of an evolution run,
+			where energy is measured as the count of unproductive iterations befor a new elite is found
 
 		evo-runs-analysis
 			Perform a selection of analysis steps (see above) for all evolution runs (specified in the --evolution-runs-config-json-file)
@@ -210,7 +212,7 @@ const cli = meow(`
 		$ kromosynth evo-run-genome-sets --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		$ kromosynth evo-run-score-variance --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance --step-size 100
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy --step-size 100
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
@@ -466,7 +468,10 @@ async function executeEvolutionTask() {
 		case "evo-run-cell-saturation-generations":
 			qdAnalysis_evoRunCellSaturationGenerations();
 			break;
-
+		case "evo-run-elites-energy":
+			qdAnalysis_evoRunElitesEnergy();
+			break;
+			
 		case "evo-run-elite-counts":
 			break;
 		case "evo-run-variances":
@@ -874,8 +879,17 @@ async function qdAnalysis_evoRunCellSaturationGenerations() {
 	let {evolutionRunId, stepSize} = cli.flags;
 	if( evolutionRunId ) {
 		const evoRunConfig = getEvolutionRunConfig();
-		const cellSaturationGenerations = await getCellSaturationGenerations( evoRunConfig, evolutionRunId,  );
+		const cellSaturationGenerations = await getCellSaturationGenerations( evoRunConfig, evolutionRunId );
 		console.log(cellSaturationGenerations);
+	}
+}
+
+async function qdAnalysis_evoRunElitesEnergy() {
+	let {evolutionRunId, stepSize} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		const eliteEnergy = await getElitesEnergy( evoRunConfig, evolutionRunId, stepSize );
+		console.log(eliteEnergy);
 	}
 }
 
@@ -983,6 +997,11 @@ async function qdAnalysis_evoRuns() {
 						const scoreVariances = await getScoreVarianceForAllIterations( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreVariances = scoreVariances;
 						console.log(`Added score variances to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+					}
+					if( oneAnalysisOperation == "elites-energy" ) {
+						const elitesEnergy = await getElitesEnergy( evoRunConfig, evolutionRunId, stepSize );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].elitesEnergy = elitesEnergy;
+						console.log(`Added elites energy to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 					}
 				}
 			}
