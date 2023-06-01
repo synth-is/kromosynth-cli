@@ -278,7 +278,7 @@ export async function mapElites(
                 newGenomeString = geneVariationWorkerResponse.newGenomeString;
               }
               else {
-                const classEliteGenome = getGenomeFromGenomeString(classEliteGenomeString, evolutionaryHyperparameters);
+                const classEliteGenome = await getGenomeFromGenomeString(classEliteGenomeString, evolutionaryHyperparameters);
                 const newGenome = getNewAudioSynthesisGenomeByMutation(
                   classEliteGenome,
                   evolutionRunId, generationNumber, -1, algorithmKey,

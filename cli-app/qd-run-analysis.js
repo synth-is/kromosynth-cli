@@ -427,6 +427,54 @@ export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1 ) {
   };
 }
 
+///// goal switching
+
+export async function getGoalSwitches( evoRunConfig, evoRunId, stepSize = 1, evoParams ) {
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const classChampionAndGoalSwitchCount = {};
+  for( let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++ ) {
+    if( iterationIndex % stepSize === 0 ) { // stepSize > 1 might be misleading here
+      log( `Calculating goal switches and goal switches for iteration ${iterationIndex}` );
+      const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+      const cellKeys = Object.keys(eliteMap.cells);
+      for( const oneCellKey of cellKeys ) {
+        const cell = eliteMap.cells[oneCellKey];
+        if( cell.elts.length ) {
+          const genomeId = cell.elts[0].g;
+          if( classChampionAndGoalSwitchCount[oneCellKey] === undefined ) {
+            classChampionAndGoalSwitchCount[oneCellKey] = {
+              championCount : 0,
+              goalSwitchCount : 0, // "number of times during a run that a new class champion was the offspring of a champion of another class" (orig. innovations engine paper: http://dx.doi.org/10.1145/2739480.2754703)
+              lastChampion: undefined
+            }
+          }
+          if( genomeId !== classChampionAndGoalSwitchCount[oneCellKey].lastChampion ) {
+            classChampionAndGoalSwitchCount[oneCellKey].championCount++;
+            classChampionAndGoalSwitchCount[oneCellKey].lastChampion = genomeId;
+
+            const classEliteGenomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+            const classEliteGenome = await getGenomeFromGenomeString(classEliteGenomeString, evoParams);
+            // check if attribute parentGenomes of classEliteGenome is defined and the array contains a genome with an eliteClass attribute that is not equal to oneCellKey
+            if( classEliteGenome.parentGenomes && classEliteGenome.parentGenomes.find( parentGenome => parentGenome.eliteClass !== oneCellKey ) ) {
+              classChampionAndGoalSwitchCount[oneCellKey].goalSwitchCount++;
+            }
+          }
+        }
+      }
+    }
+  }
+  const averageChampionCount = Object.values(classChampionAndGoalSwitchCount).reduce( (acc, cur) => acc + cur.championCount, 0 ) / Object.values(classChampionAndGoalSwitchCount).length;
+  const averageGoalSwitchCount = Object.values(classChampionAndGoalSwitchCount).reduce( (acc, cur) => acc + cur.goalSwitchCount, 0 ) / Object.values(classChampionAndGoalSwitchCount).length;
+  return {
+    classChampionAndGoalSwitchCount,
+    averageChampionCount,
+    averageGoalSwitchCount
+  };
+}
+
+
 // TOODO lineages
 
 function bindNavKeys() { // https://itecnote.com/tecnote/node-js-how-to-capture-the-arrow-keys-in-node-js/
