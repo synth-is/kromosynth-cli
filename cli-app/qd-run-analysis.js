@@ -517,6 +517,76 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
   return lineageGraphData;
 }
 
+///// duration, delta, pitch combinations
+
+export async function getDurationPitchDeltaVelocityCombinations( evoRunConfig, evoRunId, stepSize = 1, uniqueGenomes ) {
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const durationPitchDeltaVelocityCombinations = [];
+  for( let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++ ) {
+    if( iterationIndex % stepSize === 0 ) { // stepSize > 1 might be misleading here
+      log( `Collecting duration, delta, pitch combinations for iteration ${iterationIndex}` );
+      const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+      const cellKeys = Object.keys(eliteMap.cells);
+      const genomeSet = new Set();
+      const eliteMapDurationPitchDeltaVelocityCombinations = {};
+      for( const oneCellKey of cellKeys ) {
+        const cell = eliteMap.cells[oneCellKey];
+        if( cell.elts.length ) {
+          const genomeId = cell.elts[0].g;
+          const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+          const genome = await getGenomeFromGenomeString(genomeString);
+          genome.tags.forEach(oneTag => {
+            if( oneTag.tag === oneCellKey && ( !uniqueGenomes || !genomeSet.has(genomeId) ) ) {
+              const durationKey = `duration_${oneTag.duration}`;
+              const noteDeltaKey = `noteDelta_${oneTag.noteDelta}`;
+              const velocityKey = `velocity_${oneTag.velocity}`;
+              const durationPitchDeltaVelocityKey = `${durationKey}_${noteDeltaKey}_${velocityKey}`;
+              if( eliteMapDurationPitchDeltaVelocityCombinations[durationPitchDeltaVelocityKey] === undefined ) {
+                eliteMapDurationPitchDeltaVelocityCombinations[durationPitchDeltaVelocityKey] = 1;
+              } else {
+                eliteMapDurationPitchDeltaVelocityCombinations[durationPitchDeltaVelocityKey]++;
+              }
+              if( eliteMapDurationPitchDeltaVelocityCombinations[durationKey] === undefined ) {
+                eliteMapDurationPitchDeltaVelocityCombinations[durationKey] = 1;
+              } else {
+                eliteMapDurationPitchDeltaVelocityCombinations[durationKey]++;
+              }
+              if( eliteMapDurationPitchDeltaVelocityCombinations[noteDeltaKey] === undefined ) {
+                eliteMapDurationPitchDeltaVelocityCombinations[noteDeltaKey] = 1;
+              } else {
+                eliteMapDurationPitchDeltaVelocityCombinations[noteDeltaKey]++;
+              }
+              if( eliteMapDurationPitchDeltaVelocityCombinations[velocityKey] === undefined ) {
+                eliteMapDurationPitchDeltaVelocityCombinations[velocityKey] = 1;
+              } else {
+                eliteMapDurationPitchDeltaVelocityCombinations[velocityKey]++;
+              }
+
+            }
+          });
+          genomeSet.add(genomeId);
+        }
+      }
+      const averageEliteMapDurationPitchDeltaVelocityCombinations = {};
+      for( const oneKey of Object.keys(eliteMapDurationPitchDeltaVelocityCombinations) ) {
+        if( uniqueGenomes ) {
+          averageEliteMapDurationPitchDeltaVelocityCombinations[oneKey] = eliteMapDurationPitchDeltaVelocityCombinations[oneKey] / genomeSet.size;
+        } else {
+          averageEliteMapDurationPitchDeltaVelocityCombinations[oneKey] = eliteMapDurationPitchDeltaVelocityCombinations[oneKey] / Object.keys(eliteMap.cells).length;
+        }
+      }
+      durationPitchDeltaVelocityCombinations.push( {
+        eliteMapDurationPitchDeltaVelocityCombinations,
+        averageEliteMapDurationPitchDeltaVelocityCombinations
+      } );
+    }
+  }
+  return durationPitchDeltaVelocityCombinations;
+}
+
+
 function bindNavKeys() { // https://itecnote.com/tecnote/node-js-how-to-capture-the-arrow-keys-in-node-js/
   var stdin = process.stdin;
   stdin.setRawMode(true);

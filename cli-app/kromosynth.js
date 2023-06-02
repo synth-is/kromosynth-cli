@@ -36,6 +36,7 @@ import {
 	getElitesEnergy,
 	getGoalSwitches,
 	getLineageGraphData,
+	getDurationPitchDeltaVelocityCombinations
 } from './qd-run-analysis.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
@@ -122,6 +123,9 @@ const cli = meow(`
 		evo-run-lineage
 			Collect the lineage of the elites in the elite map, for all iterations of an evolution run
 
+		evo-run-duration-pitch-delta-velocity-combinations
+			Collect the duration and pitch combinations for all elites in the elite map, for all iterations of an evolution run
+
 		evo-runs-analysis
 			Perform a selection of analysis steps (see above) for all evolution runs (specified in the --evolution-runs-config-json-file)
 
@@ -182,6 +186,9 @@ const cli = meow(`
 		--evolution-run-id	See above
 		--score-threshold minimum score for an elite to be taken into consideration
 
+		Command: <evo-run-duration-pitch-delta-velocity-combinations>
+		--unique-genomes Flag controlling whether to only consider unique genomes, from each elite map, when collecting duration, delta and pitch combinations
+
 		Command: <evo-run-play-elite-map>
 		--start-cell-key	Name of elite class to start playing from (horizontally); from the first to the latest elite
 		--start-cell-key-index	Index of elite class to start playing from (horizontally); from the first to the latest elite
@@ -221,8 +228,9 @@ const cli = meow(`
 		$ kromosynth evo-run-elites-energy --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		$ kromosynth evo-run-goal-switches --evolution-run-config-json-file conf/evolution-run-config.jsonc --evo-params-json-file config/evolutionary-hyperparameters.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
 		$ kromosynth evo-run-lineage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
+		$ kromosynth evo-run-duration-pitch-delta-velocity-combinations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100 --unique-genomes true
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches,lineage --step-size 100
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches,lineage,duration-pitch-delta-velocity-combinations --step-size 100 --unique-genomes true
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
@@ -375,6 +383,11 @@ const cli = meow(`
 			type: 'string'
 		},
 
+		uniqueGenomes: {
+			type: 'boolean',
+			default: false
+		},
+
 		octaveFrom: {
 			type: 'number',
 			default: 3
@@ -486,6 +499,9 @@ async function executeEvolutionTask() {
 			break;
 		case "evo-run-lineage":
 			qdAnalysis_evoRunLineage();
+			break;
+		case "evo-run-duration-pitch-delta-velocity-combinations":
+			qdAnalysis_evoRunDurationPitchDeltaVelocityCombinations();
 			break;
 			
 		case "evo-run-elite-counts":
@@ -928,6 +944,15 @@ async function qdAnalysis_evoRunLineage() {
 	}
 }
 
+async function qdAnalysis_evoRunDurationPitchDeltaVelocityCombinations() {
+	let {evolutionRunId, stepSize, uniqueGenomes} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		const durationDeltaPitchCombinations = await getDurationPitchDeltaVelocityCombinations( evoRunConfig, evolutionRunId, stepSize, uniqueGenomes );
+		console.log(durationDeltaPitchCombinations);
+	}
+}
+
 // run git garbage collection on all evolution run iterations
 function qdAnalysis_gitGC() {
 	const evoRunsConfig = getEvolutionRunsConfig();
@@ -983,7 +1008,7 @@ async function qdAnalysis_percentCompletion() {
 
 async function qdAnalysis_evoRuns() {
 	const evoRunsConfig = getEvolutionRunsConfig();
-	const {analysisOperations, stepSize, scoreThreshold} = cli.flags;
+	const {analysisOperations, stepSize, scoreThreshold, uniqueGenomes} = cli.flags;
 	const analysisOperationsList = analysisOperations.split(",");
 	console.log("analysisOperationsList", analysisOperationsList);
 	const evoRunsAnalysis = {...evoRunsConfig};
@@ -1051,6 +1076,11 @@ async function qdAnalysis_evoRuns() {
 						const lineage = await getLineageGraphData( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].lineage = lineage;
 						console.log(`Added lineage to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+					}
+					if( oneAnalysisOperation === "duration-pitch-delta-velocity-combinations" ) {
+						const durationPitchDeltaVelocityCombinations = await getDurationPitchDeltaVelocityCombinations( evoRunConfig, evolutionRunId, stepSize, uniqueGenomes );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].durationPitchDeltaVelocityCombinations = durationPitchDeltaVelocityCombinations;
+						console.log(`Added duration delta pitch combinations to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 					}
 				}
 			}
