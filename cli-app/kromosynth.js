@@ -34,7 +34,8 @@ import {
 	getScoreVarianceForAllIterations,
 	getScoreStatsForOneIteration,
 	getElitesEnergy,
-	getGoalSwitches
+	getGoalSwitches,
+	getLineageGraphData,
 } from './qd-run-analysis.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
@@ -64,7 +65,6 @@ const cli = meow(`
 
 
 		QD search:
-
 		evolution-runs
 			Execute (potentially several) evolution runs sequentially, each corresponding to one execution of the command quality-diversity-search
 
@@ -118,6 +118,9 @@ const cli = meow(`
 
 		evo-run-goal-switches
 			Number of goal switches per class, plus (mean) new champions per class
+
+		evo-run-lineage
+			Collect the lineage of the elites in the elite map, for all iterations of an evolution run
 
 		evo-runs-analysis
 			Perform a selection of analysis steps (see above) for all evolution runs (specified in the --evolution-runs-config-json-file)
@@ -217,8 +220,9 @@ const cli = meow(`
 		$ kromosynth evo-run-cell-saturation-generations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J
 		$ kromosynth evo-run-elites-energy --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --step-size 100
 		$ kromosynth evo-run-goal-switches --evolution-run-config-json-file conf/evolution-run-config.jsonc --evo-params-json-file config/evolutionary-hyperparameters.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
+		$ kromosynth evo-run-lineage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches --step-size 100
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches,lineage --step-size 100
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
@@ -479,6 +483,9 @@ async function executeEvolutionTask() {
 			break;
 		case "evo-run-goal-switches":
 			qdAnalysis_evoRunGoalSwitches();
+			break;
+		case "evo-run-lineage":
+			qdAnalysis_evoRunLineage();
 			break;
 			
 		case "evo-run-elite-counts":
@@ -912,6 +919,15 @@ async function qdAnalysis_evoRunGoalSwitches() {
 	}
 }
 
+async function qdAnalysis_evoRunLineage() {
+	let {evolutionRunId, stepSize, scoreThreshold} = cli.flags;
+	if( evolutionRunId ) {
+		const evoRunConfig = getEvolutionRunConfig();
+		const lineage = await getLineageGraphData( evoRunConfig, evolutionRunId, stepSize );
+		console.log(lineage);
+	}
+}
+
 // run git garbage collection on all evolution run iterations
 function qdAnalysis_gitGC() {
 	const evoRunsConfig = getEvolutionRunsConfig();
@@ -1030,6 +1046,11 @@ async function qdAnalysis_evoRuns() {
 						const goalSwitches = await getGoalSwitches( evoRunConfig, evolutionRunId, stepSize, evoParams );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].goalSwitches = goalSwitches;
 						console.log(`Added goal switches to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+					}
+					if( oneAnalysisOperation === "lineage" ) {
+						const lineage = await getLineageGraphData( evoRunConfig, evolutionRunId, stepSize );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].lineage = lineage;
+						console.log(`Added lineage to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 					}
 				}
 			}

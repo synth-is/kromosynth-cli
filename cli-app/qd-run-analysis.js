@@ -475,7 +475,47 @@ export async function getGoalSwitches( evoRunConfig, evoRunId, stepSize = 1, evo
 }
 
 
-// TOODO lineages
+///// lineages
+
+export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 ) {
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const lineageGraphDataObj = {};
+  for( let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++ ) {
+    if( iterationIndex % stepSize === 0 ) { // stepSize > 1 might be misleading here
+      log( `Collecting lineage graph data for iteration ${iterationIndex}` );
+      const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+      const cellKeys = Object.keys(eliteMap.cells);
+      for( const oneCellKey of cellKeys ) {
+        const cell = eliteMap.cells[oneCellKey];
+        if( cell.elts.length ) {
+          const genomeId = cell.elts[0].g;
+          if( lineageGraphDataObj[genomeId] === undefined ) {
+            const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+            const genome = await getGenomeFromGenomeString(genomeString);
+            let parentGenomes;
+            if( genome.parentGenomes ) {
+              parentGenomes = genome.parentGenomes;
+            } else {
+              parentGenomes = [];
+            }
+            lineageGraphDataObj[genomeId] = { parentGenomes };
+          }
+        }
+      }
+    }
+  }
+  // convert lineageGraphDataObj to array with objects with the attributes id and parents
+  const lineageGraphData = [];
+  for( const genomeId of Object.keys(lineageGraphDataObj) ) {
+    lineageGraphData.push({
+      id: genomeId,
+      parents: lineageGraphDataObj[genomeId].parentGenomes
+    });
+  }
+  return lineageGraphData;
+}
 
 function bindNavKeys() { // https://itecnote.com/tecnote/node-js-how-to-capture-the-arrow-keys-in-node-js/
   var stdin = process.stdin;
