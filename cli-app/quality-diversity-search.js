@@ -212,6 +212,7 @@ export async function mapElites(
           ///// selection
           let classKeys;
           if( classRestriction && classRestriction.length ) {
+            console.log("classRestriction:", classRestriction);
             classKeys = classRestriction;
           } else if( eliteWinsOnlyOneCell ) {
             // select only cell keys where the elts attribute referes to a non-empty array
