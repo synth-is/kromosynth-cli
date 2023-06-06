@@ -15,6 +15,14 @@ import { log } from 'console';
 import { get } from 'http';
 
 
+///// class labels
+
+export async function getClassLabels( evoRunConfig, evoRunId ) {
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, 0 );
+  const cellKeys = Object.keys(eliteMap.cells);
+  return cellKeys;
+}
+
 ///// QD score
 
 export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
@@ -194,9 +202,13 @@ export async function getGenomeStatisticsAveragedForOneIteration( evoRunConfig, 
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
   const cellCount = cellKeys.length;
+  const cppnNodeCounts = [];
   let cumulativeCppnNodeCount = 0;
+  const cppnConnectionCounts = [];
   let cumulativeCppnConnectionCount = 0;
+  const asNEATPatchNodeCounts = [];
   let cumulativeAsNEATPatchNodeCount = 0;
+  const asNEATPatchConnectionCounts = [];
   let cumulativeAsNEATPatchConnectionCount = 0;
   for( const oneCellKey of cellKeys ) {
     if( eliteMap.cells[oneCellKey].elts.length ) {
@@ -205,17 +217,26 @@ export async function getGenomeStatisticsAveragedForOneIteration( evoRunConfig, 
       const {
         cppnNodeCount, cppnConnectionCount, asNEATPatchNodeCount, asNEATPatchConnectionCount
       } = await getGenomeStatistics( genomeId, evoRunConfig, evoRunId );
+      cppnNodeCounts.push(cppnNodeCount);
       cumulativeCppnNodeCount += cppnNodeCount;
+      cppnConnectionCounts.push(cppnConnectionCount);
       cumulativeCppnConnectionCount += cppnConnectionCount;
+      asNEATPatchNodeCounts.push(asNEATPatchNodeCount);
       cumulativeAsNEATPatchNodeCount += asNEATPatchNodeCount;
+      asNEATPatchConnectionCounts.push(asNEATPatchConnectionCount);
       cumulativeAsNEATPatchConnectionCount += asNEATPatchConnectionCount;
     }
   }
+  const cppnNodeCountStdDev = calcStandardDeviation(cppnNodeCounts);
   const averageCppnNodeCount = cumulativeCppnNodeCount / cellCount;
+  const cppnConnectionCountStdDev = calcStandardDeviation(cppnConnectionCounts);
   const averageCppnConnectionCount = cumulativeCppnConnectionCount / cellCount;
+  const asNEATPatchNodeCountStdDev = calcStandardDeviation(asNEATPatchNodeCounts);
   const averageAsNEATPatchNodeCount = cumulativeAsNEATPatchNodeCount / cellCount;
+  const asNEATPatchConnectionCountStdDev = calcStandardDeviation(asNEATPatchConnectionCounts);
   const averageAsNEATPatchConnectionCount = cumulativeAsNEATPatchConnectionCount / cellCount;
   return {
+    cppnNodeCountStdDev, cppnConnectionCountStdDev, asNEATPatchNodeCountStdDev, asNEATPatchConnectionCountStdDev,
     averageCppnNodeCount, averageCppnConnectionCount, averageAsNEATPatchNodeCount, averageAsNEATPatchConnectionCount
   };
 }
@@ -317,13 +338,13 @@ async function getScoreVarianceForGenomes( genomeScores ) {
 }
 
 export async function getScoreVarianceForEliteGenomes( evoRunConfig, evoRunId, iterationIndex ) {
-  const eliteGenomeIds = Array.from((await getGenomeSetsForOneIteration( evolutionConfig, evoRunId, iterationIndex )).values());
+  const eliteGenomeIds = Array.from((await getGenomeSetsForOneIteration( evoRunConfig, evoRunId, iterationIndex )).values());
   const genomeScores = getGenomeScores( evoRunConfig, evoRunId, iterationIndex );
   const scoreVarianceForEliteGenomes = getScoreVarianceForGenomes( evoRunConfig, evoRunId, iterationIndex, eliteGenomeIds, genomeScores );
   return scoreVarianceForEliteGenomes;
 }
 
-export async function getScoreVarianceForOneIteration( evoRunConfig, evoRunId, iterationIndex, stepSize = 1 ) {
+export async function getScoreVarianceForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
   const cellCount = cellKeys.length;
@@ -334,9 +355,17 @@ export async function getScoreVarianceForOneIteration( evoRunConfig, evoRunId, i
       mapScores[i] = score;
     }
   }
-  const scoreVariance = calcVariance( mapScores );
-  const scoreStandardDeviation = calcStandardDeviation( mapScores );
-  const scoreMeanDeviation = calcMeanDeviation( mapScores );
+  let scoreVariance, scoreStandardDeviation, scoreMeanDeviation;
+  // check if mapScores contains only undefined values
+  if( mapScores.every( score => score === undefined ) ) {
+    scoreVariance = undefined;
+    scoreStandardDeviation = undefined;
+    scoreMeanDeviation = undefined;
+  } else {
+    scoreVariance = calcVariance( mapScores );
+    scoreStandardDeviation = calcStandardDeviation( mapScores );
+    scoreMeanDeviation = calcMeanDeviation( mapScores );
+  }
   return {
     scoreVariance, scoreStandardDeviation, scoreMeanDeviation
   };
@@ -408,7 +437,7 @@ export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1 ) {
           }
         }
       }
-      const oneIterationEnergy = Object.values(eliteEnergies).reduce( (acc, cur) => acc + cur.at(-1).energy, 0 );
+      const oneIterationEnergy = Object.values(eliteEnergies).reduce( (acc, cur) => acc + cur.at(-1).energy, 0 ) / cellKeys.length;
       eliteIterationEnergies.push( oneIterationEnergy );
     }
   }
@@ -530,7 +559,8 @@ export async function getDurationPitchDeltaVelocityCombinations( evoRunConfig, e
       const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
       const cellKeys = Object.keys(eliteMap.cells);
       const genomeSet = new Set();
-      const eliteMapDurationPitchDeltaVelocityCombinations = {};
+      const eliteMapDurationPitchDeltaVelocityCombinationCounts = {};
+      const eliteMapDurationPitchDeltaVelocityCounts = {};
       for( const oneCellKey of cellKeys ) {
         const cell = eliteMap.cells[oneCellKey];
         if( cell.elts.length ) {
@@ -543,25 +573,25 @@ export async function getDurationPitchDeltaVelocityCombinations( evoRunConfig, e
               const noteDeltaKey = `noteDelta_${oneTag.noteDelta}`;
               const velocityKey = `velocity_${oneTag.velocity}`;
               const durationPitchDeltaVelocityKey = `${durationKey}_${noteDeltaKey}_${velocityKey}`;
-              if( eliteMapDurationPitchDeltaVelocityCombinations[durationPitchDeltaVelocityKey] === undefined ) {
-                eliteMapDurationPitchDeltaVelocityCombinations[durationPitchDeltaVelocityKey] = 1;
+              if( eliteMapDurationPitchDeltaVelocityCombinationCounts[durationPitchDeltaVelocityKey] === undefined ) {
+                eliteMapDurationPitchDeltaVelocityCombinationCounts[durationPitchDeltaVelocityKey] = 1;
               } else {
-                eliteMapDurationPitchDeltaVelocityCombinations[durationPitchDeltaVelocityKey]++;
+                eliteMapDurationPitchDeltaVelocityCombinationCounts[durationPitchDeltaVelocityKey]++;
               }
-              if( eliteMapDurationPitchDeltaVelocityCombinations[durationKey] === undefined ) {
-                eliteMapDurationPitchDeltaVelocityCombinations[durationKey] = 1;
+              if( eliteMapDurationPitchDeltaVelocityCounts[durationKey] === undefined ) {
+                eliteMapDurationPitchDeltaVelocityCounts[durationKey] = 1;
               } else {
-                eliteMapDurationPitchDeltaVelocityCombinations[durationKey]++;
+                eliteMapDurationPitchDeltaVelocityCounts[durationKey]++;
               }
-              if( eliteMapDurationPitchDeltaVelocityCombinations[noteDeltaKey] === undefined ) {
-                eliteMapDurationPitchDeltaVelocityCombinations[noteDeltaKey] = 1;
+              if( eliteMapDurationPitchDeltaVelocityCounts[noteDeltaKey] === undefined ) {
+                eliteMapDurationPitchDeltaVelocityCounts[noteDeltaKey] = 1;
               } else {
-                eliteMapDurationPitchDeltaVelocityCombinations[noteDeltaKey]++;
+                eliteMapDurationPitchDeltaVelocityCounts[noteDeltaKey]++;
               }
-              if( eliteMapDurationPitchDeltaVelocityCombinations[velocityKey] === undefined ) {
-                eliteMapDurationPitchDeltaVelocityCombinations[velocityKey] = 1;
+              if( eliteMapDurationPitchDeltaVelocityCounts[velocityKey] === undefined ) {
+                eliteMapDurationPitchDeltaVelocityCounts[velocityKey] = 1;
               } else {
-                eliteMapDurationPitchDeltaVelocityCombinations[velocityKey]++;
+                eliteMapDurationPitchDeltaVelocityCounts[velocityKey]++;
               }
 
             }
@@ -570,16 +600,26 @@ export async function getDurationPitchDeltaVelocityCombinations( evoRunConfig, e
         }
       }
       const averageEliteMapDurationPitchDeltaVelocityCombinations = {};
-      for( const oneKey of Object.keys(eliteMapDurationPitchDeltaVelocityCombinations) ) {
+      for( const oneKey of Object.keys(eliteMapDurationPitchDeltaVelocityCombinationCounts) ) {
         if( uniqueGenomes ) {
-          averageEliteMapDurationPitchDeltaVelocityCombinations[oneKey] = eliteMapDurationPitchDeltaVelocityCombinations[oneKey] / genomeSet.size;
+          averageEliteMapDurationPitchDeltaVelocityCombinations[oneKey] = eliteMapDurationPitchDeltaVelocityCombinationCounts[oneKey] / genomeSet.size;
         } else {
-          averageEliteMapDurationPitchDeltaVelocityCombinations[oneKey] = eliteMapDurationPitchDeltaVelocityCombinations[oneKey] / Object.keys(eliteMap.cells).length;
+          averageEliteMapDurationPitchDeltaVelocityCombinations[oneKey] = eliteMapDurationPitchDeltaVelocityCombinationCounts[oneKey] / Object.keys(eliteMap.cells).length;
+        }
+      }
+      const averageEliteMapDurationPitchDeltaVelocity = {};
+      for( const oneKey of Object.keys(eliteMapDurationPitchDeltaVelocityCounts) ) {
+        if( uniqueGenomes ) {
+          averageEliteMapDurationPitchDeltaVelocity[oneKey] = eliteMapDurationPitchDeltaVelocityCounts[oneKey] / genomeSet.size;
+        } else {
+          averageEliteMapDurationPitchDeltaVelocity[oneKey] = eliteMapDurationPitchDeltaVelocityCounts[oneKey] / Object.keys(eliteMap.cells).length;
         }
       }
       durationPitchDeltaVelocityCombinations.push( {
-        eliteMapDurationPitchDeltaVelocityCombinations,
-        averageEliteMapDurationPitchDeltaVelocityCombinations
+        eliteMapDurationPitchDeltaVelocityCombinationCounts,
+        eliteMapDurationPitchDeltaVelocityCounts,
+        averageEliteMapDurationPitchDeltaVelocityCombinations,
+        averageEliteMapDurationPitchDeltaVelocity
       } );
     }
   }

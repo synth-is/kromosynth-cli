@@ -36,7 +36,8 @@ import {
 	getElitesEnergy,
 	getGoalSwitches,
 	getLineageGraphData,
-	getDurationPitchDeltaVelocityCombinations
+	getDurationPitchDeltaVelocityCombinations,
+	getClassLabels
 } from './qd-run-analysis.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
@@ -1012,6 +1013,7 @@ async function qdAnalysis_evoRuns() {
 	const analysisOperationsList = analysisOperations.split(",");
 	console.log("analysisOperationsList", analysisOperationsList);
 	const evoRunsAnalysis = {...evoRunsConfig};
+	const analysisResultFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
 	for( let currentEvolutionRunIndex = 0; currentEvolutionRunIndex < evoRunsConfig.evoRuns.length; currentEvolutionRunIndex++ ) {
 		const currentEvoConfig = evoRunsConfig.evoRuns[currentEvolutionRunIndex];
 		for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
@@ -1026,67 +1028,81 @@ async function qdAnalysis_evoRuns() {
 				const evoParams = merge(evoParamsMain, evoParamsDiff);
 	
 				for( const oneAnalysisOperation of analysisOperationsList ) {
+					const classLabels = await getClassLabels( evoRunConfig, evolutionRunId );
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].classLabels = classLabels;
 					if( oneAnalysisOperation === "qd-scores" ) {
 						const qdScores = await calculateQDScoresForAllIterations( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].qdScores = qdScores;
 						console.log(`Added ${qdScores.length} QD scores to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "genome-statistics" ) {
 						const genomeStatistics = await getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].genomeStatistics = genomeStatistics;
 						console.log(`Added genome statistics to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "cell-scores" ) {
 						const cellScores = await getCellScoresForAllIterations( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].cellScores = cellScores;
 						console.log(`Added cell scores to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "coverage" ) {
 						const coverage = await getCoverageForAllIterations( evoRunConfig, evolutionRunId, stepSize, scoreThreshold );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].coverage = coverage;
 						console.log(`Added coverage to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "elite-generations" ) {
 						const eliteGenerations = await getCellSaturationGenerations( evoRunConfig, evolutionRunId );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].eliteGenerationsLabeled = eliteGenerations;
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].eliteGenerations = Object.values(eliteGenerations);
 						console.log(`Added elite generations to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "genome-sets" ) {
 						const genomeSets = await getGenomeCountsForAllIterations( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].genomeSets = genomeSets;
 						console.log(`Added genome sets to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation == "variance" ) {
 						const scoreVariances = await getScoreVarianceForAllIterations( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreVariances = scoreVariances;
 						console.log(`Added score variances to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation == "elites-energy" ) {
 						const elitesEnergy = await getElitesEnergy( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].elitesEnergy = elitesEnergy;
 						console.log(`Added elites energy to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "goal-switches" ) {
 						const goalSwitches = await getGoalSwitches( evoRunConfig, evolutionRunId, stepSize, evoParams );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].goalSwitches = goalSwitches;
 						console.log(`Added goal switches to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "lineage" ) {
 						const lineage = await getLineageGraphData( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].lineage = lineage;
 						console.log(`Added lineage to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "duration-pitch-delta-velocity-combinations" ) {
 						const durationPitchDeltaVelocityCombinations = await getDurationPitchDeltaVelocityCombinations( evoRunConfig, evolutionRunId, stepSize, uniqueGenomes );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].durationPitchDeltaVelocityCombinations = durationPitchDeltaVelocityCombinations;
 						console.log(`Added duration delta pitch combinations to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 				}
 			}
 		}
 	}
-	const analysisResultFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
+}
+function writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis ) {
 	const evoRunsAnalysisJSONString = JSON.stringify( evoRunsAnalysis, null, 2 );
 	fs.writeFileSync( analysisResultFilePath, evoRunsAnalysisJSONString );
 	console.log(`Wrote: ${analysisResultFilePath}`);

@@ -115,9 +115,13 @@ export function calcVariance(numbers) {
 
 export function calcStandardDeviation(numbers) { 
   // calculate the standard deviation
-  const variance = calcVariance(numbers);
+  let variance;
+  if( !numbers.length || numbers.every( number => number === undefined ) ) {
+    variance = 0;
+  } else {
+    variance = calcVariance(numbers);
+  }
   const standardDeviation = Math.sqrt(variance);
-
   return standardDeviation;
 }
 
