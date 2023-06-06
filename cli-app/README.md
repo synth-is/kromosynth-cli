@@ -159,6 +159,9 @@ pm2 start kromosynth.js -- quality-diversity-search --evo-params-json-file conf/
 ### Service cluster for variation and evaluation
 
 #### Bare metal
+```
+cd ./gRPC
+```
 
 Starting a service cluster, managed by pm2:
 ```

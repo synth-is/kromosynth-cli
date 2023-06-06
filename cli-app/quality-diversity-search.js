@@ -20,6 +20,7 @@ import {
   runCmd, runCmdAsync, readGenomeAndMetaFromDisk, getGenomeKey, calcStandardDeviation
 } from './util/qd-common.js';
 import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker } from './service/workers/gene-child-process-forker.js';
+import { get } from 'http';
 
 /**
  *
@@ -54,7 +55,9 @@ export async function mapElites(
 ) {
   const algorithmKey = 'mapElites_with_uBC'; // TODO from evolution-runs-config.jsonc
   const {
-    seedEvals, eliteWinsOnlyOneCell, terminationCondition, evoRunsDirPath,
+    seedEvals, 
+    eliteWinsOnlyOneCell, classRestriction,
+    terminationCondition, evoRunsDirPath,
     geneEvaluationProtocol, childProcessBatchSize, batchMultiplicationFactor,
     evaluationCandidateWavFilesDirPath,
     probabilityMutatingWaveNetwork, probabilityMutatingPatch,
@@ -208,7 +211,9 @@ export async function mapElites(
         } else {
           ///// selection
           let classKeys;
-          if( eliteWinsOnlyOneCell ) {
+          if( classRestriction && classRestriction.length ) {
+            classKeys = classRestriction;
+          } else if( eliteWinsOnlyOneCell ) {
             // select only cell keys where the elts attribute referes to a non-empty array
             classKeys = Object.keys(eliteMap.cells).filter( ck => eliteMap.cells[ck].elts.length > 0 );
           } else {
@@ -423,7 +428,7 @@ export async function mapElites(
           if( dummyRun && dummyRun.iterations ) {
             eliteClassKeys = getDummyClassKeysWhereScoresAreElite( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
           } else {
-            eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap, eliteWinsOnlyOneCell );
+            eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap, eliteWinsOnlyOneCell, classRestriction );
           }
           if( eliteClassKeys.length > 0 ) {
             // const classScoresSD = getClassScoresStandardDeviation( newGenomeClassScores );
@@ -508,8 +513,18 @@ export async function mapElites(
   if( exitWhenDone ) process.exit();
 }
 
-function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOneCell ) {
-  if( eliteWinsOnlyOneCell ) {
+function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOneCell, classRestriction ) {
+  if( classRestriction ) {
+    const eliteScoreKeys = [];
+    for( let oneClass of classRestriction ) {
+      if( ! getCurrentClassElite(oneClass, eliteMap)
+          || getCurrentClassElite(oneClass, eliteMap).s < classScores[oneClass].score
+      ) {
+        eliteScoreKeys.push(oneClass);
+      }
+    }
+    return eliteScoreKeys;
+  } else if( eliteWinsOnlyOneCell ) {
     const highestScoreClassKey = Object.keys(classScores).reduce((maxKey, oneClassKey) => 
       classScores[maxKey].score > classScores[oneClassKey].score ? maxKey : oneClassKey
     );
