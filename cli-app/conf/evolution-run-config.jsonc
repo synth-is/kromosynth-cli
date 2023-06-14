@@ -3,7 +3,8 @@
   "seedEvals": 20,
   // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution, 
   // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
-  "eliteWinsOnlyOneCell": false,
+  "eliteWinsOnlyOneCell": true,
+  "classRestriction": ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
   "terminationCondition": {
    "numberOfEvals": 100000
   //  or

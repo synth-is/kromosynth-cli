@@ -20,6 +20,7 @@ import {
   runCmd, runCmdAsync, readGenomeAndMetaFromDisk, getGenomeKey, calcStandardDeviation
 } from './util/qd-common.js';
 import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker } from './service/workers/gene-child-process-forker.js';
+import { get } from 'http';
 
 const chance = new Chance();
 
@@ -55,8 +56,9 @@ export async function qdSearch(
   // seedEvals, terminationCondition, evoRunsDirPath
 ) {
   const {
-    algorithm: algorithmKey,
-    seedEvals, eliteWinsOnlyOneCell, terminationCondition, evoRunsDirPath,
+    seedEvals, 
+    eliteWinsOnlyOneCell, classRestriction,
+    terminationCondition, evoRunsDirPath,
     geneEvaluationProtocol, childProcessBatchSize, batchMultiplicationFactor,
     evaluationCandidateWavFilesDirPath,
     probabilityMutatingWaveNetwork, probabilityMutatingPatch,
@@ -254,24 +256,27 @@ async function mapElitesBatch(
         //   newGenomeString = JSON.stringify(genome);
         // }
 
-      } else {
-        ///// selection
-        let classKeys;
-        if( eliteWinsOnlyOneCell ) {
-          // select only cell keys where the elts attribute referes to a non-empty array
-          classKeys = Object.keys(eliteMap.cells).filter( ck => eliteMap.cells[ck].elts.length > 0 );
         } else {
-          classKeys = Object.keys(eliteMap.cells);
-        }
-        const classBiases = classKeys.map( ck =>
-          undefined === eliteMap.cells[ck].uBC ? 10 : eliteMap.cells[ck].uBC
-        );
-        const nonzeroClassBiasCount = classBiases.filter(b => b > 0).length;
-        if( nonzeroClassBiasCount > 0 ) {
-          randomClassKey = chance.weighted(classKeys, classBiases);
-        } else { // if all are zero or below, .weighted complains
-          randomClassKey = chance.pickone(classKeys);
-        }
+          ///// selection
+          let classKeys;
+          if( classRestriction && classRestriction.length ) {
+            console.log("classRestriction:", classRestriction);
+            classKeys = classRestriction;
+          } else if( eliteWinsOnlyOneCell ) {
+            // select only cell keys where the elts attribute referes to a non-empty array
+            classKeys = Object.keys(eliteMap.cells).filter( ck => eliteMap.cells[ck].elts.length > 0 );
+          } else {
+            classKeys = Object.keys(eliteMap.cells);
+          }
+          const classBiases = classKeys.map( ck =>
+            undefined === eliteMap.cells[ck].uBC ? 10 : eliteMap.cells[ck].uBC
+          );
+          const nonzeroClassBiasCount = classBiases.filter(b => b > 0).length;
+          if( nonzeroClassBiasCount > 0 ) {
+            randomClassKey = chance.weighted(classKeys, classBiases);
+          } else { // if all are zero or below, .weighted complains
+            randomClassKey = chance.pickone(classKeys);
+          }
 
         const {
           // genome: classEliteGenomeId,
@@ -467,59 +472,59 @@ async function mapElitesBatch(
 
       ///// add to archive
 
-      if( newGenomeClassScores !== undefined && Object.keys(newGenomeClassScores).length ) {
-        let eliteClassKeys;
-        if( dummyRun && dummyRun.iterations ) {
-          eliteClassKeys = getDummyClassKeysWhereScoresAreElite( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
-        } else {
-          eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap, eliteWinsOnlyOneCell );
-        }
-        if( eliteClassKeys.length > 0 ) {
-          // const classScoresSD = getClassScoresStandardDeviation( newGenomeClassScores );
-          // console.log("classScoresSD", classScoresSD);
-          eliteMap.newEliteCount = eliteClassKeys.length;
-          const newGenome = await getGenomeFromGenomeString( newGenomeString );
-          newGenome.tags = [];
-          newGenome.parentGenomes = parentGenomes.length ? parentGenomes : undefined;
-          newGenome.generationNumber = eliteMap.generationNumber;
-          for( const classKey of eliteClassKeys ) {
-            const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
-            const updated = Date.now();
-            eliteMap.cells[classKey].elts = [
-              // genomeId
-            // .push(
-            {
-              g: genomeId, //genome: genomeId,
-              // duration,
-              // noteDelta,
-              // velocity,
-              s: score, // score: score.toFixed(4),
-              gN: eliteMap.generationNumber, // generationNumber: eliteMap.generationNumber,
-              // parentGenomes: newGenome.parentGenomes
-            }
-            ];
-            // );
-            newGenome.tags.push({
-              tag: classKey,
-              score, duration, noteDelta, velocity,
-              updated
-            });
-            // delete the last top elite (if any) from genomeMap
-            /*
-            if( eliteMap[classKey].elts.length > 2 ) {
-              // const lastTopEliteGenomeId = eliteMap[classKey].elts[ eliteMap[classKey].elts.length-2 ].genome;
-              // delete genomeMap[lastTopEliteGenomeId];
-              eliteMap[classKey].elts = eliteMap[classKey].elts.slice( - 1 );
-            }
-            */
-            // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
-            eliteMap.cells[classKey].uBC = 10;
+        if( newGenomeClassScores !== undefined && Object.keys(newGenomeClassScores).length ) {
+          let eliteClassKeys;
+          if( dummyRun && dummyRun.iterations ) {
+            eliteClassKeys = getDummyClassKeysWhereScoresAreElite( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
+          } else {
+            eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap, eliteWinsOnlyOneCell, classRestriction );
           }
-          saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, true );
-          if( randomClassKey ) {
-            eliteMap.cells[randomClassKey].uBC = 10;
-          }
-        } else if( randomClassKey ) { // if( eliteClassKeys.length > 0 ) {
+          if( eliteClassKeys.length > 0 ) {
+            // const classScoresSD = getClassScoresStandardDeviation( newGenomeClassScores );
+            // console.log("classScoresSD", classScoresSD);
+            eliteMap.newEliteCount = eliteClassKeys.length;
+            const newGenome = await getGenomeFromGenomeString( newGenomeString );
+            newGenome.tags = [];
+            newGenome.parentGenomes = parentGenomes.length ? parentGenomes : undefined;
+            newGenome.generationNumber = eliteMap.generationNumber;
+            for( const classKey of eliteClassKeys ) {
+              const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
+              const updated = Date.now();
+              eliteMap.cells[classKey].elts = [
+                // genomeId
+              // .push(
+              {
+                g: genomeId, //genome: genomeId,
+                // duration,
+                // noteDelta,
+                // velocity,
+                s: score, // score: score.toFixed(4),
+                gN: eliteMap.generationNumber, // generationNumber: eliteMap.generationNumber,
+                // parentGenomes: newGenome.parentGenomes
+              }
+              ];
+              // );
+              newGenome.tags.push({
+                tag: classKey,
+                score, duration, noteDelta, velocity,
+                updated
+              });
+              // delete the last top elite (if any) from genomeMap
+              /*
+              if( eliteMap[classKey].elts.length > 2 ) {
+                // const lastTopEliteGenomeId = eliteMap[classKey].elts[ eliteMap[classKey].elts.length-2 ].genome;
+                // delete genomeMap[lastTopEliteGenomeId];
+                eliteMap[classKey].elts = eliteMap[classKey].elts.slice( - 1 );
+              }
+              */
+              // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
+              eliteMap.cells[classKey].uBC = 10;
+            }
+            saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, true );
+            if( randomClassKey ) {
+              eliteMap.cells[randomClassKey].uBC = 10;
+            }
+          } else if( randomClassKey ) { // if( eliteClassKeys.length > 0 ) {
 
           // bias search away from exploring niches that produce fewer innovations
           eliteMap.cells[randomClassKey].uBC -= 1; // TODO should stop at zero?
@@ -541,8 +546,18 @@ async function mapElitesBatch(
   }); // await Promise.all( searchPromises ).then( async (batchIterationResult) => {
 }
 
-function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOneCell ) {
-  if( eliteWinsOnlyOneCell ) {
+function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOneCell, classRestriction ) {
+  if( classRestriction ) {
+    const eliteScoreKeys = [];
+    for( let oneClass of classRestriction ) {
+      if( ! getCurrentClassElite(oneClass, eliteMap)
+          || getCurrentClassElite(oneClass, eliteMap).s < classScores[oneClass].score
+      ) {
+        eliteScoreKeys.push(oneClass);
+      }
+    }
+    return eliteScoreKeys;
+  } else if( eliteWinsOnlyOneCell ) {
     const highestScoreClassKey = Object.keys(classScores).reduce((maxKey, oneClassKey) => 
       classScores[maxKey].score > classScores[oneClassKey].score ? maxKey : oneClassKey
     );
