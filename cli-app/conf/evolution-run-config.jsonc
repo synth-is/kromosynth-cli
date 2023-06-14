@@ -1,11 +1,11 @@
 {
-  "algorithm": "mapElites",
+  "algorithm": "mapElites_with_uBC", // uBC = unproductive bias count
   "seedEvals": 20,
   // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution, 
   // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
-  "eliteWinsOnlyOneCell": true,
+  "eliteWinsOnlyOneCell": false,
   "terminationCondition": {
-   "numberOfEvals": 10000
+   "numberOfEvals": 100000
   //  or
   //  "averageFitnessInMap": 0.1
   // or
@@ -26,10 +26,9 @@
   "classifiers": ["yamnet"],
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
   "useGpuForTensorflow": true,
-  "eliteMapSnapshotEvery": 100000,
-  "batchDurationMs": 60000,
-  "gRpcHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-",
-  "gRpcServerCount": 1,
+  // "batchDurationMs": 60000,
+  // "gRpcHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-",
+  // "gRpcServerCount": 1,
   // "geneVariationServerPaths": [
   //   "/tmp/grpc1.txt"
   // ],

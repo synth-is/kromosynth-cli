@@ -16,7 +16,7 @@ import {
 	getAudioBufferFromGenomeAndMeta,
 	getClassScoresForGenome
 } from 'kromosynth';
-import { mapElites } from './quality-diversity-search.js';
+import { qdSearch } from './quality-diversity-search.js';
 import {
 	calculateQDScoreForOneIteration,
 	calculateQDScoresForAllIterations,
@@ -787,9 +787,7 @@ async function qualityDiversitySearch( evolutionRunId, evoRunConfig, evoParams )
 	}
 	const _evoRunConfig = evoRunConfig || getEvolutionRunConfig();
 	const _evoParams = evoParams || getEvoParams();
-	if( "mapElites" === _evoRunConfig.algorithm ) {
-		await mapElites( _evolutionRunId, _evoRunConfig, _evoParams, false );
-	} // TODO deepGridMapElites etc.
+	await qdSearch( _evolutionRunId, _evoRunConfig, _evoParams, false );
 }
 
 
