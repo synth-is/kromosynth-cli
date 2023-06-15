@@ -1,5 +1,6 @@
 {
-  "algorithm": "mapElites_with_uBC", // uBC = unproductive bias count
+  // "algorithm": "mapElites_with_uBC", // uBC = unproductive bias count
+  "algorithm": "Deep-Grid-MAP-Elites",
   "seedEvals": 20,
   // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution, 
   // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
@@ -14,6 +15,9 @@
   //  or
   //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
   },
+  // Deep-Grid MAP-Elites specific:
+  "populationSize": 20,
+  "gridDepth": 50,
   "evoRunsDirPath": "evoruns/",
   "favoritesDirPath": "/Users/bjornpjo/iCloud/Documents/synth.is/favoriteGenomes",
   "geneEvaluationProtocol": "grpc", // grpc or worker
