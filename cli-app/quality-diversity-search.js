@@ -484,6 +484,7 @@ export async function mapElites(
           console.log("iteration", eliteMap.generationNumber,"eliteCountAtGeneration:",eliteClassKeys.length, "evo run ID:", evolutionRunId);
           eliteMap.eliteCountAtGeneration = eliteClassKeys.length;
           eliteMap.searchBatchSize = searchBatchSize;
+          eliteMap.timestamp = Date.now();
           saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
           if( eliteMap.generationNumber % eliteMapSnapshotEvery === 0 ) {
             // saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, eliteMap.generationNumber ); // generation specific map
@@ -552,6 +553,7 @@ function initializeGrid( evolutionRunId, algorithm, evolutionRunConfig, evolutio
     algorithm,
     evolutionRunConfig, evolutionaryHyperparameters,
     generationNumber: 0,
+    timestamp: Date.now(),
     eliteCountAtGeneration: 0,
     terminated: false,
     cells: {} // aka classes or niches
