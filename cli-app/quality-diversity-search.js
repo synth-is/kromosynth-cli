@@ -6,9 +6,7 @@ import sample from "lodash-es/sample.js";
 import { getAudioGraphMutationParams } from "./kromosynth.js";
 import { yamnetTags } from 'kromosynth/workers/audio-classification/classificationTags.js';
 import {
-  getGenomeFromGenomeString, getNewAudioSynthesisGenomeByMutation,
-  writeEvaluationCandidateWavFilesForGenome,
-  populateNewGenomeClassScoresInBatchIterationResultFromEvaluationCandidateWavFiles
+  getGenomeFromGenomeString, getNewAudioSynthesisGenomeByMutation
 } from 'kromosynth';
 // import { callRandomGeneService } from './service/gene-random-worker-client.js';
 import {
@@ -18,7 +16,9 @@ import {
   clearServiceConnectionList
 } from './service/gRPC/gene_client.js';
 import {
-  runCmd, runCmdAsync, readGenomeAndMetaFromDisk, getGenomeKey, calcStandardDeviation
+  runCmd, runCmdAsync, readGenomeAndMetaFromDisk, getGenomeKey, calcStandardDeviation,
+  writeEvaluationCandidateWavFilesForGenome,
+  populateNewGenomeClassScoresInBatchIterationResultFromEvaluationCandidateWavFiles
 } from './util/qd-common.js';
 import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker } from './service/workers/gene-child-process-forker.js';
 import { get } from 'http';
