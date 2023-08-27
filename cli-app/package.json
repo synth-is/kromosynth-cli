@@ -24,6 +24,7 @@
     "deepmerge": "^4.3.1",
     "esm-hook": "^0.1.4",
     "figlet": "^1.5.2",
+    "fs-extra": "^11.1.1",
     "jsonc-parser": "^3.2.0",
     "jszip": "^3.10.1",
     "kromosynth": "^1.0.9",
