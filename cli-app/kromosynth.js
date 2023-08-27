@@ -8,6 +8,7 @@ const { OfflineAudioContext } = NodeWebAudioAPI;
 import {ulid} from 'ulid';
 import toWav from 'audiobuffer-to-wav';
 import merge from 'deepmerge';
+import fetch from "node-fetch";
 import {
 	getNewAudioSynthesisGenome,
 	getNewAudioSynthesisGenomeByMutation,
@@ -44,6 +45,7 @@ import {
 } from './util/rendering-common.js';
 import { renderSfz } from './virtual-instrument.js';
 import { runCmd } from './util/qd-common.js';
+
 
 const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";
 const GENOME_OUTPUT_END = "GENOME_OUTPUT_END";
@@ -135,6 +137,9 @@ const cli = meow(`
 		render-virtual-instrument
 			TODO: Render a sample based virtual instrument, using the SFZ format, from the supplied genome
 
+		render-evoruns
+			Render all elites in the elite map, for all evolution runs returned from a REST endpoint (evoruns.synth.is by default), to audio (WAV) files
+
 	Options
 		Commands: <new-genome, mutate-genome, render-audio or classify-genome>
 		--read-from-file, -r  Gene file to read from
@@ -197,6 +202,9 @@ const cli = meow(`
 		Command: <evo-run-play-class>
 		--cell-key	Name of elite class to play (vertically); from latest elite to the first
 
+		Command: <render-evoruns>
+		--evoruns-rest-server-url	URL of the REST server to query for evolution runs; https://evoruns.synth.is by default
+
 	Examples
 		$ kromosynth new-genome [--write-to-file]
 		$ kromosynth mutate-genome [--read-from-file | --read-from-input] [--write-to-file | --write-to-output]
@@ -236,6 +244,8 @@ const cli = meow(`
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
 		$ kromosynth evo-run-play-class --evolution-run-id 01GXVYY4T87RYSS02FN79VVQX5_4dur-7ndelt-4vel_wavetable-bias --evolution-run-config-json-file conf/evolution-run-config.jsonc --cell-key "Narration, monologue" --step-size 100 --ascending false
+
+		$ kromosynth render-evoruns --evoruns-rest-server-url http://localhost:3003 --write-to-folder ./
 
 		TODO see saveRenderedSoundsToFilesWorker onwards
 
@@ -408,7 +418,12 @@ const cli = meow(`
 		bitDepth: {
 			type: 'number',
 			default: 24
-		}
+		},
+
+		evorunsRestServerUrl: {
+			type: 'string',
+			default: 'https://evoruns.synth.is'
+		},
 	}
 });
 
@@ -522,8 +537,12 @@ async function executeEvolutionTask() {
 		case "evo-run-play-elite-map":
 			qdAnalysis_playEliteMap();
 			break;
+
 		case "render-virtual-instrument":
 			renderVirtualInstrument();
+			break;
+		case "render-evoruns":
+			renderEvoruns();
 			break;
     default:
       cli.showHelp();
@@ -677,6 +696,66 @@ async function renderVirtualInstrument() {
 		);
 	}
 
+}
+
+async function renderEvoruns() {
+	const { evorunsRestServerUrl, writeToFolder } = cli.flags;
+	console.log("evorunsRestServerUrl", evorunsRestServerUrl);
+	const evorunPaths = await getEvoruns( evorunsRestServerUrl );
+	console.log("evorunPaths", evorunPaths);
+	// for each evorun path, call the `/classes` endpoint to get the classes, with the evorun path as a query param
+	for( let oneEvorunPath of evorunPaths ) {
+		console.log("oneEvorunPath", oneEvorunPath);
+		const evorunId = oneEvorunPath.split("/").pop();
+		const classesResponse = await fetch( `${evorunsRestServerUrl}/classes?evoRunDirPath=${oneEvorunPath}` );
+		const classes = await classesResponse.json();
+		console.log("classes", classes);
+		if( ! classes.error ) {
+			// for each class, call the `/iteration-count` endpoint to get the iteration count, with the evorun path and class as query params
+			for( let oneClass of classes ) {
+				console.log("oneClass", oneClass);
+				const iterationCountResponse = await fetch( `${evorunsRestServerUrl}/iteration-count?evoRunDirPath=${oneEvorunPath}&class=${oneClass}` );
+				const iterationCount = await iterationCountResponse.json();
+				console.log("iterationCount", iterationCount);
+				// for the last iteration, call the `/genome-string` endpoint to get the genome, with the evorun path, class and iteration as query params
+				const genomeStringResponse = await fetch( `${evorunsRestServerUrl}/genome-string?evoRunDirPath=${oneEvorunPath}&class=${oneClass}&generation=${iterationCount-1}` );
+				const genomeString = await genomeStringResponse.text();
+				const genomeAndMeta = JSON.parse( genomeString );
+				// console.log("genomeAndMeta", genomeAndMeta);
+				// call the `/genome-metadata` endpoint to get the genome metadata, with the evorun path, class and iteration as query params
+				const genomeMetadataResponse = await fetch( `${evorunsRestServerUrl}/genome-metadata?evoRunDirPath=${oneEvorunPath}&class=${oneClass}&generation=${iterationCount-1}` )
+				const genomeMetadata = await genomeMetadataResponse.json();
+				const{ genomeId, duration, noteDelta, velocity, reverse, score } = genomeMetadata;
+				const id = `${evorunId}_${genomeId}`;
+				const filenameBase = `_${duration}_${noteDelta}_${velocity}_${iterationCount-1}_${score ? score.toFixed(2) : score}`;
+				try {
+					const audioBuffer = await getAudioBufferFromGenomeAndMeta(
+						genomeAndMeta,
+						duration, noteDelta, velocity, reverse,
+						false, // asDataArray
+						getNewOfflineAudioContext( duration ),
+						getAudioContext(),
+						cli.flags.useOvertoneInharmonicityFactors
+					);
+					const wav = toWav(audioBuffer);
+					const filename = `${filenameBase}.wav`;
+					writeToFile( Buffer.from(new Uint8Array(wav)), writeToFolder, id, `${oneClass}_`, filename, false );				
+				} catch (error) {
+					const errorFilename = `${filenameBase}_ERROR.txt`;
+					writeToFile( error.message, `${writeToFolder}errors/`, id, `${oneClass}_`, errorFilename, false );	
+				}
+			}
+		} else {
+			const errorFilename = `_ERROR.txt`;
+			writeToFile( classes.error, `${writeToFolder}errors/`, evorunId, ``, errorFilename, false );	
+		}
+	}
+}
+
+async function getEvoruns( evorunsRestServerUrl ) {
+	const response = await fetch( `${evorunsRestServerUrl}/evorunpaths` );
+	const evoruns = await response.json();
+	return evoruns;
 }
 
 async function classifyGenome() {

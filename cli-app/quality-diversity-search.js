@@ -674,7 +674,9 @@ async function deepGridMapElitesBatch(
           }
         );
         if( newGenomeClassScores ) {
-          const score = newGenomeClassScores[randomClassKey].score;
+          const {score, duration, noteDelta, velocity} = newGenomeClassScores[randomClassKey];
+            const updated = Date.now();
+
           const offspringCell = eliteMap.cells[randomClassKey];
           const championEntry = {
             g: genomeId,
@@ -683,16 +685,24 @@ async function deepGridMapElitesBatch(
             // duration: 1, noteDelta: 0, velocity: 1
           };
           offspringCell.elts.push( championEntry );
+
+          if( genomeId ) {
+            // const genomeSavedInDB = await this.saveToGenomeMap(evolutionRunId, genomeId, newGenome);
+            const newGenome = await getGenomeFromGenomeString( newGenomeString );
+            newGenome.tags = [];
+            newGenome.tags.push({
+              tag: randomClassKey,
+              score, duration, noteDelta, velocity,
+              updated
+            });
+            saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, true );        
+          }
+
         } else {
           console.error("Error evaluating gene at generation", eliteMap.generationNumber, "for evolution run", evolutionRunId);
           genomeId = undefined;
         }
         
-      }
-      if( genomeId ) {
-        // const genomeSavedInDB = await this.saveToGenomeMap(evolutionRunId, genomeId, newGenome);
-        const newGenome = await getGenomeFromGenomeString( newGenomeString );
-        saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, true );        
       }
 
       // parents[parentIdx] = genomeId;
