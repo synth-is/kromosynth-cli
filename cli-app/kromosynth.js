@@ -1291,7 +1291,7 @@ function writeToFile( content, fileNameFlag, id, fileNamePrefix, fileNameSuffix,
 	} else { // no file name supplied, generate one
 		fileName = `${fileNamePrefix}${id || ulid()}${fileNameSuffix}`;
 		if( fileNameFlag && fileNameFlag.endsWith('/') ) {
-			if( !fs.existsSync(fileNameFlag) ) fs.mkdirSync(fileNameFlag);
+			if( !fs.existsSync(fileNameFlag) ) fs.mkdirSync(fileNameFlag, {recursive: true});
 			fileName = fileNameFlag + fileName;
 		}
 	}
