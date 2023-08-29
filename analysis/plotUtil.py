@@ -12,7 +12,7 @@ def read_data_from_json(file_path):
     return data
 
 # Extract data arrays from JSON
-def extract_data_arrays(data, attribute):
+def extract_data_arrays(data, attribute, forceFloat=False):
     arrays = []
     for evo_run in data['evoRuns']:
         iterations = evo_run['iterations']
@@ -20,18 +20,36 @@ def extract_data_arrays(data, attribute):
             for iteration in iterations:
                 if attribute in iteration:
                     iteration["label"] = evo_run["label"]
-                    arrays.append({
-                        "dataArray": iteration[attribute],
-                        "label": evo_run["label"]   
-                    })
+                    array = iteration[attribute]
+                    # if all(isinstance(element, (int, float)) for element in array):
+                    if forceFloat:
+                        arrays.append({
+                            "dataArray": np.array(array).astype(np.float), # https://www.geeksforgeeks.org/using-numpy-to-convert-array-elements-to-float-type/
+                            "label": evo_run["label"]   
+                        })
+                    # elif all(isinstance(element, dict) for element in array):
+                    else:
+                        arrays.append({
+                            "dataArray": array,
+                            "label": evo_run["label"]   
+                        })
+
     return arrays
 
+def get_plotter():
+    return plt
+
 # Render graph for each array
-def render_graphs(arrays, x_multiplier, plotFunc):
+def render_graphs(arrays, x_multiplier, plotFunc, subPlotWidth, subPlotHeight, title, resolution=None):
+
+    if resolution:
+        plt.rcParams["figure.dpi"] = resolution
+        plt.rcParams["savefig.dpi"] = resolution
+
     num_arrays = len(arrays)
     num_cols = 2  # Number of columns in the grid (you can adjust this)
     num_rows = (num_arrays + num_cols - 1) // num_cols
-    fig, axs = plt.subplots(num_rows, num_cols, figsize=(12, 65))
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(subPlotWidth, subPlotHeight), constrained_layout=True) # constrained_layout: https://stackoverflow.com/a/55775739/169858
     fig.tight_layout(pad=3.0)
 
     for i, arrayContainer in enumerate(arrays):
@@ -42,22 +60,7 @@ def render_graphs(arrays, x_multiplier, plotFunc):
         col = i % num_cols
         ax = axs[row, col] if num_rows > 1 else axs[col]
 
-        plotFunc(ax, x_values, array, arrayLabel)
-
-        # if all(isinstance(element, (int, float)) for element in array):
-        #     # Array contains numbers
-        #     ax.plot(x_values, array)
-        # elif all(isinstance(element, dict) for element in array):
-        #     # Array contains objects
-        #     attributes = array[0].keys()  # Assuming all objects have the same attributes
-        #     for attribute in attributes:
-        #         values = [obj[attribute] for obj in array]
-        #         ax.plot(x_values, values, label=attribute)
-        #     ax.legend()
-
-        # ax.set_title(arrayLabel, fontsize=10, pad=10)
-        # plt.xlabel('Iteration')
-        # plt.ylabel(y_label)
+        plotFunc(plt, ax, x_values, array, arrayLabel)
 
     # Remove empty subplots
     for i in range(num_arrays, num_rows * num_cols):
@@ -65,5 +68,6 @@ def render_graphs(arrays, x_multiplier, plotFunc):
         col = i % num_cols
         axs[row, col].axis('off')
 
+    # Add title
+    plt.suptitle(title, fontsize=16, y=1.0)
     plt.show()
-
