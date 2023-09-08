@@ -13,4 +13,3 @@ From: node
     apt-get update && apt-get install -y mesa-common-dev libxi-dev python-is-python3 libasound2 curl pkg-config git
 
     npm install pm2 -g
-    npm install -g yarn
