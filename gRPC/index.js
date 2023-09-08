@@ -108,7 +108,8 @@ async function evaluateGenome( call, callback ) {
     Object.values(struct.decode( classScoringVelocities )),
     classificationGraphModel, modelUrl,
     useGpuForTensorflow,
-    true // supplyAudioContextInstances
+    true, // supplyAudioContextInstances
+    true, // useOvertoneInharmonicityFactors
   )
   .catch( e => {
     console.error("mapElites -> getClassScoresForGenome: ", e);
