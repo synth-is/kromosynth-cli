@@ -47,7 +47,13 @@ export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId,
 export async function calculateQDScoreForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
-  const cellCount = cellKeys.length;
+  const cellCount = cellKeys.reduce( (acc, cur) => {
+    if( eliteMap.cells[cur].elts.length ) {
+      return acc + 1;
+    } else {
+      return acc;
+    }
+  }, 0 );
   let cumulativeScore = 0;
   for( const oneCellKey of cellKeys ) {
     if( eliteMap.cells[oneCellKey].elts.length ) {
@@ -201,7 +207,14 @@ export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig,
 export async function getGenomeStatisticsAveragedForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
-  const cellCount = cellKeys.length;
+  // get count of cells where the elts value contains a non empty array
+  const cellCount = cellKeys.reduce( (acc, cur) => {
+    if( eliteMap.cells[cur].elts.length ) {
+      return acc + 1;
+    } else {
+      return acc;
+    }
+  }, 0 );
   const cppnNodeCounts = [];
   let cumulativeCppnNodeCount = 0;
   const cppnConnectionCounts = [];
