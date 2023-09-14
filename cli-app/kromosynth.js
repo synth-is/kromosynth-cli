@@ -648,16 +648,22 @@ async function renderAudioFromGenome() {
 			noteDelta = cli.flags.noteDelta;
 			velocity = cli.flags.velocity;
 		}
-		const { reverse } = cli.flags;
+		const { reverse, useGpu } = cli.flags;
 
+		console.log("Starting rendering...");
+		const startRenderingTime = performance.now();
 		const audioBuffer = await getAudioBufferFromGenomeAndMeta(
 			inputGenomeParsed,
 			duration, noteDelta, velocity, reverse,
 			false, // asDataArray
 			getNewOfflineAudioContext( duration ),
 			getAudioContext(),
-			cli.flags.useOvertoneInharmonicityFactors
+			cli.flags.useOvertoneInharmonicityFactors,
+			useGpu,
 		);
+		const endRenderingTime = performance.now();
+		console.log(`Rendering took ${endRenderingTime - startRenderingTime} milliseconds`);
+		console.log("Will play audio now");
 		const doWriteToFile = cli.flags.writeToFile !== undefined;
 		if( cli.flags.playOnDefaultAudioDevice ) {
 			playAudio( audioBuffer );

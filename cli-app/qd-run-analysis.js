@@ -805,7 +805,7 @@ export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, 
 }
 
 async function getEliteMap( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList ) {
-  const commitId = await getCommitID( evoRunConfig, evoRunId, iterationIndex );
+  const commitId = await getCommitID( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList );
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const eliteMapString = await spawnCmd(`git -C ${evoRunDirPath} show ${commitId}:elites_${evoRunId}.json`, {}, true);
   const eliteMap = JSON.parse(eliteMapString);
