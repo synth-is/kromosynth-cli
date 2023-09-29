@@ -101,9 +101,13 @@ export function spawnCmd(instruction, spawnOpts = {}, silenceOutput = false) {
 
 // https://chat-gpt.org/chat
 
+export function calcMean( arrayOfNumbers ) {
+  return arrayOfNumbers.reduce((a, b) => a + b, 0) / arrayOfNumbers.length;
+}
+
 export function calcVariance(numbers) {
   // calculate the mean
-  const mean = numbers.reduce((total, num) => total + num) / numbers.length;
+  const mean = calcMean( numbers );
 
   // calculate the sum of squared deviations from the mean
   const deviations = numbers.map(num => (num - mean) ** 2);
@@ -129,7 +133,7 @@ export function calcStandardDeviation(numbers) {
 
 export function calcMeanDeviation(numbers) {
   // Calculate the mean of the array
-  const mean = numbers.reduce((a, b) => a + b, 0) / numbers.length;
+  const mean = calcMean( numbers );
 
   // Calculate the deviations of each number from the mean
   const deviations = numbers.map(num => Math.abs(num - mean));
