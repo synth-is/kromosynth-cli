@@ -1202,31 +1202,12 @@ async function qdAnalysis_evoRuns() {
 			if( oneAnalysisOperation === "qd-scores" ) {
 				console.log("aggregating qd scores for evolution run #", currentEvolutionRunIndex, "...");
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"] = {};
-				// const qdScoreSums = new Array( currentEvoConfig.iterations.length );
 				const qdScoresAcrossIterations = [];
 				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
 					// sum each iteration's qd scores
 					const { qdScores } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
-
-					// TODO: work with this:
 					qdScoresAcrossIterations.push( qdScores );
-
-					// for( let i = 0; i < qdScores.length; i++ ) {
-
-					// 	qdScoreSums[i] = (qdScoreSums[i] || 0) + qdScores[i];
-					// }
 				}
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["means"] = qdScoreSums.map( sum => sum / currentEvoConfig.iterations.length );
-
-
-				// populate an array of the mean value from each index of each iteration's qd scores
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["means"] = qdScoresAcrossIterations.map( oneIterationQDScores => oneIterationQDScores.map( oneIterationQDScore => calcMean(oneIterationQDScore) ) );
-
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["means"] = calculateAveragesFrom2DArray(qdScoresAcrossIterations);
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["medians"] = calculateMediansFrom2DArray(qdScoresAcrossIterations);
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["variances"] = calculateVariancesFrom2DArray(qdScoresAcrossIterations);	
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["stdDevs"] = calculateStandardDeviationsFrom2DArray(qdScoresAcrossIterations);
-
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["means"] = mean( qdScoresAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["variances"] = variance( qdScoresAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["stdDevs"] = std( qdScoresAcrossIterations, 0 );
@@ -1234,7 +1215,37 @@ async function qdAnalysis_evoRuns() {
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
 			if( oneAnalysisOperation === "genome-statistics" ) {
-				// TODO
+				console.log("aggregating genome statistics for evolution run #", currentEvolutionRunIndex, "...");
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"] = {};
+				const averageCppnNodeCountsAcrossIterations = [];
+				const averageCppnConnectionCountsAcrossIterations = [];
+				const averageAsNEATPatchNodeCountsAcrossIterations = [];
+				const averageAsNEATPatchConnectionCountsAcrossIterations = [];
+				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+					const { genomeStatistics } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+					averageCppnNodeCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageCppnNodeCount ) );
+					averageCppnConnectionCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageCppnConnectionCount ) );
+					averageAsNEATPatchNodeCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageAsNEATPatchNodeCount ) );
+					averageAsNEATPatchConnectionCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageAsNEATPatchConnectionCount ) );
+				}
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageCppnNodeCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageCppnNodeCounts"]["means"] = mean( averageCppnNodeCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageCppnNodeCounts"]["variances"] = variance( averageCppnNodeCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageCppnNodeCounts"]["stdDevs"] = std( averageCppnNodeCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageCppnConnectionCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageCppnConnectionCounts"]["means"] = mean( averageCppnConnectionCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageCppnConnectionCounts"]["variances"] = variance( averageCppnConnectionCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageCppnConnectionCounts"]["stdDevs"] = std( averageCppnConnectionCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchNodeCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchNodeCounts"]["means"] = mean( averageAsNEATPatchNodeCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchNodeCounts"]["variances"] = variance( averageAsNEATPatchNodeCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchNodeCounts"]["stdDevs"] = std( averageAsNEATPatchNodeCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchConnectionCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchConnectionCounts"]["means"] = mean( averageAsNEATPatchConnectionCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchConnectionCounts"]["variances"] = variance( averageAsNEATPatchConnectionCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchConnectionCounts"]["stdDevs"] = std( averageAsNEATPatchConnectionCountsAcrossIterations, 0 );
+
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
 			if( oneAnalysisOperation === "cell-scores" ) {
 				console.log("aggregating cell scores for evolution run #", currentEvolutionRunIndex, "...");
@@ -1243,99 +1254,112 @@ async function qdAnalysis_evoRuns() {
 				const cellScoresAcrossIterations = [];
 				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
 					const { cellScores } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
-
 					cellScoresAcrossIterations.push( cellScores );
-
-					// for( let i = 0; i < cellScores.length; i++ ) {
-					// 	// sum each element in the array at cellScoreSums[i]
-					// 	cellScoreSums[i] = cellScoreSums[i] || [];
-					// 	for( let j = 0; j < cellScores[i].length; j++ ) {
-					// 		cellScoreSums[i][j] = (cellScoreSums[i][j] || 0) + cellScores[i][j];
-					// 	}
-					// }
 				}
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["cellScores"]["means"] = cellScoreSums.map( sum => sum.map( cellScore => cellScore / currentEvoConfig.iterations.length ) );
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["cellScores"]["medians"] = cellScoreSums.map( sum => median(sum) );
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["cellScores"]["variances"] = cellScoreSums.map( sum => calcVariance(sum) );
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["cellScores"]["stdDevs"] = cellScoreSums.map( sum => calcStandardDeviation(sum) );
-
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["cellScores"]["means"] = calculateAveragesFrom3DArray(cellScoresAcrossIterations);
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["cellScores"]["medians"] = calculateMediansFrom3DArray(cellScoresAcrossIterations);
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["cellScores"]["variances"] = calculateVariancesFrom3DArray(cellScoresAcrossIterations);
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["cellScores"]["stdDevs"] = calculateStandardDeviationsFrom3DArray(cellScoresAcrossIterations);
-
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["cellScores"]["means"] = mean( cellScoresAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["cellScores"]["variances"] = variance( cellScoresAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["cellScores"]["stdDevs"] = std( cellScoresAcrossIterations, 0 );
 
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
+			if( oneAnalysisOperation === "coverage" ) {
+				console.log("aggregating coverage for evolution run #", currentEvolutionRunIndex, "...");
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"] = {};
+				const coverageAcrossIterations = [];
+				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+					const { coverage } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+					coverageAcrossIterations.push( coverage );
+				}
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"]["means"] = mean( coverageAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"]["variances"] = variance( coverageAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"]["stdDevs"] = std( coverageAcrossIterations, 0 );
+
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+			}
+			if( oneAnalysisOperation === "genome-sets" ) {
+				console.log("aggregating genome sets for evolution run #", currentEvolutionRunIndex, "...");
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"] = {};
+				const genomeCountsAcrossIterations = [];
+				const genomeSetsAdditionsAcrossIterations = [];
+				const genomeSetsRemovalsAcrossIterations = [];
+				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+					const { genomeSets } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+					let { genomeCount, genomeSetsAdditions, genomeSetsRemovals } = genomeSets;
+					genomeCountsAcrossIterations.push( genomeCount );
+					// replace undefined array elements with zeros
+					for( let i = 0; i < genomeSetsAdditions.length; i++ ) {
+						if( genomeSetsAdditions[i] === undefined ) genomeSetsAdditions[i] = 0;
+					}
+					genomeSetsAdditionsAcrossIterations.push( genomeSetsAdditions );
+					// replace undefined values with 0
+					for( let i = 0; i < genomeSetsRemovals.length; i++ ) {
+						if( genomeSetsRemovals[i] === undefined ) genomeSetsRemovals[i] = 0;
+					}
+					genomeSetsRemovalsAcrossIterations.push( genomeSetsRemovals );
+				}
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeCounts"]["means"] = mean( genomeCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeCounts"]["variances"] = variance( genomeCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeCounts"]["stdDevs"] = std( genomeCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeSetsAdditions"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeSetsAdditions"]["means"] = mean( genomeSetsAdditionsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeSetsAdditions"]["variances"] = variance( genomeSetsAdditionsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeSetsAdditions"]["stdDevs"] = std( genomeSetsAdditionsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeSetsRemovals"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeSetsRemovals"]["means"] = mean( genomeSetsRemovalsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeSetsRemovals"]["variances"] = variance( genomeSetsRemovalsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeSetsRemovals"]["stdDevs"] = std( genomeSetsRemovalsAcrossIterations, 0 );
+				
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+			}
+			if( oneAnalysisOperation == "elites-energy" ) {
+				console.log("aggregating elites energy for evolution run #", currentEvolutionRunIndex, "...");
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"] = {};
+				// TODO
+				// const elitesEnergyAcrossIterations = [];
+				// for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+				// 	const { elitesEnergy } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+				// 	elitesEnergyAcrossIterations.push( elitesEnergy );
+				// }
+				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["means"] = mean( elitesEnergyAcrossIterations, 0 );
+				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["variances"] = variance( elitesEnergyAcrossIterations, 0 );
+				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["stdDevs"] = std( elitesEnergyAcrossIterations, 0 );
+
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+			}
+			if( oneAnalysisOperation === "goal-switches" ) {
+				console.log("aggregating goal switches for evolution run #", currentEvolutionRunIndex, "...");
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"] = {};
+				// TODO
+				// const goalSwitchesAcrossIterations = [];
+				// for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+				// 	const { goalSwitches } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+				// 	goalSwitchesAcrossIterations.push( goalSwitches );
+				// }
+				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["means"] = mean( goalSwitchesAcrossIterations, 0 );
+				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["variances"] = variance( goalSwitchesAcrossIterations, 0 );
+				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["stdDevs"] = std( goalSwitchesAcrossIterations, 0 );
+
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+			}
+			if( oneAnalysisOperation === "elite-generations" ) {
+				console.log("aggregating elite generations for evolution run #", currentEvolutionRunIndex, "...");
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["eliteGenerations"] = {};
+				// TODO
+				// const eliteGenerationsAcrossIterations = [];
+				// for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+				// 	const { eliteGenerations } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+				// 	eliteGenerationsAcrossIterations.push( eliteGenerations );
+				// }
+				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["eliteGenerations"]["means"] = mean( eliteGenerationsAcrossIterations, 0 );
+				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["eliteGenerations"]["variances"] = variance( eliteGenerationsAcrossIterations, 0 );
+				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["eliteGenerations"]["stdDevs"] = std( eliteGenerationsAcrossIterations, 0 );
+
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+			}
 		}
 	}
 }
-
-// // calculate the mean for each sub-array in a two dimensional array, returning a one dimensional array of means
-// function calculateAveragesFrom2DArray(arr) {
-//   return arr[0].map((_, i) => arr.reduce((a, b) => a + b[i], 0) / arr.length);
-// }
-// // calculate the median for each sub-array in a two dimensional array, returning a one dimensional array of medians
-// function calculateMediansFrom2DArray(arr) {
-//   return arr[0].map((_, i) => {
-//     var values = arr.map(a => a[i]);
-//     return median(values);
-//   });
-// }
-// // calculate the variance for each sub-array in a two dimensional array, returning a one dimensional array of variances
-// function calculateVariancesFrom2DArray(arr) {
-// 	return arr[0].map((_, i) => {
-// 		var values = arr.map(a => a[i]);
-// 		return calcVariance(values);
-// 	});
-// }
-// // calculate the standard deviation for each sub-array in a two dimensional array, returning a one dimensional array of standard deviations
-// function calculateStandardDeviationsFrom2DArray(arr) {
-// 	return arr[0].map((_, i) => {
-// 		var values = arr.map(a => a[i]);
-// 		return calcStandardDeviation(values);
-// 	});
-// }
-
-// // calculate the mean for each sub-array in a three dimensional array, returning a two dimensional array of means
-// function calculateAveragesFrom3DArray(arr) {
-//   // return arr.map(subArray => subArray[0].map((_, i) => subArray.map(subSubArray => subSubArray[i]).reduce((a, b) => a + b) / subArray.length));
-// 	// return arr.map(subArray => subArray[0].map((_, i) => calcMean(subArray.map(a => a[i]))));
-// 	// return arr.map(subArray => subArray.map(innerSubArray => calcMean(innerSubArray)));
-// 	// return arr.map(subArr => subArr[0].map((_, j) => calcMean(subArr.map(subArr2 => subArr2[j]))));
-//   // return arr.map(subArr =>
-//   //   subArr.reduce((acc, cur) => 
-//   //     cur.map((num, i) => (acc[i] || 0) + num)
-//   //   )
-//   //   .map(sum => sum / subArr.length)
-//   // );
-// 	// for( let i = 0; i < arr.length; i++ ) {
-// 	// 	for( let j = 0; j < arr[i].length; j++ ) {
-// 	// 		for( let k = 0; k < arr[i][j].length; k++ ) {
-// 	// 			arr[i][j][k] = parseFloat(arr[i][j][k]);
-// 	// 		}
-// 	// 	}
-// 	// }
-// 	return mean( arr, 0 );
-// }
-// // calculate the median for each sub-array in a three dimensional array, returning a two dimensional array of medians
-// function calculateMediansFrom3DArray(arr) {
-//   // return arr.map(subArray => subArray[0].map((_, i) => median(subArray.map(subSubArray => subSubArray[i]))));
-// 	return median( arr );
-// }
-// // calculate the variance for each sub-array in a three dimensional array, returning a two dimensional array of variances
-// function calculateVariancesFrom3DArray(arr) {
-// 	// return arr.map(subArray => subArray[0].map((_, i) => calcVariance(subArray.map(subSubArray => subSubArray[i]))));
-// 	return variance( arr, 0 );
-// }
-// // calculate the standard deviation for each sub-array in a three dimensional array, returning a two dimensional array of standard deviations
-// function calculateStandardDeviationsFrom3DArray(arr) {
-// 	// return arr.map(subArray => subArray[0].map((_, i) => calcStandardDeviation(subArray.map(subSubArray => subSubArray[i]))));
-// 	return std( arr, 0 );
-// }
 
 function writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis ) {
 	const evoRunsAnalysisJSONString = JSON.stringify( evoRunsAnalysis, null, 2 );
