@@ -1109,6 +1109,7 @@ async function qdAnalysis_evoRuns() {
 	const analysisOperationsList = analysisOperations.split(",");
 	console.log("analysisOperationsList", analysisOperationsList);
 	const evoRunsAnalysis = {...evoRunsConfig};
+	// TODO move this to the qd-run-analysis module or a separate one, to have this module a bit leaner 😅
 	const analysisResultFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
 	for( let currentEvolutionRunIndex = 0; currentEvolutionRunIndex < evoRunsConfig.evoRuns.length; currentEvolutionRunIndex++ ) {
 		const currentEvoConfig = evoRunsConfig.evoRuns[currentEvolutionRunIndex];
@@ -1315,45 +1316,58 @@ async function qdAnalysis_evoRuns() {
 			if( oneAnalysisOperation == "elites-energy" ) {
 				console.log("aggregating elites energy for evolution run #", currentEvolutionRunIndex, "...");
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"] = {};
-				// TODO
-				// const elitesEnergyAcrossIterations = [];
-				// for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
-				// 	const { elitesEnergy } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
-				// 	elitesEnergyAcrossIterations.push( elitesEnergy );
-				// }
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["means"] = mean( elitesEnergyAcrossIterations, 0 );
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["variances"] = variance( elitesEnergyAcrossIterations, 0 );
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["stdDevs"] = std( elitesEnergyAcrossIterations, 0 );
+				const averageEnergiesAcrossIterations = [];
+				const eliteIterationEnergiesAcrossIterations = [];
+				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+					const { elitesEnergy } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+					const { averageEnergy, eliteIterationEnergies } = elitesEnergy;
+					averageEnergiesAcrossIterations.push( averageEnergy );
+					eliteIterationEnergiesAcrossIterations.push( eliteIterationEnergies );
+				}
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["averageEnergies"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["averageEnergies"]["means"] = mean( averageEnergiesAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["averageEnergies"]["variances"] = variance( averageEnergiesAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["averageEnergies"]["stdDevs"] = std( averageEnergiesAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["eliteIterationEnergies"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["eliteIterationEnergies"]["means"] = mean( eliteIterationEnergiesAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["eliteIterationEnergies"]["variances"] = variance( eliteIterationEnergiesAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"]["eliteIterationEnergies"]["stdDevs"] = std( eliteIterationEnergiesAcrossIterations, 0 );
 
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
 			if( oneAnalysisOperation === "goal-switches" ) {
 				console.log("aggregating goal switches for evolution run #", currentEvolutionRunIndex, "...");
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"] = {};
-				// TODO
-				// const goalSwitchesAcrossIterations = [];
-				// for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
-				// 	const { goalSwitches } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
-				// 	goalSwitchesAcrossIterations.push( goalSwitches );
-				// }
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["means"] = mean( goalSwitchesAcrossIterations, 0 );
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["variances"] = variance( goalSwitchesAcrossIterations, 0 );
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["stdDevs"] = std( goalSwitchesAcrossIterations, 0 );
+				const averageChampionCountsAcrossIterations = [];
+				const averageGoalSwitchCountsAcrossIterations = [];
+				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+					const { goalSwitches } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+					const { averageChampionCount, averageGoalSwitchCount } = goalSwitches;
+					averageChampionCountsAcrossIterations.push( averageChampionCount );
+					averageGoalSwitchCountsAcrossIterations.push( averageGoalSwitchCount );
+				}
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageChampionCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageChampionCounts"]["means"] = mean( averageChampionCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageChampionCounts"]["variances"] = variance( averageChampionCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageChampionCounts"]["stdDevs"] = std( averageChampionCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageGoalSwitchCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageGoalSwitchCounts"]["means"] = mean( averageGoalSwitchCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageGoalSwitchCounts"]["variances"] = variance( averageGoalSwitchCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageGoalSwitchCounts"]["stdDevs"] = std( averageGoalSwitchCountsAcrossIterations, 0 );
 
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
 			if( oneAnalysisOperation === "elite-generations" ) {
 				console.log("aggregating elite generations for evolution run #", currentEvolutionRunIndex, "...");
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["eliteGenerations"] = {};
-				// TODO
-				// const eliteGenerationsAcrossIterations = [];
-				// for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
-				// 	const { eliteGenerations } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
-				// 	eliteGenerationsAcrossIterations.push( eliteGenerations );
-				// }
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["eliteGenerations"]["means"] = mean( eliteGenerationsAcrossIterations, 0 );
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["eliteGenerations"]["variances"] = variance( eliteGenerationsAcrossIterations, 0 );
-				// evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["eliteGenerations"]["stdDevs"] = std( eliteGenerationsAcrossIterations, 0 );
+				const eliteGenerationsAcrossIterations = [];
+				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+					const { eliteGenerations } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+					eliteGenerationsAcrossIterations.push( eliteGenerations );
+				}
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["eliteGenerations"]["means"] = mean( eliteGenerationsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["eliteGenerations"]["variances"] = variance( eliteGenerationsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["eliteGenerations"]["stdDevs"] = std( eliteGenerationsAcrossIterations, 0 );
 
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
