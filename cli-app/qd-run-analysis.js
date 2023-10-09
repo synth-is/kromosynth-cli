@@ -46,7 +46,7 @@ export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId,
 
 export async function calculateQDScoreForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
-  const cellKeys = Object.keys(eliteMap.cells);
+  const cellKeys = getCellKeys( eliteMap );
   const cellCount = getCellCount( eliteMap );
   let cumulativeScore = 0;
   for( const oneCellKey of cellKeys ) {
@@ -200,7 +200,7 @@ export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig,
 
 export async function getGenomeStatisticsAveragedForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
-  const cellKeys = Object.keys(eliteMap.cells);
+  const cellKeys = getCellKeys( eliteMap );
   // get count of cells where the elts value contains a non empty array
   const cellCount = getCellCount( eliteMap );
   const cppnNodeCounts = [];
@@ -264,7 +264,7 @@ export async function getCellSaturationGenerations( evoRunConfig, evoRunId ) {
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const iterationIndex = commitCount - 1;
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
-  const cellKeys = Object.keys(eliteMap.cells);
+  const cellKeys = getCellKeys( eliteMap );
   for( const oneCellKey of cellKeys ) {
     if( eliteMap.cells[oneCellKey].elts.length ) {
       const cellEliteGenerationNumber = eliteMap.cells[oneCellKey].elts[0].gN;
@@ -415,7 +415,7 @@ export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1 ) {
   for( let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++ ) {
     if( iterationIndex % stepSize === 0 ) {
       const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
-      const cellKeys = Object.keys(eliteMap.cells);
+      const cellKeys = getCellKeys( eliteMap );
       for( const oneCellKey of cellKeys ) {
         const cell = eliteMap.cells[oneCellKey];
         if( cell.elts.length ) {
@@ -628,10 +628,18 @@ export async function getDurationPitchDeltaVelocityCombinations( evoRunConfig, e
   return durationPitchDeltaVelocityCombinations;
 }
 
+function getCellKeys( eliteMap ) {
+  // get count of cells where the elts value contains a non empty array
+  const cellKeys = Object.keys(eliteMap.cells).filter( 
+    oneCellKey => eliteMap.cells[oneCellKey].elts.length && null !== eliteMap.cells[oneCellKey].elts[0].s
+  );
+  return cellKeys;
+}
+
 function getCellCount( eliteMap ) {
   const cellKeys = Object.keys(eliteMap.cells);
   const cellCount = cellKeys.reduce( (acc, cur) => {
-    if( eliteMap.cells[cur].elts.length ) {
+    if( eliteMap.cells[cur].elts.length && null !== eliteMap.cells[cur].elts[0].s ) {
       return acc + 1;
     } else {
       return acc;
