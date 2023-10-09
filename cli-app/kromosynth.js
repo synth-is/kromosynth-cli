@@ -857,7 +857,7 @@ async function evolutionRuns() {
 			saveEvolutionRunsConfig( evoRunsConfig );
 		}
 	}
-	process.exit();
+	// process.exit();
 }
 
 function saveEvolutionRunsConfig( evoRunsConfig ) {
