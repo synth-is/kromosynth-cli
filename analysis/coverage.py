@@ -7,6 +7,11 @@ import matplotlib.pyplot as plt
 json_file_path = sys.argv[1]
 x_multiplier = int(sys.argv[2])  # Set this value as the step size in the JSON file name
 title = "coverage_" + json_file_path.split('/')[4]
+# read save directory path from argument 3 if it exists, otherwise use default of './'
+if len(sys.argv) > 3:
+    save_dir = sys.argv[3]
+else:
+    save_dir = './'
 
 # Read data from JSON file
 data = plotUtil.read_data_from_json(json_file_path)
@@ -45,5 +50,5 @@ plt.ylabel('Iteration')
 plt.title('Coverage means with 95% confidence interval')
 
 # Save the plot
-plt.savefig(title + '.png')
-plt.savefig(title + '.pdf')
+plt.savefig(save_dir + title + '.png')
+plt.savefig(save_dir + title + '.pdf')

@@ -7,6 +7,11 @@ import numpy as np
 json_file_path = sys.argv[1]
 x_multiplier = int(sys.argv[2])  # Set this value as the step size in the JSON file name
 title = "elitesEnergy_" + json_file_path.split('/')[4]
+# read save directory path from argument 3 if it exists, otherwise use default of './'
+if len(sys.argv) > 3:
+    save_dir = sys.argv[3]
+else:
+    save_dir = './'
 
 data = plotUtil.read_data_from_json(json_file_path)
 
@@ -24,8 +29,8 @@ def plot_number_with_label(number, label):
     ax.axis('off')  # Hide the axis
 
     # Save the plot
-    plt.savefig(title + '_overall.png')
-    plt.savefig(title + '_overall.pdf')
+    plt.savefig(save_dir + title + '_overall.png')
+    plt.savefig(save_dir + title + '_overall.pdf')
 
 plot_number_with_label(energyAverages, "Average Elite Energy")
 
@@ -69,5 +74,5 @@ plt.ylabel('Energy (iterations required)')
 plt.title('Elites energy means with 95% confidence interval')
 
 # Save the plot
-plt.savefig(title + '_iterationEnergy.png')
-plt.savefig(title + '_iterationEnergy.pdf')
+plt.savefig(save_dir + title + '_iterationEnergy.png')
+plt.savefig(save_dir + title + '_iterationEnergy.pdf')

@@ -11,10 +11,18 @@ analysisFile=$1
 # Read in the step size as an int
 stepSize=$2
 
-python3 qdScores.py $analysisFile $stepSize
-python3 cellScores.py $analysisFile $stepSize
-python3 coverage.py $analysisFile $stepSize
-python3 eliteGenerations.py $analysisFile $stepSize
-python3 elitesEnergy.py $analysisFile $stepSize
-python3 genomeSets.py $analysisFile $stepSize
-python3 genomeStatistics.py $analysisFile $stepSize
+# Read in the path to the output directory, if none is provided, use the current directory
+if [ -z "$3" ]
+then
+    outputDir="."
+else
+    outputDir=$3
+fi
+
+python3 qdScores.py $analysisFile $stepSize $outputDir
+python3 cellScores.py $analysisFile $stepSize $outputDir
+python3 coverage.py $analysisFile $stepSize $outputDir
+python3 eliteGenerations.py $analysisFile $stepSize $outputDir
+python3 elitesEnergy.py $analysisFile $stepSize $outputDir
+python3 genomeSets.py $analysisFile $stepSize $outputDir
+python3 genomeStatistics.py $analysisFile $stepSize $outputDir

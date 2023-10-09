@@ -7,6 +7,11 @@ import scipy
 json_file_path = sys.argv[1]
 x_multiplier = int(sys.argv[2])  # Set this value as the step size in the JSON file name
 title = "qdScores_" + json_file_path.split('/')[4]
+# read save directory path from argument 3 if it exists, otherwise use default of './'
+if len(sys.argv) > 3:
+    save_dir = sys.argv[3]
+else:
+    save_dir = './'
 
 data = plotUtil.read_data_from_json(json_file_path)
 
@@ -22,8 +27,8 @@ plt.title('QD score means with error bars showing the standard deviation')
 plt.xlabel('Step')
 plt.ylabel('QD score mean')
 
-plt.savefig(title + '_errorBars.png')
-plt.savefig(title + '_errorBars.pdf')
+plt.savefig(save_dir + title + '_errorBars.png')
+plt.savefig(save_dir + title + '_errorBars.pdf')
 
 
 plt.clf()
@@ -57,5 +62,5 @@ plt.ylabel('Iteration')
 plt.title('QD score means with 95% confidence interval')
 
 # Save the plot
-plt.savefig(title + '_confidenceInterval.png')
-plt.savefig(title + '_confidenceInterval.pdf')
+plt.savefig(save_dir + title + '_confidenceInterval.png')
+plt.savefig(save_dir + title + '_confidenceInterval.pdf')
