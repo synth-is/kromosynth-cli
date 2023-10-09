@@ -151,7 +151,7 @@ export async function qdSearch(
   // turn of automatic garbage collection,
   // as automatic background runs seem to affect performance when performing rapid successive commits
   // - gc will be triggered manually at regular intervals below
-  runCmd('git config --global gc.auto 0');
+// TODO temporarily commenting out:  runCmd('git config --global gc.auto 0');
 
   while( 
       ! shouldTerminate(terminationCondition, eliteMap, dummyRun)
@@ -201,7 +201,7 @@ export async function qdSearch(
     // collect git garbage - UPDATE: this should be run separately, as part of one of the qd-run-analysis routines:
     // runCmdAsync(`git -C ${evoRunDirPath} gc`);
   }
-  if( exitWhenDone ) process.exit();
+  // if( exitWhenDone ) process.exit();
 }
 
 async function mapElitesBatch(
@@ -454,7 +454,7 @@ async function mapElitesBatch(
         (geneEvaluationProtocol === "worker" ? ", thread #"+batchIteration : ", evaluation host: "+geneEvaluationServerHost), 
         classRestriction && classRestriction.length ? classRestriction[0]+" score:" : " - Music score:", 
         classRestriction && classRestriction.length ?
-          newGenomeClassScores[ classRestriction[0] ].score
+            newGenomeClassScores && newGenomeClassScores[ classRestriction[0] ] ? newGenomeClassScores[ classRestriction[0] ].score : "N/A"
           :
           newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : "N/A"
       );
