@@ -1097,7 +1097,8 @@ async function qdAnalysis_percentCompletion() {
 	}
 	const totalPercentCompleted = sumNumberOfGenerations / sumTerminationConditionNumberOfEvals;
 	evoRunsPercentCompleted.totalPercentCompleted = totalPercentCompleted;
-	const evoRunConfigFileName = path.basename(evoRunsConfig.baseEvolutionRunConfigFile, path.extname(evoRunsConfig.baseEvolutionRunConfigFile));
+	const evoRunsConfigFile = cli.flags.evolutionRunsConfigJsonFile || evoRunsConfig.baseEvolutionRunConfigFile;
+	const evoRunConfigFileName = path.basename(evoRunsConfigFile, path.extname(evoRunsConfigFile));
 	const percentCompletedResultsFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evoRunsPercentCompleted_${evoRunConfigFileName}.json`;
 	const percentCompletedResultsFileContents = JSON.stringify(evoRunsPercentCompleted, null, 2);
 	fs.writeFileSync(percentCompletedResultsFilePath, percentCompletedResultsFileContents);
