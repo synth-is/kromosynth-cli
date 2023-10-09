@@ -47,13 +47,7 @@ export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId,
 export async function calculateQDScoreForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
-  const cellCount = cellKeys.reduce( (acc, cur) => {
-    if( eliteMap.cells[cur].elts.length ) {
-      return acc + 1;
-    } else {
-      return acc;
-    }
-  }, 0 );
+  const cellCount = getCellCount( eliteMap );
   let cumulativeScore = 0;
   for( const oneCellKey of cellKeys ) {
     if( eliteMap.cells[oneCellKey].elts.length ) {
@@ -208,13 +202,7 @@ export async function getGenomeStatisticsAveragedForOneIteration( evoRunConfig, 
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
   // get count of cells where the elts value contains a non empty array
-  const cellCount = cellKeys.reduce( (acc, cur) => {
-    if( eliteMap.cells[cur].elts.length ) {
-      return acc + 1;
-    } else {
-      return acc;
-    }
-  }, 0 );
+  const cellCount = getCellCount( eliteMap );
   const cppnNodeCounts = [];
   let cumulativeCppnNodeCount = 0;
   const cppnConnectionCounts = [];
@@ -450,7 +438,8 @@ export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1 ) {
           }
         }
       }
-      const oneIterationEnergy = Object.values(eliteEnergies).reduce( (acc, cur) => acc + cur.at(-1).energy, 0 ) / cellKeys.length;
+      const cellCount = getCellCount( eliteMap );
+      const oneIterationEnergy = Object.values(eliteEnergies).reduce( (acc, cur) => acc + cur.at(-1).energy, 0 ) / cellCount;
       eliteIterationEnergies.push( oneIterationEnergy );
     }
   }
@@ -639,6 +628,17 @@ export async function getDurationPitchDeltaVelocityCombinations( evoRunConfig, e
   return durationPitchDeltaVelocityCombinations;
 }
 
+function getCellCount( eliteMap ) {
+  const cellKeys = Object.keys(eliteMap.cells);
+  const cellCount = cellKeys.reduce( (acc, cur) => {
+    if( eliteMap.cells[cur].elts.length ) {
+      return acc + 1;
+    } else {
+      return acc;
+    }
+  }, 0 );
+  return cellCount;
+}
 
 function bindNavKeys() { // https://itecnote.com/tecnote/node-js-how-to-capture-the-arrow-keys-in-node-js/
   var stdin = process.stdin;

@@ -15,6 +15,7 @@ import {
   callGeneEvaluationService,
   clearServiceConnectionList
 } from './service/gRPC/gene_client.js';
+import { renderAndEvaluateGenomesViaWebsockets } from './service/websocket/ws-gene-evaluation.js';
 import {
   runCmd, runCmdAsync, readGenomeAndMetaFromDisk, getGenomeKey, calcStandardDeviation,
   writeEvaluationCandidateWavFilesForGenome,
@@ -71,8 +72,8 @@ export async function qdSearch(
     eliteMapSnapshotEvery,
     batchDurationMs,
     gRpcHostFilePathPrefix, gRpcServerCount,
-    geneVariationServerPaths, geneEvaluationServerPaths,
-    geneVariationServers, geneEvaluationServers,
+    geneVariationServerPaths, geneRenderingServerPaths, geneEvaluationServerPaths,
+    geneVariationServers, geneRenderingServers, geneEvaluationServers,
     dummyRun
   } = evolutionRunConfig;
 
@@ -95,6 +96,22 @@ export async function qdSearch(
   } else {
     _geneVariationServers = geneVariationServers;
   }
+
+  let _geneRenderingServers;
+  if( gRpcHostFilePathPrefix && gRpcServerCount ) {
+    _geneRenderingServers = [];
+    for( let i=1; i <= gRpcServerCount; i++ ) {
+      const hostFilePath = `${gRpcHostFilePathPrefix}${i}`;
+      const renderingHost = await readFromFileWhenItExists(hostFilePath, 0);
+      if( renderingHost ) _geneRenderingServers.push(renderingHost);
+    }
+  } else if( geneRenderingServerPaths && geneRenderingServerPaths.length ) {
+    _geneRenderingServers = [];
+    geneRenderingServerPaths.forEach( oneServerPath => _geneRenderingServers.push(fs.readFileSync(oneServerPath, 'utf8')) );
+  } else {
+    _geneRenderingServers = geneRenderingServers;
+  }
+
   let _geneEvaluationServers;
   if( gRpcHostFilePathPrefix && gRpcServerCount ) {
     _geneEvaluationServers = [];
@@ -168,7 +185,7 @@ export async function qdSearch(
         classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
         classificationGraphModel,
         geneEvaluationProtocol,
-        _geneVariationServers, _geneEvaluationServers,
+        _geneVariationServers, _geneRenderingServers, _geneEvaluationServers,
         useGpuForTensorflow, yamnetModelUrl,
         evoRunDirPath, evoRunFailedGenesDirPath,
         evaluationCandidateWavFilesDirPath, classifiers,
@@ -212,7 +229,7 @@ async function mapElitesBatch(
   classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
   classificationGraphModel,
   geneEvaluationProtocol,
-  _geneVariationServers, _geneEvaluationServers,
+  _geneVariationServers, _geneRenderingServers, _geneEvaluationServers,
   useGpuForTensorflow, yamnetModelUrl,
   evoRunDirPath, evoRunFailedGenesDirPath,
   evaluationCandidateWavFilesDirPath, classifiers,
@@ -223,12 +240,15 @@ async function mapElitesBatch(
   for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
     console.log("batchIteration", batchIteration);
     let geneVariationServerHost;
+    let geneRenderingServerHost;
     let geneEvaluationServerHost;
     if( dummyRun ) {
       geneVariationServerHost = _geneVariationServers[0];
+      geneRenderingServerHost = _geneVariationServers[0];
       geneEvaluationServerHost = _geneEvaluationServers[0];
     } else {
       geneVariationServerHost = _geneVariationServers[ batchIteration % _geneVariationServers.length ];
+      geneRenderingServerHost = _geneRenderingServers[ batchIteration % _geneRenderingServers.length ];
       geneEvaluationServerHost = _geneEvaluationServers[ batchIteration % _geneEvaluationServers.length ];
     }
     if( geneEvaluationProtocol === "grpc" ) {
@@ -318,7 +338,7 @@ async function mapElitesBatch(
 
           try {
             ///// variation
-            if( geneEvaluationProtocol === "grpc" ) {
+            if( geneEvaluationProtocol === "grpc" || geneEvaluationProtocol === "websocket" ) {
               try {
                 newGenomeString = await callGeneVariationService(
                   classEliteGenomeString,
@@ -412,6 +432,22 @@ async function mapElitesBatch(
               e => {
                 console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
                 clearServiceConnectionList(geneEvaluationServerHost);
+                getGenomeFromGenomeString( newGenomeString ).then( failedGenome =>
+                  saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
+                );
+              }
+            );
+          } else if( geneEvaluationProtocol === "websocket" ) {
+            newGenomeClassScores = await renderAndEvaluateGenomesViaWebsockets(
+              newGenomeString,
+              classScoringDurations,
+              classScoringNoteDeltas,
+              classScoringVelocities,
+              geneRenderingServerHost,
+              geneEvaluationServerHost
+            ).catch(
+              e => {
+                console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
                 getGenomeFromGenomeString( newGenomeString ).then( failedGenome =>
                   saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
                 );
