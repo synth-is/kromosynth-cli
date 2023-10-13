@@ -159,6 +159,8 @@ export async function qdSearch(
   let searchBatchSize;
   if( dummyRun ) {
     searchBatchSize = dummyRun.searchBatchSize;
+  } else if( classRestriction && classRestriction.length ) {
+    searchBatchSize = classRestriction.length * batchMultiplicationFactor;
   } else if( geneEvaluationProtocol === "worker" ) {
     searchBatchSize = childProcessBatchSize;
   } else {
