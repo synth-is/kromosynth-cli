@@ -63,7 +63,8 @@ export async function qdSearch(
     eliteWinsOnlyOneCell, classRestriction,
     terminationCondition, evoRunsDirPath,
     populationSize, gridDepth,
-    geneEvaluationProtocol, childProcessBatchSize, batchMultiplicationFactor,
+    geneEvaluationProtocol, childProcessBatchSize, 
+    batchSize, batchMultiplicationFactor,
     evaluationCandidateWavFilesDirPath,
     probabilityMutatingWaveNetwork, probabilityMutatingPatch,
     classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
@@ -159,6 +160,8 @@ export async function qdSearch(
   let searchBatchSize;
   if( dummyRun ) {
     searchBatchSize = dummyRun.searchBatchSize;
+  } else if( batchSize ) {
+    searchBatchSize = batchSize;
   } else if( classRestriction && classRestriction.length ) {
     searchBatchSize = classRestriction.length * batchMultiplicationFactor;
   } else if( geneEvaluationProtocol === "worker" ) {
