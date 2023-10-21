@@ -3,7 +3,8 @@ import {
   runCmd, spawnCmd,
   getEvoRunDirPath,
   readGenomeAndMetaFromDisk,
-  calcVariance, calcStandardDeviation, calcMeanDeviation
+  calcVariance, calcStandardDeviation, calcMeanDeviation,
+  averageAttributes, standardDeviationAttributes
 } from './util/qd-common.js';
 import nthline from 'nthline';
 import {
@@ -166,7 +167,7 @@ export async function getGenomeSetsForAllIterations( evoRunConfig, evoRunId, ste
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const genomeSets = new Array(Math.ceil(commitCount / stepSize));
-  const nodeAndConnectionCountSets = [];
+  const nodeAndConnectionCountSets = []; // coarser difference metric; where there is actual difference in node and connection count
   const genomeSetsAdditions = new Array(Math.ceil(commitCount / stepSize)); // new genomes added in each iteration
   const genomeSetsRemovals = new Array(Math.ceil(commitCount / stepSize)); // genomes removed in each iteration
   for( let iterationIndex = 0, genomeSetsIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, genomeSetsIndex++ ) {
@@ -208,11 +209,13 @@ export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig,
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const genomeStatistics = new Array(Math.ceil(commitCount / stepSize));
   for( let iterationIndex = 0, genomeStatisticsIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, genomeStatisticsIndex++ ) {
+    const lastIteration = ((iterationIndex+stepSize) > commitCount);
     if( iterationIndex % stepSize === 0 ) {
       console.log(`Calculating genome statistics for iteration ${iterationIndex}...`);
       genomeStatistics[genomeStatisticsIndex] = await getGenomeStatisticsAveragedForOneIteration(
         evoRunConfig, evoRunId, iterationIndex,
-        excludeEmptyCells, classRestriction
+        excludeEmptyCells, classRestriction,
+        lastIteration
       );
     }
     if( maxIterationIndex && maxIterationIndex < iterationIndex ) break;
@@ -225,7 +228,8 @@ export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig,
 }
 
 export async function getGenomeStatisticsAveragedForOneIteration( 
-    evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction
+    evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction,
+    calculateNodeTypeStatistics = false
 ) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = getCellKeys( eliteMap, excludeEmptyCells, classRestriction );
@@ -239,6 +243,8 @@ export async function getGenomeStatisticsAveragedForOneIteration(
   let cumulativeAsNEATPatchNodeCount = 0;
   const asNEATPatchConnectionCounts = [];
   let cumulativeAsNEATPatchConnectionCount = 0;
+  const cppNodeTypeCountObjects = [];
+  const asNEATPatchNodeTypeCountObjects = [];
   for( const oneCellKey of cellKeys ) {
     if( eliteMap.cells[oneCellKey].elts.length ) {
       const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
@@ -254,6 +260,12 @@ export async function getGenomeStatisticsAveragedForOneIteration(
       cumulativeAsNEATPatchNodeCount += asNEATPatchNodeCount;
       asNEATPatchConnectionCounts.push(asNEATPatchConnectionCount);
       cumulativeAsNEATPatchConnectionCount += asNEATPatchConnectionCount;
+
+      if( calculateNodeTypeStatistics ) {
+        const { cppnNodeTypeCounts, asNEATPatchNodeTypeCounts } = await getGenomeNodeTypeStatistics( genomeId, evoRunConfig, evoRunId );
+        cppNodeTypeCountObjects.push(cppnNodeTypeCounts);
+        asNEATPatchNodeTypeCountObjects.push(asNEATPatchNodeTypeCounts);
+      }
     }
   }
   const cppnNodeCountStdDev = calcStandardDeviation(cppnNodeCounts);
@@ -264,9 +276,29 @@ export async function getGenomeStatisticsAveragedForOneIteration(
   const averageAsNEATPatchNodeCount = cumulativeAsNEATPatchNodeCount / cellCount;
   const asNEATPatchConnectionCountStdDev = calcStandardDeviation(asNEATPatchConnectionCounts);
   const averageAsNEATPatchConnectionCount = cumulativeAsNEATPatchConnectionCount / cellCount;
+
+  let cppnNodeTypeCounts;
+  let asNEATPatchNodeTypeCounts;
+  let cppnNodeTypeCountsStdDev;
+  let asNEATPatchNodeTypeCountsStdDev;
+  if( calculateNodeTypeStatistics ) {
+    cppnNodeTypeCounts = averageAttributes(cppNodeTypeCountObjects);
+    asNEATPatchNodeTypeCounts = averageAttributes(asNEATPatchNodeTypeCountObjects);
+    cppnNodeTypeCountsStdDev = standardDeviationAttributes(cppNodeTypeCountObjects);
+    asNEATPatchNodeTypeCountsStdDev = standardDeviationAttributes(asNEATPatchNodeTypeCountObjects);
+  } else {
+    cppnNodeTypeCounts = undefined;
+    asNEATPatchNodeTypeCounts = undefined;
+    cppnNodeTypeCountsStdDev = undefined;
+    asNEATPatchNodeTypeCountsStdDev = undefined;
+  }
+
   return {
     cppnNodeCountStdDev, cppnConnectionCountStdDev, asNEATPatchNodeCountStdDev, asNEATPatchConnectionCountStdDev,
-    averageCppnNodeCount, averageCppnConnectionCount, averageAsNEATPatchNodeCount, averageAsNEATPatchConnectionCount
+    averageCppnNodeCount, averageCppnConnectionCount, averageAsNEATPatchNodeCount, averageAsNEATPatchConnectionCount,
+
+    cppnNodeTypeCounts, asNEATPatchNodeTypeCounts,
+    cppnNodeTypeCountsStdDev, asNEATPatchNodeTypeCountsStdDev
   };
 }
 
@@ -281,6 +313,47 @@ async function getGenomeStatistics( genomeId, evoRunConfig, evoRunId ) {
   // console.log("genomeId:", genomeId, "cppnNodeCount:", cppnNodeCount, "cppnConnectionCount:", cppnConnectionCount, "asNEATPatchNodeCount:", asNEATPatchNodeCount, "asNEATPatchConnectionCount:", asNEATPatchConnectionCount);
   return { 
     cppnNodeCount, cppnConnectionCount, asNEATPatchNodeCount, asNEATPatchConnectionCount
+  };
+}
+
+async function getGenomeNodeTypeStatistics( genomeId, evoRunConfig, evoRunId ) {
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+  const genomeAndMeta = await getGenomeFromGenomeString( genomeString, {} /*evoParams*/ );
+  const cppnNodeTypes = genomeAndMeta.waveNetwork.offspring.nodes.map( node => {
+    if( node.nodeType !== "Bias" && node.nodeType !== "Input" && node.nodeType !== "Output" ) {
+      return node.activationFunction;
+    } else {
+      return "Input/Output/Bias";
+    }
+  } ).filter( nodeType => nodeType !== "Input/Output/Bias" );
+  const cppnNodeTypeCounts = {};
+  for( const oneNodeType of cppnNodeTypes ) {
+    if( cppnNodeTypeCounts[oneNodeType] === undefined ) {
+      cppnNodeTypeCounts[oneNodeType] = 0;
+    }
+    cppnNodeTypeCounts[oneNodeType]++;
+  }
+  const asNEATPatchNodeTypes = genomeAndMeta.asNEATPatch.nodes.map( node => {
+    if( node.type === 18 ) {
+      return "WhiteNoise";
+    } else if( node.type === 19 ) {
+      return "PinkNoise";
+    } else if( node.type === 20 ) {
+      return "BrownNoise";
+    } else {
+      return node.name;
+    }
+  } ).filter( nodeType => nodeType !== "OutNode" && nodeType !== "NetworkOutputNode" && nodeType !== "NoteNetworkOutputNode" );
+  const asNEATPatchNodeTypeCounts = {};
+  for( const oneNodeType of asNEATPatchNodeTypes ) {
+    if( asNEATPatchNodeTypeCounts[oneNodeType] === undefined ) {
+      asNEATPatchNodeTypeCounts[oneNodeType] = 0;
+    }
+    asNEATPatchNodeTypeCounts[oneNodeType]++;
+  }
+  return {
+    cppnNodeTypeCounts, asNEATPatchNodeTypeCounts
   };
 }
 

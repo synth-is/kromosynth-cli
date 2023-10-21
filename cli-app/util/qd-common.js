@@ -260,3 +260,70 @@ export function populateNewGenomeClassScoresInBatchIterationResultFromEvaluation
 
   return batchIterationResults;
 }
+
+///// object attribute averages and stdvs
+
+export function averageAttributes(data) {
+  let attributeSums = {};
+  // let attributeCounts = {};
+  for (let object of data) {
+    for (let attribute in object) {
+      if (attributeSums[attribute]) {
+        attributeSums[attribute] += object[attribute];
+        // attributeCounts[attribute]++;
+      } else {
+        attributeSums[attribute] = object[attribute];
+        // attributeCounts[attribute] = 1;
+      }
+    }
+  }
+  let attributeAverages = {};
+  for (let attribute in attributeSums) {
+    // attributeAverages[attribute] = attributeSums[attribute] / attributeCounts[attribute];
+    attributeAverages[attribute] = attributeSums[attribute] / Object.keys(data).length;
+  }
+  return attributeAverages;
+}
+
+export function standardDeviationAttributes(data) {
+  let attributeSums = {};
+  // let attributeCounts = {};
+  let attributeAverages = {};
+  let squaredDiffs = {};
+
+  for(let object of data) {
+    for(let attribute in object) {
+      if (attributeSums[attribute]) {
+        attributeSums[attribute] += object[attribute];
+        // attributeCounts[attribute]++;
+      } else {
+        attributeSums[attribute] = object[attribute];
+        // attributeCounts[attribute] = 1;
+      }
+    }
+  }
+
+  for(let attribute in attributeSums) {
+    // attributeAverages[attribute] = attributeSums[attribute] / attributeCounts[attribute];
+    attributeAverages[attribute] = attributeSums[attribute] / Object.keys(data).length;
+  }
+
+  for(let object of data) {
+    for(let attribute in object) {
+      let diff = object[attribute] - attributeAverages[attribute];
+      if(squaredDiffs[attribute]) {
+        squaredDiffs[attribute] += diff * diff;
+      } else {
+        squaredDiffs[attribute] = diff * diff;
+      }
+    }
+  }
+
+  let attributeStdDevs = {};
+  for(let attribute in squaredDiffs) {
+    // attributeStdDevs[attribute] = Math.sqrt(squaredDiffs[attribute] / attributeCounts[attribute]);
+    attributeStdDevs[attribute] = Math.sqrt(squaredDiffs[attribute] / Object.keys(data).length);
+  }
+
+  return attributeStdDevs;
+}

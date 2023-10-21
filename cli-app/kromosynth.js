@@ -47,7 +47,8 @@ import { renderSfz } from './virtual-instrument.js';
 import { 
 	// median, 
 	calcStandardDeviation, calcVariance, calcMean,
-	runCmd 
+	runCmd,
+	averageAttributes, standardDeviationAttributes
 } from './util/qd-common.js';
 import { mean, median, variance, std } from 'mathjs'
 
@@ -1238,12 +1239,18 @@ async function qdAnalysis_evoRuns() {
 				const averageCppnConnectionCountsAcrossIterations = [];
 				const averageAsNEATPatchNodeCountsAcrossIterations = [];
 				const averageAsNEATPatchConnectionCountsAcrossIterations = [];
+
+				const cppnNodeTypeCountObjectsAcrossIterations = [];
+				const asNEATPatchNodeTypeCountObjectsAcrossIterations = [];
 				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
 					const { genomeStatistics } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
 					averageCppnNodeCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageCppnNodeCount ) );
 					averageCppnConnectionCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageCppnConnectionCount ) );
 					averageAsNEATPatchNodeCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageAsNEATPatchNodeCount ) );
 					averageAsNEATPatchConnectionCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageAsNEATPatchConnectionCount ) );
+
+					cppnNodeTypeCountObjectsAcrossIterations.push( genomeStatistics[genomeStatistics.length-1].cppnNodeTypeCounts );
+					asNEATPatchNodeTypeCountObjectsAcrossIterations.push( genomeStatistics[genomeStatistics.length-1].asNEATPatchNodeTypeCounts );
 				}
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageCppnNodeCounts"] = {};
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageCppnNodeCounts"]["means"] = mean( averageCppnNodeCountsAcrossIterations, 0 );
@@ -1261,6 +1268,11 @@ async function qdAnalysis_evoRuns() {
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchConnectionCounts"]["means"] = mean( averageAsNEATPatchConnectionCountsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchConnectionCounts"]["variances"] = variance( averageAsNEATPatchConnectionCountsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchConnectionCounts"]["stdDevs"] = std( averageAsNEATPatchConnectionCountsAcrossIterations, 0 );
+
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["cppnNodeTypeCounts"] = averageAttributes( cppnNodeTypeCountObjectsAcrossIterations );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["cppnNodeTypeCountsStdDevs"] = standardDeviationAttributes( cppnNodeTypeCountObjectsAcrossIterations, 0 );	
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["asNEATPatchNodeTypeCounts"] = averageAttributes( asNEATPatchNodeTypeCountObjectsAcrossIterations );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["asNEATPatchNodeTypeCountsStdDevs"] = standardDeviationAttributes( asNEATPatchNodeTypeCountObjectsAcrossIterations, 0 );
 
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
