@@ -250,7 +250,7 @@ const cli = meow(`
 		$ kromosynth evo-run-lineage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
 		$ kromosynth evo-run-duration-pitch-delta-velocity-combinations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100 --unique-genomes true
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches,lineage,duration-pitch-delta-velocity-combinations --step-size 100 --unique-genomes true
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches,lineage,duration-pitch-delta-velocity-combinations --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction ["Narration, monologue"]
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
@@ -408,6 +408,13 @@ const cli = meow(`
 		uniqueGenomes: {
 			type: 'boolean',
 			default: false
+		},
+		excludeEmptyCells: {
+			type: 'boolean',
+			default: false
+		},
+		classRestriction: {
+			type: 'string'
 		},
 
 		octaveFrom: {
@@ -1107,8 +1114,12 @@ async function qdAnalysis_percentCompletion() {
 
 async function qdAnalysis_evoRuns() {
 	const evoRunsConfig = getEvolutionRunsConfig();
-	const {analysisOperations, stepSize, scoreThreshold, uniqueGenomes, aggregateIterations} = cli.flags;
+	const {analysisOperations, stepSize, scoreThreshold, uniqueGenomes, excludeEmptyCells, classRestriction} = cli.flags;
 	const analysisOperationsList = analysisOperations.split(",");
+	let classRestrictionList;
+	if( classRestriction ) {
+		classRestrictionList = JSON.parse(classRestriction);
+	}
 	console.log("analysisOperationsList", analysisOperationsList);
 	const evoRunsAnalysis = {...evoRunsConfig};
 	// TODO move this to the qd-run-analysis module or a separate one, to have this module a bit leaner 😅
@@ -1130,13 +1141,13 @@ async function qdAnalysis_evoRuns() {
 					const classLabels = await getClassLabels( evoRunConfig, evolutionRunId );
 					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].classLabels = classLabels;
 					if( oneAnalysisOperation === "qd-scores" ) {
-						const qdScores = await calculateQDScoresForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+						const qdScores = await calculateQDScoresForAllIterations( evoRunConfig, evolutionRunId, stepSize, excludeEmptyCells, classRestrictionList );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].qdScores = qdScores;
 						console.log(`Added ${qdScores.length} QD scores to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "genome-statistics" ) {
-						const genomeStatistics = await getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+						const genomeStatistics = await getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evolutionRunId, stepSize, excludeEmptyCells, classRestrictionList );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].genomeStatistics = genomeStatistics;
 						console.log(`Added genome statistics to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
@@ -1283,12 +1294,14 @@ async function qdAnalysis_evoRuns() {
 				console.log("aggregating genome sets for evolution run #", currentEvolutionRunIndex, "...");
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"] = {};
 				const genomeCountsAcrossIterations = [];
+				const nodeAndConnectionCountSetAcrossIterations = [];
 				const genomeSetsAdditionsAcrossIterations = [];
 				const genomeSetsRemovalsAcrossIterations = [];
 				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
 					const { genomeSets } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
-					let { genomeCount, genomeSetsAdditions, genomeSetsRemovals } = genomeSets;
+					let { genomeCount, nodeAndConnectionCountSetCount, genomeSetsAdditions, genomeSetsRemovals } = genomeSets;
 					genomeCountsAcrossIterations.push( genomeCount );
+					nodeAndConnectionCountSetAcrossIterations.push( nodeAndConnectionCountSetCount );
 					// replace undefined array elements with zeros
 					for( let i = 0; i < genomeSetsAdditions.length; i++ ) {
 						if( genomeSetsAdditions[i] === undefined ) genomeSetsAdditions[i] = 0;
@@ -1304,6 +1317,10 @@ async function qdAnalysis_evoRuns() {
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeCounts"]["means"] = mean( genomeCountsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeCounts"]["variances"] = variance( genomeCountsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeCounts"]["stdDevs"] = std( genomeCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["nodeAndConnectionCountSetCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["nodeAndConnectionCountSetCounts"]["means"] = mean( nodeAndConnectionCountSetAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["nodeAndConnectionCountSetCounts"]["variances"] = variance( nodeAndConnectionCountSetAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["nodeAndConnectionCountSetCounts"]["stdDevs"] = std( nodeAndConnectionCountSetAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeSetsAdditions"] = {};
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeSetsAdditions"]["means"] = mean( genomeSetsAdditionsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSets"]["genomeSetsAdditions"]["variances"] = variance( genomeSetsAdditionsAcrossIterations, 0 );

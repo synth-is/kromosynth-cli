@@ -12,7 +12,6 @@ import {
 import { getAudioContext, getNewOfflineAudioContext, playAudio } from './util/rendering-common.js';
 import figlet from 'figlet';
 import { log } from 'console';
-import { get } from 'http';
 
 
 ///// class labels
@@ -25,7 +24,7 @@ export async function getClassLabels( evoRunConfig, evoRunId ) {
 
 ///// QD score
 
-export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const qdScores = new Array(Math.ceil(commitCount / stepSize));
@@ -33,7 +32,7 @@ export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId,
     if( iterationIndex % stepSize === 0 ) {
       console.log(`Calculating QD score for iteration ${iterationIndex}...`);
       qdScores[qdScoreIndex] = await calculateQDScoreForOneIteration(
-        evoRunConfig, evoRunId, iterationIndex
+        evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction
       );
     }
   }
@@ -44,10 +43,12 @@ export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId,
   return qdScores;
 }
 
-export async function calculateQDScoreForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
+export async function calculateQDScoreForOneIteration( 
+    evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction 
+) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
-  const cellKeys = getCellKeys( eliteMap );
-  const cellCount = getCellCount( eliteMap );
+  const cellKeys = getCellKeys( eliteMap, excludeEmptyCells, classRestriction );
+  const cellCount = getCellCount( eliteMap, excludeEmptyCells, classRestriction );
   let cumulativeScore = 0;
   for( const oneCellKey of cellKeys ) {
     if( eliteMap.cells[oneCellKey].elts.length ) {
@@ -143,16 +144,37 @@ export async function getGenomeSetsForOneIteration( evoRunConfig, evoRunId, iter
   return genomeSet;
 }
 
+async function getNodeAndConnectionCountSetsForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const cellKeys = Object.keys(eliteMap.cells);
+  const nodeAndConnectionCountKeys = new Set();
+  for (const oneCellKey of cellKeys) {
+    if (eliteMap.cells[oneCellKey].elts.length) {
+      const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
+      const { 
+        cppnNodeCount, cppnConnectionCount, asNEATPatchNodeCount, asNEATPatchConnectionCount 
+      } = await getGenomeStatistics(genomeId, evoRunConfig, evoRunId);
+      const nodeAndConnectionCountKey = `${cppnNodeCount}-${cppnConnectionCount}-${asNEATPatchNodeCount}-${asNEATPatchConnectionCount}`;
+      nodeAndConnectionCountKeys.add(nodeAndConnectionCountKey);
+    }
+  }
+  return nodeAndConnectionCountKeys;
+}
+
 export async function getGenomeSetsForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const genomeSets = new Array(Math.ceil(commitCount / stepSize));
+  const nodeAndConnectionCountSets = [];
   const genomeSetsAdditions = new Array(Math.ceil(commitCount / stepSize)); // new genomes added in each iteration
   const genomeSetsRemovals = new Array(Math.ceil(commitCount / stepSize)); // genomes removed in each iteration
   for( let iterationIndex = 0, genomeSetsIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, genomeSetsIndex++ ) {
     if( iterationIndex % stepSize === 0 ) {
       console.log(`Calculating genome sets for iteration ${iterationIndex}...`);
       genomeSets[genomeSetsIndex] = await getGenomeSetsForOneIteration(
+        evoRunConfig, evoRunId, iterationIndex
+      );
+      nodeAndConnectionCountSets[genomeSetsIndex] = await getNodeAndConnectionCountSetsForOneIteration(
         evoRunConfig, evoRunId, iterationIndex
       );
       if( genomeSetsIndex > 0 ) {
@@ -165,13 +187,14 @@ export async function getGenomeSetsForAllIterations( evoRunConfig, evoRunId, ste
       }
     }
   }
-  return { genomeSets, genomeSetsAdditions, genomeSetsRemovals };
+  return { genomeSets, nodeAndConnectionCountSets, genomeSetsAdditions, genomeSetsRemovals };
 }
 
 export async function getGenomeCountsForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
   const genomeSetsCollection = await getGenomeSetsForAllIterations( evoRunConfig, evoRunId, stepSize );
   return { // conversion to arrays for JSON.stringify
     genomeCount: genomeSetsCollection.genomeSets.map( oneSet => [...oneSet].length ), 
+    nodeAndConnectionCountSetCount: genomeSetsCollection.nodeAndConnectionCountSets.map( oneSet => [...oneSet].length ),
     genomeSetsAdditions: genomeSetsCollection.genomeSetsAdditions.map( oneSet => [...oneSet].length ),
     genomeSetsRemovals: genomeSetsCollection.genomeSetsRemovals.map( oneSet => [...oneSet].length )
   };
@@ -179,7 +202,7 @@ export async function getGenomeCountsForAllIterations( evoRunConfig, evoRunId, s
 
 ///// network complexity
 
-export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const genomeStatistics = new Array(Math.ceil(commitCount / stepSize));
@@ -187,7 +210,8 @@ export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig,
     if( iterationIndex % stepSize === 0 ) {
       console.log(`Calculating genome statistics for iteration ${iterationIndex}...`);
       genomeStatistics[genomeStatisticsIndex] = await getGenomeStatisticsAveragedForOneIteration(
-        evoRunConfig, evoRunId, iterationIndex
+        evoRunConfig, evoRunId, iterationIndex,
+        excludeEmptyCells, classRestriction
       );
     }
   }
@@ -198,11 +222,13 @@ export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig,
   return genomeStatistics;
 }
 
-export async function getGenomeStatisticsAveragedForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
+export async function getGenomeStatisticsAveragedForOneIteration( 
+    evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction
+) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
-  const cellKeys = getCellKeys( eliteMap );
+  const cellKeys = getCellKeys( eliteMap, excludeEmptyCells, classRestriction );
   // get count of cells where the elts value contains a non empty array
-  const cellCount = getCellCount( eliteMap );
+  const cellCount = getCellCount( eliteMap, excludeEmptyCells, classRestriction );
   const cppnNodeCounts = [];
   let cumulativeCppnNodeCount = 0;
   const cppnConnectionCounts = [];
@@ -628,23 +654,35 @@ export async function getDurationPitchDeltaVelocityCombinations( evoRunConfig, e
   return durationPitchDeltaVelocityCombinations;
 }
 
-function getCellKeys( eliteMap ) {
-  // get count of cells where the elts value contains a non empty array
-  const cellKeys = Object.keys(eliteMap.cells).filter( 
-    oneCellKey => eliteMap.cells[oneCellKey].elts.length && null !== eliteMap.cells[oneCellKey].elts[0].s
-  );
+function getCellKeys( eliteMap, excludeEmptyCells = false, classRestriction ) {
+  // // get count of cells where the elts value contains a non empty array
+  // const cellKeys = Object.keys(eliteMap.cells).filter( 
+  //   oneCellKey => eliteMap.cells[oneCellKey].elts.length && null !== eliteMap.cells[oneCellKey].elts[0].s
+  // );
+  let cellKeys;
+  if( excludeEmptyCells ) {
+    cellKeys = Object.keys(eliteMap.cells).filter( 
+      oneCellKey => eliteMap.cells[oneCellKey].elts.length && null !== eliteMap.cells[oneCellKey].elts[0].s
+    );
+  } else if( classRestriction ) {
+    // only cell keys that are in the class restriction array
+    cellKeys = Object.keys(eliteMap.cells).filter( oneCellKey => classRestriction.includes(oneCellKey) );
+  } else {
+    cellKeys = Object.keys(eliteMap.cells);
+  }
   return cellKeys;
 }
 
-function getCellCount( eliteMap ) {
-  const cellKeys = Object.keys(eliteMap.cells);
-  const cellCount = cellKeys.reduce( (acc, cur) => {
-    if( eliteMap.cells[cur].elts.length && null !== eliteMap.cells[cur].elts[0].s ) {
-      return acc + 1;
-    } else {
-      return acc;
-    }
-  }, 0 );
+function getCellCount( eliteMap, excludeEmptyCells = false, classRestriction ) {
+  let cellKeys = getCellKeys( eliteMap, excludeEmptyCells, classRestriction );
+  // const cellCount = cellKeys.reduce( (acc, cur) => {
+  //   if( eliteMap.cells[cur].elts.length && null !== eliteMap.cells[cur].elts[0].s ) {
+  //     return acc + 1;
+  //   } else {
+  //     return acc;
+  //   }
+  // }, 0 );
+  const cellCount = cellKeys.length;
   return cellCount;
 }
 
