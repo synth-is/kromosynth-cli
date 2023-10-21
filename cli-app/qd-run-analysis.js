@@ -24,7 +24,7 @@ export async function getClassLabels( evoRunConfig, evoRunId ) {
 
 ///// QD score
 
-export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction ) {
+export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction, maxIterationIndex ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const qdScores = new Array(Math.ceil(commitCount / stepSize));
@@ -35,6 +35,7 @@ export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId,
         evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction
       );
     }
+    if( maxIterationIndex && maxIterationIndex < iterationIndex ) break;
   }
   const qdScoresStringified = JSON.stringify(qdScores);
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
@@ -202,7 +203,7 @@ export async function getGenomeCountsForAllIterations( evoRunConfig, evoRunId, s
 
 ///// network complexity
 
-export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction ) {
+export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction, maxIterationIndex ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const genomeStatistics = new Array(Math.ceil(commitCount / stepSize));
@@ -214,6 +215,7 @@ export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig,
         excludeEmptyCells, classRestriction
       );
     }
+    if( maxIterationIndex && maxIterationIndex < iterationIndex ) break;
   }
   const genomeStatisticsStringified = JSON.stringify(genomeStatistics);
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
@@ -664,6 +666,8 @@ function getCellKeys( eliteMap, excludeEmptyCells = false, classRestriction ) {
     cellKeys = Object.keys(eliteMap.cells).filter( 
       oneCellKey => eliteMap.cells[oneCellKey].elts.length && null !== eliteMap.cells[oneCellKey].elts[0].s
     );
+  } else if( eliteMap.evolutionRunConfig.classRestriction && eliteMap.evolutionRunConfig.classRestriction.length ) {
+    cellKeys = eliteMap.evolutionRunConfig.classRestriction;
   } else if( classRestriction ) {
     // only cell keys that are in the class restriction array
     cellKeys = Object.keys(eliteMap.cells).filter( oneCellKey => classRestriction.includes(oneCellKey) );

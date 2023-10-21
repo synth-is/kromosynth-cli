@@ -250,7 +250,7 @@ const cli = meow(`
 		$ kromosynth evo-run-lineage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
 		$ kromosynth evo-run-duration-pitch-delta-velocity-combinations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100 --unique-genomes true
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches,lineage,duration-pitch-delta-velocity-combinations --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction ["Narration, monologue"]
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches,lineage,duration-pitch-delta-velocity-combinations --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction ["Narration, monologue"] --max-iteration-index 300000
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
@@ -415,6 +415,9 @@ const cli = meow(`
 		},
 		classRestriction: {
 			type: 'string'
+		},
+		maxIterationIndex: {
+			type: 'number'
 		},
 
 		octaveFrom: {
@@ -1114,7 +1117,7 @@ async function qdAnalysis_percentCompletion() {
 
 async function qdAnalysis_evoRuns() {
 	const evoRunsConfig = getEvolutionRunsConfig();
-	const {analysisOperations, stepSize, scoreThreshold, uniqueGenomes, excludeEmptyCells, classRestriction} = cli.flags;
+	const {analysisOperations, stepSize, scoreThreshold, uniqueGenomes, excludeEmptyCells, classRestriction, maxIterationIndex} = cli.flags;
 	const analysisOperationsList = analysisOperations.split(",");
 	let classRestrictionList;
 	if( classRestriction ) {
@@ -1141,13 +1144,13 @@ async function qdAnalysis_evoRuns() {
 					const classLabels = await getClassLabels( evoRunConfig, evolutionRunId );
 					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].classLabels = classLabels;
 					if( oneAnalysisOperation === "qd-scores" ) {
-						const qdScores = await calculateQDScoresForAllIterations( evoRunConfig, evolutionRunId, stepSize, excludeEmptyCells, classRestrictionList );
+						const qdScores = await calculateQDScoresForAllIterations( evoRunConfig, evolutionRunId, stepSize, excludeEmptyCells, classRestrictionList, maxIterationIndex );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].qdScores = qdScores;
 						console.log(`Added ${qdScores.length} QD scores to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "genome-statistics" ) {
-						const genomeStatistics = await getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evolutionRunId, stepSize, excludeEmptyCells, classRestrictionList );
+						const genomeStatistics = await getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evolutionRunId, stepSize, excludeEmptyCells, classRestrictionList, maxIterationIndex );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].genomeStatistics = genomeStatistics;
 						console.log(`Added genome statistics to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
