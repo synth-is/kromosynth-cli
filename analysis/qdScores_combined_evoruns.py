@@ -40,11 +40,14 @@ params = {
    }
 plt.rcParams.update(params)
 
+maxIterations = 50 # divided by x_multiplier
 
 legend_lines = []
 for oneEvorun in data['evoRuns']:
-    qdScoresMeans = np.array(oneEvorun['aggregates']['qdScores']['means'])
-    qdSqoreStdDevs = np.array(oneEvorun['aggregates']['qdScores']['stdDevs'])
+    qdScoresMeans = np.array(oneEvorun['aggregates']['qdScores']['means'])[:maxIterations]
+    qdSqoreStdDevs = np.array(oneEvorun['aggregates']['qdScores']['stdDevs'])[:maxIterations]
+
+    print(len(qdScoresMeans))
 
     x_values = np.arange(len(qdScoresMeans)) * x_multiplier
 

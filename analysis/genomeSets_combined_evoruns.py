@@ -40,12 +40,12 @@ for oneEvorun in data['evoRuns']:
     plt.rc('axes', prop_cycle=linestyle_cycler)
 
     # https://stackoverflow.com/a/61369662/169858
-    line, = plt.plot(x_values, genomeCountsMeans, linewidth=2)
+    line, = plt.plot(x_values, genomeCountsMeans) # , linewidth=2
     fill = plt.fill_between(x_values, genomeCountsMeans - genomeCountsStdDevs, genomeCountsMeans + genomeCountsStdDevs, alpha=0.2)
 
     legend_lines.append((line, fill))
 
-plt.legend(legend_lines, [oneEvorun['label'] for oneEvorun in data['evoRuns']], title='Genome sets') # loc='upper left'
+plt.legend(legend_lines, [oneEvorun['label'][9:] for oneEvorun in data['evoRuns']], title='Genome sets') # loc='upper left'
 plt.subplots_adjust(left=0.08, bottom=0.1, right=0.99, top=0.95, wspace=0.2, hspace=0.2)
 
 plt.xlabel('Iteration')
@@ -62,26 +62,26 @@ plt.savefig(save_dir + title + '.pdf')
 plt.clf()
 
 
-# TODO: when have coarse data:
+# coarse sets, based on actual difference in genome- and connnection counts, rather than just ID differences:
 
-# legend_lines = []
-# for oneEvorun in data['evoRuns']:
-#     nodeAndConnectionCountMeans = np.array(oneEvorun['aggregates']['genomeSets']['nodeAndConnectionCountSetCounts']['means'])
-#     nodeAndConnectionCountStdDevs = np.array(oneEvorun['aggregates']['genomeSets']['nodeAndConnectionCountSetCounts']['stdDevs'])
+legend_lines = []
+for oneEvorun in data['evoRuns']:
+    nodeAndConnectionCountMeans = np.array(oneEvorun['aggregates']['genomeSets']['nodeAndConnectionCountSetCounts']['means'])
+    nodeAndConnectionCountStdDevs = np.array(oneEvorun['aggregates']['genomeSets']['nodeAndConnectionCountSetCounts']['stdDevs'])
 
-#     x_values = np.arange(len(nodeAndConnectionCountMeans)) * x_multiplier
+    x_values = np.arange(len(nodeAndConnectionCountMeans)) * x_multiplier
 
-#     # https://stackoverflow.com/a/61369662/169858
-#     line, = plt.plot(x_values, nodeAndConnectionCountMeans)
-#     fill = plt.fill_between(x_values, nodeAndConnectionCountMeans - nodeAndConnectionCountStdDevs, nodeAndConnectionCountMeans + nodeAndConnectionCountStdDevs, alpha=0.2)
+    # https://stackoverflow.com/a/61369662/169858
+    line, = plt.plot(x_values, nodeAndConnectionCountMeans)
+    fill = plt.fill_between(x_values, nodeAndConnectionCountMeans - nodeAndConnectionCountStdDevs, nodeAndConnectionCountMeans + nodeAndConnectionCountStdDevs, alpha=0.2)
 
-#     legend_lines.append((line, fill))
+    legend_lines.append((line, fill))
 
-# plt.legend(legend_lines, [oneEvorun['label'] for oneEvorun in data['evoRuns']], title='Node and connection count sets') # loc='upper left'
+plt.legend(legend_lines, [oneEvorun['label'][9:] for oneEvorun in data['evoRuns']], title='Node and connection count sets') # loc='upper left'
 
-# plt.xlabel('Iteration')
-# plt.ylabel('Node and connection count')
+plt.xlabel('Iteration')
+plt.ylabel('Node- and connection sets count')
 
-# # Save the plot
+# Save the plot
 # plt.savefig(save_dir + title + '_node_and_connection_count_sets' + '.png')
-# plt.savefig(save_dir + title + '_node_and_connection_count_sets' + '.pdf')
+plt.savefig(save_dir + title + '_node_and_connection_count_sets' + '.pdf')
