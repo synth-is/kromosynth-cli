@@ -3,8 +3,8 @@ import plotUtil
 import matplotlib.pyplot as plt
 import numpy as np
 from cycler import cycler
-from palettable.colorbrewer.qualitative import Set1_8 # Set1_4
-colors = Set1_8.mpl_colors
+from palettable.colorbrewer.qualitative import Set1_6 # Set1_4
+colors = Set1_6.mpl_colors
 
 json_file_path = sys.argv[1]
 x_multiplier = int(sys.argv[2])  # Set this value as the step size in the JSON file name
@@ -42,7 +42,7 @@ for oneEvorun in data['evoRuns']:
 
     x_values = np.arange(len(cppnNodeCountsMeans)) * x_multiplier
 
-    linestyle_cycler = cycler('color', colors[:4]) + cycler('linestyle',['-','--',':','-.'])
+    linestyle_cycler = cycler('color', colors[:3]) + cycler('linestyle',['-','--',':']) # ,'-.'
     # for base run vs single class:
     # linestyle_cycler = cycler('color', colors[:2]) + cycler('linestyle',['-','--'])
     plt.rc('axes', prop_cycle=linestyle_cycler)
@@ -73,7 +73,7 @@ for oneEvorun in data['evoRuns']:
 
     x_values = np.arange(len(cppnConnectionCountsMeans)) * x_multiplier
 
-    linestyle_cycler = cycler('color', colors[:4]) + cycler('linestyle',['-','--',':','-.'])
+    linestyle_cycler = cycler('color', colors[:3]) + cycler('linestyle',['-','--',':'])
     # for base run vs single class:
     # linestyle_cycler = cycler('color', colors[:2]) + cycler('linestyle',['-','--'])
     plt.rc('axes', prop_cycle=linestyle_cycler)
@@ -101,7 +101,7 @@ for oneEvorun in data['evoRuns']:
 
     x_values = np.arange(len(asNEATPatchNodeCountsMeans)) * x_multiplier
 
-    linestyle_cycler = cycler('color', colors[4:]) + cycler('linestyle',['-','--',':','-.'])
+    linestyle_cycler = cycler('color', colors[3:]) + cycler('linestyle',['-','--',':'])
     # for base run vs single class:
     # linestyle_cycler = cycler('color', colors[2:]) + cycler('linestyle',['-','--'])
     plt.rc('axes', prop_cycle=linestyle_cycler)
@@ -129,7 +129,7 @@ for oneEvorun in data['evoRuns']:
 
     x_values = np.arange(len(asNEATPatchConnectionCountsMeans)) * x_multiplier
 
-    linestyle_cycler = cycler('color', colors[4:]) + cycler('linestyle',['-','--',':','-.'])
+    linestyle_cycler = cycler('color', colors[3:]) + cycler('linestyle',['-','--',':'])
     # for base run vs single class:
     # linestyle_cycler = cycler('color', colors[2:]) + cycler('linestyle',['-','--'])
     plt.rc('axes', prop_cycle=linestyle_cycler)
@@ -155,63 +155,63 @@ plt.clf()
 
 ################ node type counts ################
 
-# https://github.com/jbmouret/matplotlib_for_papers#setting-the-limits-and-the-ticks
-params = {
-   'axes.labelsize': 10,
-   'font.size': 8,
-   'legend.fontsize': 10,
-   'xtick.labelsize': 10,
-   'ytick.labelsize': 10,
-   'text.usetex': False,
-   'figure.figsize': [7, 1] # instead of 4.5, 4.5
-   }
-plt.rcParams.update(params)
+# # https://github.com/jbmouret/matplotlib_for_papers#setting-the-limits-and-the-ticks
+# params = {
+#    'axes.labelsize': 10,
+#    'font.size': 8,
+#    'legend.fontsize': 10,
+#    'xtick.labelsize': 10,
+#    'ytick.labelsize': 10,
+#    'text.usetex': False,
+#    'figure.figsize': [7, 1] # instead of 4.5, 4.5
+#    }
+# plt.rcParams.update(params)
 
-plt.subplots_adjust(left=0.1, bottom=0.1, right=0.99, top=0.95, wspace=0.2, hspace=0.2)
+# plt.subplots_adjust(left=0.1, bottom=0.1, right=0.99, top=0.95, wspace=0.2, hspace=0.2)
 
 
-legend_texts = []
-node_type_counts = []
-node_type_counts_std_devs = []
-for oneEvorun in data['evoRuns']:
-    cppnNodeTypeCounts = oneEvorun['aggregates']['genomeStatistics']['cppnNodeTypeCounts']
-    cppnNodeTypeCountsStdDevs = oneEvorun['aggregates']['genomeStatistics']['cppnNodeTypeCountsStdDevs']
+# legend_texts = []
+# node_type_counts = []
+# node_type_counts_std_devs = []
+# for oneEvorun in data['evoRuns']:
+#     cppnNodeTypeCounts = oneEvorun['aggregates']['genomeStatistics']['cppnNodeTypeCounts']
+#     cppnNodeTypeCountsStdDevs = oneEvorun['aggregates']['genomeStatistics']['cppnNodeTypeCountsStdDevs']
     
-    node_type_counts.append(cppnNodeTypeCounts)
-    node_type_counts_std_devs.append(cppnNodeTypeCountsStdDevs)
-    legend_texts.append(oneEvorun['label'][9:])
+#     node_type_counts.append(cppnNodeTypeCounts)
+#     node_type_counts_std_devs.append(cppnNodeTypeCountsStdDevs)
+#     legend_texts.append(oneEvorun['label'][9:])
     
-    # asNEATPatchNodeTypeCounts = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCounts']
-    # asNEATPatchNodeTypeCountsStdDevs = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCountsStdDevs']
+#     # asNEATPatchNodeTypeCounts = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCounts']
+#     # asNEATPatchNodeTypeCountsStdDevs = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCountsStdDevs']
 
 
-n_bars = len(legend_texts)
-groups = list(set().union(*[obj.keys() for obj in node_type_counts]))
-n_groups = len(groups)
+# n_bars = len(legend_texts)
+# groups = list(set().union(*[obj.keys() for obj in node_type_counts]))
+# n_groups = len(groups)
 
-values = np.zeros((n_bars, n_groups))
-std_dev = np.zeros((n_bars, n_groups))
+# values = np.zeros((n_bars, n_groups))
+# std_dev = np.zeros((n_bars, n_groups))
 
-for i in range(n_bars):
-    values[i, :] = [node_type_counts[i].get(attribute, 0) for attribute in groups]
-    std_dev[i, :] = [node_type_counts_std_devs[i].get(attribute, 0) for attribute in groups]
+# for i in range(n_bars):
+#     values[i, :] = [node_type_counts[i].get(attribute, 0) for attribute in groups]
+#     std_dev[i, :] = [node_type_counts_std_devs[i].get(attribute, 0) for attribute in groups]
 
-fig, ax = plt.subplots()
+# fig, ax = plt.subplots()
 
-bar_width = 0.35
-index = np.arange(n_groups)
+# bar_width = 0.35
+# index = np.arange(n_groups)
 
-for i in range(n_bars):
-    ax.bar(index + i * bar_width / n_bars, values[i], bar_width / n_bars, yerr=std_dev[i],
-           label=legend_texts[i])
+# for i in range(n_bars):
+#     ax.bar(index + i * bar_width / n_bars, values[i], bar_width / n_bars, yerr=std_dev[i],
+#            label=legend_texts[i])
 
-ax.set_xlabel('Groups')
-ax.set_ylabel('Values')
-ax.set_title('Grouped Bar Chart with Standard Deviation')
-ax.set_xticks(index)
-ax.set_xticklabels(groups)
-ax.legend()
+# ax.set_xlabel('Groups')
+# ax.set_ylabel('Values')
+# ax.set_title('Grouped Bar Chart with Standard Deviation')
+# ax.set_xticks(index)
+# ax.set_xticklabels(groups)
+# ax.legend()
 
-plt.tight_layout() # Automatically adjusts subplot parameters to fit the plot elements nicely
+# plt.tight_layout() # Automatically adjusts subplot parameters to fit the plot elements nicely
 
-plt.savefig(save_dir + title + '_node_type_count_CPPN' + '.pdf')
+# plt.savefig(save_dir + title + '_node_type_count_CPPN' + '.pdf')
