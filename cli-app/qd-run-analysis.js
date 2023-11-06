@@ -28,7 +28,12 @@ export async function getClassLabels( evoRunConfig, evoRunId ) {
 export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction, maxIterationIndex ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
-  const qdScores = new Array(Math.ceil(commitCount / stepSize));
+  let qdScores;
+  if( maxIterationIndex ) {
+    qdScores = new Array(Math.ceil(maxIterationIndex / stepSize));
+  } else {
+    qdScores = new Array(Math.ceil(commitCount / stepSize));
+  }
   for( let iterationIndex = 0, qdScoreIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, qdScoreIndex++ ) {
     if( iterationIndex % stepSize === 0 ) {
       console.log(`Calculating QD score for iteration ${iterationIndex}...`);
@@ -52,12 +57,25 @@ export async function calculateQDScoreForOneIteration(
   const cellKeys = getCellKeys( eliteMap, excludeEmptyCells, classRestriction );
   const cellCount = getCellCount( eliteMap, excludeEmptyCells, classRestriction );
   let cumulativeScore = 0;
+  let cellScoreCounts = 0;
   for( const oneCellKey of cellKeys ) {
     if( eliteMap.cells[oneCellKey].elts.length ) {
       cumulativeScore += parseFloat(eliteMap.cells[oneCellKey].elts[0].s);
+      cellScoreCounts++;
     }
   }
-  const qdScore = cumulativeScore / cellCount;
+  // proper QD score is a holistic metric which sums the objective values of all cells in the archive
+  // (https://btjanaka.net/static/qd-auc/qd-auc-paper.pdf)
+  // while dividing by cellCount (including empty or not (covered) would be performance or precision)
+  let qdScore;
+  // when we have a classRestriction, assume that we are comaring against single-class-runs
+  // and that the qdScore is the performance against individual classes, rather than a sum over all
+  if( classRestriction && classRestriction.length ) {
+    console.log("dividing qd score, from", cellScoreCounts, "cellScoreCounts by", cellCount)
+    qdScore = cumulativeScore / cellCount;
+  } else {
+    qdScore = cumulativeScore;
+  }
   return qdScore;
 }
 
@@ -207,7 +225,12 @@ export async function getGenomeCountsForAllIterations( evoRunConfig, evoRunId, s
 export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction, maxIterationIndex ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
-  const genomeStatistics = new Array(Math.ceil(commitCount / stepSize));
+  let genomeStatistics;
+  if( maxIterationIndex ) {
+    genomeStatistics = new Array(Math.ceil(maxIterationIndex / stepSize));
+  } else {
+    genomeStatistics = new Array(Math.ceil(commitCount / stepSize));
+  }
   for( let iterationIndex = 0, genomeStatisticsIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, genomeStatisticsIndex++ ) {
     const lastIteration = ((iterationIndex+stepSize) > commitCount);
     if( iterationIndex % stepSize === 0 ) {
@@ -511,7 +534,7 @@ export async function getScoreVarianceForAllIterations( evoRunConfig, evoRunId, 
 
 ///// elites energy
 
-export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1 ) {
+export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestrictionList, maxIterationIndex ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const eliteEnergies = {};
@@ -519,7 +542,7 @@ export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1 ) {
   for( let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++ ) {
     if( iterationIndex % stepSize === 0 ) {
       const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
-      const cellKeys = getCellKeys( eliteMap );
+      const cellKeys = getCellKeys( eliteMap, excludeEmptyCells, classRestrictionList );
       for( const oneCellKey of cellKeys ) {
         const cell = eliteMap.cells[oneCellKey];
         if( cell.elts.length ) {
@@ -542,10 +565,11 @@ export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1 ) {
           }
         }
       }
-      const cellCount = getCellCount( eliteMap );
+      const cellCount = getCellCount( eliteMap, excludeEmptyCells, classRestrictionList );
       const oneIterationEnergy = Object.values(eliteEnergies).reduce( (acc, cur) => acc + cur.at(-1).energy, 0 ) / cellCount;
       eliteIterationEnergies.push( oneIterationEnergy );
     }
+    if( maxIterationIndex && maxIterationIndex < iterationIndex ) break;
   }
   const averageEnergyPerCell = {};
   for( const oneCellKey of Object.keys(eliteEnergies) ) {
@@ -609,6 +633,41 @@ export async function getGoalSwitches( evoRunConfig, evoRunId, stepSize = 1, evo
   };
 }
 
+export async function getGoalSwitchesThroughLineages( evoRunConfig, evoRunId, evoParams ) {
+  const goalSwitchesToCells = {};
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const iterationIndex = commitCount - 1;
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const cellKeys = getCellKeys( eliteMap );
+  for( const oneCellKey of cellKeys ) {
+    if( eliteMap.cells[oneCellKey].elts.length ) {
+      let goalSwitchCount = 0;
+      let currentClass = oneCellKey;
+      let genomeId = eliteMap.cells[oneCellKey].elts[0].g;
+      let classEliteGenome;
+      do {
+        const classEliteGenomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+        classEliteGenome = await getGenomeFromGenomeString(classEliteGenomeString, evoParams);
+        if( classEliteGenome.parentGenomes ) {
+          if( currentClass !== classEliteGenome.parentGenomes[0].eliteClass ) { // assume only one parent
+            console.log(oneCellKey + ", goalSwitchCount:", goalSwitchCount, "at generation", classEliteGenome.generationNumber, "from", currentClass, "to", classEliteGenome.parentGenomes[0].eliteClass);
+            goalSwitchCount++;
+            currentClass = classEliteGenome.parentGenomes[0].eliteClass;
+          }
+          genomeId = classEliteGenome.parentGenomes[0].genomeId;
+        }
+      } while( classEliteGenome.parentGenomes );
+      goalSwitchesToCells[oneCellKey] = goalSwitchCount;
+    }
+  }
+  const averageGoalSwitchCount = Object.values(goalSwitchesToCells).reduce( (acc, cur) => acc + cur, 0 ) / Object.values(goalSwitchesToCells).length;
+  return {
+    goalSwitchesToCells,
+    averageGoalSwitchCount
+  };
+}
 
 ///// lineages
 
@@ -738,17 +797,26 @@ function getCellKeys( eliteMap, excludeEmptyCells = false, classRestriction ) {
   //   oneCellKey => eliteMap.cells[oneCellKey].elts.length && null !== eliteMap.cells[oneCellKey].elts[0].s
   // );
   let cellKeys;
-  if( excludeEmptyCells ) {
+  if( classRestriction && classRestriction.length ) {
+    // only cell keys that are in the class restriction array
+    if( excludeEmptyCells ) {
+      cellKeys = Object.keys(eliteMap.cells)
+      .filter( 
+        oneCellKey => eliteMap.cells[oneCellKey].elts.length && null !== eliteMap.cells[oneCellKey].elts[0].s
+      )
+      .filter( oneCellKey => classRestriction.includes(oneCellKey) );
+    } else {
+      // only cell keys that are in the class restriction array
+      // e.g. when aligning analysis of a QD run with classes from several single class runs
+      cellKeys = Object.keys(eliteMap.cells).filter( oneCellKey => classRestriction.includes(oneCellKey) );
+    }
+  } else if( excludeEmptyCells ) {
     cellKeys = Object.keys(eliteMap.cells).filter( 
       oneCellKey => eliteMap.cells[oneCellKey].elts.length && null !== eliteMap.cells[oneCellKey].elts[0].s
     );
   } else if( eliteMap.evolutionRunConfig.classRestriction && eliteMap.evolutionRunConfig.classRestriction.length ) {
     // e.g. single class restriction
     cellKeys = eliteMap.evolutionRunConfig.classRestriction;
-  } else if( classRestriction ) {
-    // only cell keys that are in the class restriction array
-    // e.g. when aligning analysis of a QD run with classes from several single class runs
-    cellKeys = Object.keys(eliteMap.cells).filter( oneCellKey => classRestriction.includes(oneCellKey) );
   } else {
     cellKeys = Object.keys(eliteMap.cells);
   }

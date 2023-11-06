@@ -19,6 +19,16 @@ data = plotUtil.read_data_from_json(json_file_path)
 
 plt.clf()
 
+plt.rcParams['figure.constrained_layout.use'] = True
+
+legend_lookup = {
+    'one_comb-dur_0.5': 'SIE 0.5s',
+    'one_comb-CPPN_only-dur_0.5': 'SIE-CPPN-only 0.5s',
+    'one_comb-singleCellWin-dur_0.5': 'SIE-single-cell-win 0.5s',
+    'one_comb-dur_10.0': 'SIE 10s',
+    'one_comb-CPPN_only-dur_10.0': 'SIE-CPPN-only 10s',
+}
+
 ################ node type counts ################
 
 def plot_bar_chart(legend_texts, node_type_counts, node_type_counts_std_devs, xtick_rotation, left, bottom, right, top, width, height, plot_title, xlabel, ylabel, filename_suffix):
@@ -35,6 +45,9 @@ def plot_bar_chart(legend_texts, node_type_counts, node_type_counts_std_devs, xt
         std_dev[i, :] = [node_type_counts_std_devs[i].get(attribute, 0) for attribute in groups]
 
     fig, ax = plt.subplots(figsize=(width, height))
+    # cm = 1/2.54  # centimeters in inches
+    # plt.figure(figsize=(6*cm, 4.5*cm))
+    # fig, ax = plt.subplots(figsize=(6*cm, 4.5*cm))
 
     bar_width = 0.85
     index = np.arange(n_groups)
@@ -43,13 +56,13 @@ def plot_bar_chart(legend_texts, node_type_counts, node_type_counts_std_devs, xt
 
     for i in range(n_bars):
         ax.bar(index + i * bar_width / n_bars, values[i], bar_width / n_bars, yerr=std_dev[i],
-               label=legend_texts[i],
+               label=legend_lookup[legend_texts[i]],
                align="edge",
                hatch=patterns[i], edgecolor='black', linewidth=1)
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.set_title(plot_title)
+    # ax.set_title(plot_title)
     ax.set_xticks(index + (bar_width / 2), minor=False)
     # cut off the 'Node' suffix from the group labels, if it exists
     groups = [group[:-4] if group.endswith('Node') else group for group in groups]
@@ -60,7 +73,8 @@ def plot_bar_chart(legend_texts, node_type_counts, node_type_counts_std_devs, xt
     # plt.tight_layout() # Automatically adjusts subplot parameters to fit the plot elements nicely
 
     # fig.subplots_adjust(bottom=0.3) # adjust the bottom margin
-    plt.subplots_adjust(left=left, bottom=bottom, right=right, top=top, wspace=0.1, hspace=0.1)
+    
+    # plt.subplots_adjust(left=left, bottom=bottom, right=right, top=top, wspace=0.1, hspace=0.1)
 
     # plt.tight_layout()
     plt.savefig(save_dir + title + filename_suffix + '.pdf')
@@ -75,7 +89,7 @@ for oneEvorun in data['evoRuns']:
     
     node_type_counts.append(cppnNodeTypeCounts)
     node_type_counts_std_devs.append(cppnNodeTypeCountsStdDevs)
-    legend_texts.append(oneEvorun['label'][9:])
+    legend_texts.append(oneEvorun['label'])
     
     # asNEATPatchNodeTypeCounts = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCounts']
     # asNEATPatchNodeTypeCountsStdDevs = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCountsStdDevs']
@@ -84,16 +98,16 @@ plot_bar_chart(legend_texts, node_type_counts, node_type_counts_std_devs, 5, 0.0
 
 plt.clf()
 
-# legend_texts = []
-# node_type_counts = []
-# node_type_counts_std_devs = []
-# for oneEvorun in data['evoRuns']:
-#     asNEATPatchNodeTypeCounts = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCounts']
-#     asNEATPatchNodeTypeCountsStdDevs = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCountsStdDevs']
+legend_texts = []
+node_type_counts = []
+node_type_counts_std_devs = []
+for oneEvorun in data['evoRuns']:
+    asNEATPatchNodeTypeCounts = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCounts']
+    asNEATPatchNodeTypeCountsStdDevs = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCountsStdDevs']
     
-#     node_type_counts.append(asNEATPatchNodeTypeCounts)
-#     node_type_counts_std_devs.append(asNEATPatchNodeTypeCountsStdDevs)
-#     legend_texts.append(oneEvorun['label'][9:])
+    node_type_counts.append(asNEATPatchNodeTypeCounts)
+    node_type_counts_std_devs.append(asNEATPatchNodeTypeCountsStdDevs)
+    legend_texts.append(oneEvorun['label'])
     
     
-# plot_bar_chart(legend_texts, node_type_counts, node_type_counts_std_devs, 70, 0.06, 0.32, 0.99, 0.93, 9, 5, 'Audio Graph Node Type Counts', 'DSP Nodes', 'Node Counts', '_node_type_count_asNEATPatch')
+plot_bar_chart(legend_texts, node_type_counts, node_type_counts_std_devs, 70, 0.06, 0.32, 0.99, 0.93, 9, 5, 'Audio Graph Node Type Counts', 'DSP Nodes', 'Node Counts', '_node_type_count_asNEATPatch')

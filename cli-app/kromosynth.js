@@ -35,7 +35,7 @@ import {
 	getScoreVarianceForAllIterations,
 	getScoreStatsForOneIteration,
 	getElitesEnergy,
-	getGoalSwitches,
+	getGoalSwitches, getGoalSwitchesThroughLineages,
 	getLineageGraphData,
 	getDurationPitchDeltaVelocityCombinations,
 	getClassLabels
@@ -251,7 +251,7 @@ const cli = meow(`
 		$ kromosynth evo-run-lineage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
 		$ kromosynth evo-run-duration-pitch-delta-velocity-combinations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100 --unique-genomes true
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches,lineage,duration-pitch-delta-velocity-combinations --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction '["Narration, monologue"]' --max-iteration-index 300000
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches,goal-switches-through-lineages,lineage,duration-pitch-delta-velocity-combinations --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction '["Narration, monologue"]' --max-iteration-index 300000
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
@@ -735,6 +735,7 @@ async function renderEvoruns() {
 	for( let oneEvorunPath of evorunPaths ) {
 		console.log("oneEvorunPath", oneEvorunPath);
 		const evorunId = oneEvorunPath.split("/").pop();
+		const writeToSubfolder = writeToFolder + oneEvorunPath.substring(0, oneEvorunPath.lastIndexOf("/")) + "/";
 		const classesResponse = await fetch( `${evorunsRestServerUrl}/classes?evoRunDirPath=${oneEvorunPath}` );
 		const classes = await classesResponse.json();
 		console.log("classes", classes);
@@ -767,10 +768,10 @@ async function renderEvoruns() {
 					);
 					const wav = toWav(audioBuffer);
 					const filename = `${filenameBase}.wav`;
-					writeToFile( Buffer.from(new Uint8Array(wav)), writeToFolder, id, `${oneClass}_`, filename, false );				
+					writeToFile( Buffer.from(new Uint8Array(wav)), writeToSubfolder, id, `${oneClass}_`, filename, false );				
 				} catch (error) {
 					const errorFilename = `${filenameBase}_ERROR.txt`;
-					writeToFile( error.message, `${writeToFolder}errors/`, id, `${oneClass}_`, errorFilename, false );	
+					writeToFile( error.message, `${writeToSubfolder}errors/`, id, `${oneClass}_`, errorFilename, false );	
 				}
 			}
 		} else {
@@ -1188,7 +1189,7 @@ async function qdAnalysis_evoRuns() {
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation == "elites-energy" ) {
-						const elitesEnergy = await getElitesEnergy( evoRunConfig, evolutionRunId, stepSize );
+						const elitesEnergy = await getElitesEnergy( evoRunConfig, evolutionRunId, stepSize, excludeEmptyCells, classRestrictionList, maxIterationIndex );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].elitesEnergy = elitesEnergy;
 						console.log(`Added elites energy to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
@@ -1197,6 +1198,12 @@ async function qdAnalysis_evoRuns() {
 						const goalSwitches = await getGoalSwitches( evoRunConfig, evolutionRunId, stepSize, evoParams );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].goalSwitches = goalSwitches;
 						console.log(`Added goal switches to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
+					if( oneAnalysisOperation === "goal-switches-through-lineages" ) {
+						const goalSwitchesThroughLineages = await getGoalSwitchesThroughLineages( evoRunConfig, evolutionRunId, evoParams );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].goalSwitchesThroughLineages = goalSwitchesThroughLineages;
+						console.log(`Added goal switches through lineages to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "lineage" ) {
@@ -1388,6 +1395,22 @@ async function qdAnalysis_evoRuns() {
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageGoalSwitchCounts"]["means"] = mean( averageGoalSwitchCountsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageGoalSwitchCounts"]["variances"] = variance( averageGoalSwitchCountsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageGoalSwitchCounts"]["stdDevs"] = std( averageGoalSwitchCountsAcrossIterations, 0 );
+
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+			}
+			if( oneAnalysisOperation === "goal-switches-through-lineages" ) {
+				console.log("aggregating goal switches through lineages for evolution run #", currentEvolutionRunIndex, "...");
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"] = {};
+				const averageGoalSwitchCountsAcrossIterations = [];
+				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+					const { goalSwitchesThroughLineages } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+					const { goalSwitchesToCells, averageGoalSwitchCount } = goalSwitchesThroughLineages;
+					averageGoalSwitchCountsAcrossIterations.push( averageGoalSwitchCount );
+				}
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchCounts"]["means"] = mean( averageGoalSwitchCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchCounts"]["variances"] = variance( averageGoalSwitchCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchCounts"]["stdDevs"] = std( averageGoalSwitchCountsAcrossIterations, 0 );
 
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
