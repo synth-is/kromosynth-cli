@@ -306,7 +306,10 @@ async function getGenomeStatistics( genomeId, evoRunConfig, evoRunId ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
   const genomeAndMeta = await getGenomeFromGenomeString( genomeString, {} /*evoParams*/ );
-  const cppnNodeCount = genomeAndMeta.waveNetwork.offspring.nodes.length;
+  // const cppnNodeCount = genomeAndMeta.waveNetwork.offspring.nodes.length;
+  const cppnNodeCount = genomeAndMeta.waveNetwork.offspring.nodes.filter( 
+    node => node.nodeType !== "Bias" && node.nodeType !== "Input" && node.nodeType !== "Output"
+  ).length;
   const cppnConnectionCount = genomeAndMeta.waveNetwork.offspring.connections.length;
   const asNEATPatchNodeCount = genomeAndMeta.asNEATPatch.nodes.length;
   const asNEATPatchConnectionCount = genomeAndMeta.asNEATPatch.connections.length;
@@ -740,9 +743,11 @@ function getCellKeys( eliteMap, excludeEmptyCells = false, classRestriction ) {
       oneCellKey => eliteMap.cells[oneCellKey].elts.length && null !== eliteMap.cells[oneCellKey].elts[0].s
     );
   } else if( eliteMap.evolutionRunConfig.classRestriction && eliteMap.evolutionRunConfig.classRestriction.length ) {
+    // e.g. single class restriction
     cellKeys = eliteMap.evolutionRunConfig.classRestriction;
   } else if( classRestriction ) {
     // only cell keys that are in the class restriction array
+    // e.g. when aligning analysis of a QD run with classes from several single class runs
     cellKeys = Object.keys(eliteMap.cells).filter( oneCellKey => classRestriction.includes(oneCellKey) );
   } else {
     cellKeys = Object.keys(eliteMap.cells);

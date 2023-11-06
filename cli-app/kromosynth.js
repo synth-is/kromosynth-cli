@@ -251,7 +251,7 @@ const cli = meow(`
 		$ kromosynth evo-run-lineage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
 		$ kromosynth evo-run-duration-pitch-delta-velocity-combinations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100 --unique-genomes true
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches,lineage,duration-pitch-delta-velocity-combinations --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction ["Narration, monologue"] --max-iteration-index 300000
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,variance,elites-energy,goal-switches,lineage,duration-pitch-delta-velocity-combinations --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction '["Narration, monologue"]' --max-iteration-index 300000
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
