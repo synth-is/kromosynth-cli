@@ -9,10 +9,10 @@ from cycler import cycler
 # from palettable.colorbrewer.qualitative import Paired_4 # _duration-comparison_basic-and-CPPNonly
 # colors = Paired_4.mpl_colors
 # genome statistics:
-from palettable.colorbrewer.qualitative import Set2_3
-colors = Set2_3.mpl_colors
-# from palettable.colorbrewer.qualitative import Accent_3
-# colors = Accent_3.mpl_colors
+# from palettable.colorbrewer.qualitative import Set2_3
+# colors = Set2_3.mpl_colors
+from palettable.colorbrewer.qualitative import Accent_3
+colors = Accent_3.mpl_colors
 
 json_file_path = sys.argv[1]
 x_multiplier = int(sys.argv[2])  # Set this value as the step size in the JSON file name
@@ -32,10 +32,10 @@ print("maxIterations:" + str(maxIterations) + " (divided by x_multiplier)")
 
 # lookup dictionary from one evorun keys to legend text
 legend_lookup = {
-    'one_comb-dur_0.5': 'SIE 0.5s',
-    'one_comb-CPPN_only-dur_0.5': 'SIE-CPPN-only 0.5s',
-    'one_comb-singleCellWin-dur_0.5': 'SIE-single-cell-win 0.5s',
-    'single-class': "SIE-single-class 0.5s",
+    'one_comb-dur_0.5': 'SIE',
+    'one_comb-CPPN_only-dur_0.5': 'SIE-CPPN-only',
+    'one_comb-singleCellWin-dur_0.5': 'SIE-single-cell-win',
+    'single-class': "SIE-single-class",
 }
 # https://github.com/jbmouret/matplotlib_for_papers#setting-the-limits-and-the-ticks
 params = {

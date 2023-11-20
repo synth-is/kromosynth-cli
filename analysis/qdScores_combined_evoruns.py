@@ -39,12 +39,12 @@ data = plotUtil.read_data_from_json(json_file_path)
 # figure, ax = plt.subplots()
 
 legend_lookup = {
-    'one_comb-dur_0.5': 'SIE 0.5s',
-    'one_comb-CPPN_only-dur_0.5': 'SIE-CPPN-only 0.5s',
-    'one_comb-singleCellWin-dur_0.5': 'SIE-single-cell-win 0.5s',
+    'one_comb-dur_0.5': 'SIE',
+    'one_comb-CPPN_only-dur_0.5': 'SIE-CPPN-only',
+    'one_comb-singleCellWin-dur_0.5': 'SIE-single-cell-win',
     'one_comb-dur_10.0': 'SIE 10s',
     'one_comb-CPPN_only-dur_10.0': 'SIE-CPPN-only 10s',
-    'single-class': "SIE-single-class 0.5s",
+    'single-class': "SIE-single-class",
 }
 # https://github.com/jbmouret/matplotlib_for_papers#setting-the-limits-and-the-ticks
 params = {

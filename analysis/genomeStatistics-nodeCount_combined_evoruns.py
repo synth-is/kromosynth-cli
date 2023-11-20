@@ -22,9 +22,9 @@ plt.clf()
 plt.rcParams['figure.constrained_layout.use'] = True
 
 legend_lookup = {
-    'one_comb-dur_0.5': 'SIE 0.5s',
-    'one_comb-CPPN_only-dur_0.5': 'SIE-CPPN-only 0.5s',
-    'one_comb-singleCellWin-dur_0.5': 'SIE-single-cell-win 0.5s',
+    'one_comb-dur_0.5': 'SIE',
+    'one_comb-CPPN_only-dur_0.5': 'SIE-CPPN-only',
+    'one_comb-singleCellWin-dur_0.5': 'SIE-single-cell-win',
     'one_comb-dur_10.0': 'SIE 10s',
     'one_comb-CPPN_only-dur_10.0': 'SIE-CPPN-only 10s',
 }
@@ -60,7 +60,7 @@ def plot_bar_chart(legend_texts, node_type_counts, node_type_counts_std_devs, xt
                align="edge",
                hatch=patterns[i], edgecolor='black', linewidth=1)
 
-    ax.set_xlabel(xlabel)
+    # ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     # ax.set_title(plot_title)
     ax.set_xticks(index + (bar_width / 2), minor=False)
@@ -94,7 +94,7 @@ for oneEvorun in data['evoRuns']:
     # asNEATPatchNodeTypeCounts = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCounts']
     # asNEATPatchNodeTypeCountsStdDevs = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCountsStdDevs']
 
-plot_bar_chart(legend_texts, node_type_counts, node_type_counts_std_devs, 5, 0.08, 0.13, 0.99, 0.93, 7, 4, 'CPPN Node Type Counts', 'Activation Functions', 'Node Counts', '_node_type_count_CPPN')
+plot_bar_chart(legend_texts, node_type_counts, node_type_counts_std_devs, 0, 0.08, 0.13, 0.99, 0.93, 9, 5, 'CPPN Node Type Counts', 'Activation Functions', 'Node Counts', '_node_type_count_CPPN')
 
 plt.clf()
 
