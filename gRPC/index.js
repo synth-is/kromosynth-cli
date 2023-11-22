@@ -14,10 +14,15 @@ let audioCtx;
 import findFreePorts from "find-free-ports";
 import fs from "fs";
 import os from "os";
+// https://flaviocopes.com/fix-dirname-not-defined-es-module-scope/ 😳
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const SAMPLE_RATE = 16000;
 
-const PROTO_PATH = './protos/gene.proto';
+const PROTO_PATH = __dirname + '/protos/gene.proto';
 const packageDefinition = protoLoader.loadSync(
   PROTO_PATH,
   {keepCase: true,
@@ -149,6 +154,7 @@ async function main() {
   console.log("modelUrl:",modelUrl);
   const processTitle = argv.processTitle || 'kromosynth-gRPC';
   process.title = processTitle;
+  process.on('SIGINT', () => process.exit(1)); // so it can be stopped with Ctrl-C
   
   const server = new grpc.Server();
   server.addService( gene_proto.Genome.service, {

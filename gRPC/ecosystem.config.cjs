@@ -3,7 +3,7 @@ module.exports = {
     {
       name   : "kromosynth-gRPC-variation",
       script : "./index.js",
-      args: "--modelUrl file:///Users/bthj/Developer/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-variation",
+      args: "--modelUrl file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-variation",
       instances : 1,
       exec_mode : "cluster",
       max_memory_restart: '700M',
@@ -18,7 +18,7 @@ module.exports = {
     {
       name   : "kromosynth-gRPC-evaluation",
       script : "./index.js",
-      args: "--modelUrl file:///Users/bthj/Developer/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-evaluation",
+      args: "--modelUrl file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-evaluation",
       instances : 6,
       exec_mode : "cluster",
       max_memory_restart: '700M',

@@ -23,26 +23,28 @@ export async function renderAndEvaluateGenomesViaWebsockets(
               velocity,
               geneRenderingWebsocketServerHost
             );
-            const predictions = await getAudioClassPredictionsFromWebsocket(
-              audioBufferChannelData,
-              geneEvaluationWebsocketServerHost
-            );
-            if( predictions ) {
-              for( const classKey in predictions.taggedPredictions ) {
-                let isCurrentBestClassCandidate = false;
-                if( !predictionsAggregate[classKey] || 
-                    predictionsAggregate[classKey].score < predictions.taggedPredictions[classKey].score 
-                ) {
-                  isCurrentBestClassCandidate = true;
-                }
-                if( isCurrentBestClassCandidate ) {
-                  const classPrediction = {
-                    score: predictions.taggedPredictions[classKey],
-                    duration,
-                    noteDelta,
-                    velocity
-                  };
-                  predictionsAggregate[classKey] = classPrediction;
+            if( audioBufferChannelData ) {
+              const predictions = await getAudioClassPredictionsFromWebsocket(
+                audioBufferChannelData,
+                geneEvaluationWebsocketServerHost
+              );
+              if( predictions ) {
+                for( const classKey in predictions.taggedPredictions ) {
+                  let isCurrentBestClassCandidate = false;
+                  if( !predictionsAggregate[classKey] || 
+                      predictionsAggregate[classKey].score < predictions.taggedPredictions[classKey].score 
+                  ) {
+                    isCurrentBestClassCandidate = true;
+                  }
+                  if( isCurrentBestClassCandidate ) {
+                    const classPrediction = {
+                      score: predictions.taggedPredictions[classKey],
+                      duration,
+                      noteDelta,
+                      velocity
+                    };
+                    predictionsAggregate[classKey] = classPrediction;
+                  }
                 }
               }
             }

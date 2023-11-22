@@ -1,8 +1,13 @@
 import grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
 import { struct } from 'pb-util';
+// https://flaviocopes.com/fix-dirname-not-defined-es-module-scope/ 😳
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const PROTO_PATH = '../gRPC/protos/gene.proto';
+const PROTO_PATH = __dirname + '/../../../gRPC/protos/gene.proto';
 let clients = {};
 
 export function callRandomGeneService(

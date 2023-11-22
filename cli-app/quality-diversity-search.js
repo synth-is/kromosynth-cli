@@ -73,6 +73,8 @@ export async function qdSearch(
     eliteMapSnapshotEvery,
     batchDurationMs,
     gRpcHostFilePathPrefix, gRpcServerCount,
+    renderingSocketHostFilePathPrefix, renderingSocketServerCount,
+    evaluationSocketHostFilePathPrefix, evaluationSocketServerCount,
     geneVariationServerPaths, geneRenderingServerPaths, geneEvaluationServerPaths,
     geneVariationServers, geneRenderingServers, geneEvaluationServers,
     dummyRun
@@ -99,10 +101,10 @@ export async function qdSearch(
   }
 
   let _geneRenderingServers;
-  if( gRpcHostFilePathPrefix && gRpcServerCount ) {
+  if( renderingSocketHostFilePathPrefix && renderingSocketServerCount ) {
     _geneRenderingServers = [];
-    for( let i=1; i <= gRpcServerCount; i++ ) {
-      const hostFilePath = `${gRpcHostFilePathPrefix}${i}`;
+    for( let i=1; i <= renderingSocketServerCount; i++ ) {
+      const hostFilePath = `${renderingSocketHostFilePathPrefix}${i}`;
       const renderingHost = await readFromFileWhenItExists(hostFilePath, 0);
       if( renderingHost ) _geneRenderingServers.push(renderingHost);
     }
@@ -114,10 +116,10 @@ export async function qdSearch(
   }
 
   let _geneEvaluationServers;
-  if( gRpcHostFilePathPrefix && gRpcServerCount ) {
+  if( evaluationSocketHostFilePathPrefix && evaluationSocketServerCount ) {
     _geneEvaluationServers = [];
-    for( let i=1; i <= gRpcServerCount; i++ ) {
-      const hostFilePath = `${gRpcHostFilePathPrefix}${i}`;
+    for( let i=1; i <= evaluationSocketServerCount; i++ ) {
+      const hostFilePath = `${evaluationSocketHostFilePathPrefix}${i}`;
       const evaluationHost = await readFromFileWhenItExists(hostFilePath, 0);
       if( evaluationHost ) _geneEvaluationServers.push(evaluationHost);
     }
