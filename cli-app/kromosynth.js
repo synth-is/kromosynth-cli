@@ -743,6 +743,9 @@ async function renderEvoruns() {
 			// for each class, call the `/iteration-count` endpoint to get the iteration count, with the evorun path and class as query params
 			for( let oneClass of classes ) {
 				console.log("oneClass", oneClass);
+
+				
+
 				const iterationCountResponse = await fetch( `${evorunsRestServerUrl}/iteration-count?evoRunDirPath=${oneEvorunPath}&class=${oneClass}` );
 				const iterationCount = await iterationCountResponse.json();
 				console.log("iterationCount", iterationCount);
@@ -756,22 +759,31 @@ async function renderEvoruns() {
 				const genomeMetadata = await genomeMetadataResponse.json();
 				const{ genomeId, duration, noteDelta, velocity, reverse, score } = genomeMetadata;
 				const id = `${evorunId}_${genomeId}`;
+
 				const filenameBase = `_${duration}_${noteDelta}_${velocity}_${iterationCount-1}_${score ? score.toFixed(2) : score}`;
-				try {
-					const audioBuffer = await getAudioBufferFromGenomeAndMeta(
-						genomeAndMeta,
-						duration, noteDelta, velocity, reverse,
-						false, // asDataArray
-						getNewOfflineAudioContext( duration ),
-						getAudioContext(),
-						cli.flags.useOvertoneInharmonicityFactors
-					);
-					const wav = toWav(audioBuffer);
-					const filename = `${filenameBase}.wav`;
-					writeToFile( Buffer.from(new Uint8Array(wav)), writeToSubfolder, id, `${oneClass}_`, filename, false );				
-				} catch (error) {
-					const errorFilename = `${filenameBase}_ERROR.txt`;
-					writeToFile( error.message, `${writeToSubfolder}errors/`, id, `${oneClass}_`, errorFilename, false );	
+				const filename = `${filenameBase}.wav`;
+
+				// test if the file exists, then not attempt rendering
+				// TODO: optional via flag?
+				const fullFilePath = writeToSubfolder + `${oneClass}_` + id + filename;
+				if( !fs.existsSync(fullFilePath) ) {
+					try {
+						const audioBuffer = await getAudioBufferFromGenomeAndMeta(
+							genomeAndMeta,
+							duration, noteDelta, velocity, reverse,
+							false, // asDataArray
+							getNewOfflineAudioContext( duration ),
+							getAudioContext(),
+							cli.flags.useOvertoneInharmonicityFactors
+						);
+						const wav = toWav(audioBuffer);
+						writeToFile( Buffer.from(new Uint8Array(wav)), writeToSubfolder, id, `${oneClass}_`, filename, false );				
+					} catch (error) {
+						const errorFilename = `${filenameBase}_ERROR.txt`;
+						writeToFile( error.message, `${writeToSubfolder}errors/`, id, `${oneClass}_`, errorFilename, false );	
+					}
+				} else {
+					console.log("File exists, not rendering:", fullFilePath);
 				}
 			}
 		} else {
