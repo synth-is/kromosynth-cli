@@ -66,11 +66,6 @@ export async function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
   velocity,
   geneRenderingWebsocketServerHost
 ) {
-
-  // TODO: error handling
-
-  console.log("getAudioBufferForGenomeAndMetaFromWebsocet");
-
   return new Promise((resolve, reject) => {
     const payload = {
       genomeString: genome,

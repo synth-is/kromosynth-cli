@@ -23,6 +23,8 @@ import {
 } from './util/qd-common.js';
 import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker } from './service/workers/gene-child-process-forker.js';
 import { get } from 'http';
+import { i } from 'mathjs';
+import { log } from 'console';
 
 const chance = new Chance();
 
@@ -68,6 +70,7 @@ export async function qdSearch(
     evaluationCandidateWavFilesDirPath,
     probabilityMutatingWaveNetwork, probabilityMutatingPatch,
     classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
+    classScoringVariationsAsContainerDimensions,
     classifiers, yamnetModelUrl,
     useGpuForTensorflow,
     eliteMapSnapshotEvery,
@@ -135,7 +138,11 @@ export async function qdSearch(
   const evoRunFailedGenesDirPath = `${evoRunsDirPath}${evolutionRunId}_failed-genes/`;
   let eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath );
   if( ! eliteMap ) {
-    eliteMap = initializeGrid( evolutionRunId, algorithmKey, evolutionRunConfig, evolutionaryHyperparameters );
+    eliteMap = initializeGrid( 
+      evolutionRunId, algorithmKey, evolutionRunConfig, evolutionaryHyperparameters,
+      classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
+      classScoringVariationsAsContainerDimensions
+    );
     
     runCmd(`git init ${evoRunDirPath}`);
 
@@ -190,6 +197,7 @@ export async function qdSearch(
         probabilityMutatingWaveNetwork, probabilityMutatingPatch,
         audioGraphMutationParams, evolutionaryHyperparameters,
         classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
+        classScoringVariationsAsContainerDimensions,
         classificationGraphModel,
         geneEvaluationProtocol,
         _geneVariationServers, _geneRenderingServers, _geneEvaluationServers,
@@ -234,6 +242,7 @@ async function mapElitesBatch(
   probabilityMutatingWaveNetwork, probabilityMutatingPatch,
   audioGraphMutationParams, evolutionaryHyperparameters,
   classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
+  classScoringVariationsAsContainerDimensions,
   classificationGraphModel,
   geneEvaluationProtocol,
   _geneVariationServers, _geneRenderingServers, _geneEvaluationServers,
@@ -272,7 +281,7 @@ async function mapElitesBatch(
       let newGenomeString;
       if( eliteMap.generationNumber < seedEvals ) {
 
-        if( geneEvaluationProtocol === "grpc" ) {
+        if( geneEvaluationProtocol === "grpc" || geneEvaluationProtocol === "websocket" ) {
           try {
             newGenomeString = await callRandomGeneService(
               evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters,
@@ -320,7 +329,6 @@ async function mapElitesBatch(
           } else { // if all are zero or below, .weighted complains
             randomClassKey = chance.pickone(classKeys);
           }
-
         const {
           // genome: classEliteGenomeId,
           // score,
@@ -406,78 +414,72 @@ async function mapElitesBatch(
 
         ///// evaluate
 
-        if( evaluationCandidateWavFilesDirPath ) {
-          // so we'll render the genome to wav files for all combinations under consideration
-          // and then return a list of paths to the wav files, for evaluation by external scripts, triggered below.
-          const genome = await getGenomeFromGenomeString( newGenomeString );
-          evaluationCandidatesJsonFilePath = await writeEvaluationCandidateWavFilesForGenome(
-            genome,
+        if( classScoringVariationsAsContainerDimensions ) {
+          newGenomeClassScores = {};
+          let iterationIncrement = 0;
+          geneEvaluationServerHost = _geneEvaluationServers[ (batchIteration + iterationIncrement) % _geneEvaluationServers.length ];
+          for( const oneDuration of classScoringDurations ) {
+            for( const oneNoteDelta of classScoringNoteDeltas ) {
+              for( const oneVelocity of classScoringVelocities ) {
+                // const oneClassRestriction = [`${oneDuration},${oneNoteDelta},${oneVelocity}`];
+                const oneClassKeySuffix = `_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
+                const oneCombinationClassScores = await getGenomeClassScores(
+                  newGenomeString,
+                  [oneDuration],
+                  [oneNoteDelta],
+                  [oneVelocity],
+                  classificationGraphModel,
+                  useGpuForTensorflow,
+                  yamnetModelUrl,
+                  geneEvaluationProtocol,
+                  geneRenderingServerHost,
+                  geneEvaluationServerHost
+                );
+                for( const oneClassKey in oneCombinationClassScores ) {
+                  const oneClassScores = oneCombinationClassScores[oneClassKey];
+                  const oneClassKeyWithSuffix = oneClassKey + oneClassKeySuffix;
+                  newGenomeClassScores[ oneClassKeyWithSuffix ] = oneClassScores;
+                }
+              }
+            }
+            iterationIncrement++;
+          }
+        } else {
+          newGenomeClassScores = await getGenomeClassScores(
+            newGenomeString,
             classScoringDurations,
             classScoringNoteDeltas,
             classScoringVelocities,
-            true, //supplyAudioContextInstances
-            evaluationCandidateWavFilesDirPath,
-            evolutionRunId, genomeId
-          ).catch(
-            e => {
-              console.error(`Error writing evaluation candidate wav files for gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
-            }
+            classificationGraphModel,
+            useGpuForTensorflow,
+            yamnetModelUrl,
+            geneEvaluationProtocol,
+            geneEvaluationServerHost
           );
-          console.log("evaluationCandidateWavFileDirPaths", evaluationCandidatesJsonFilePath);
-        } else {
-          // in this case we'll render and evaluate all the rendered combinations in this stack (Node.js)
-          if( geneEvaluationProtocol === "grpc" ) {
-            newGenomeClassScores = await callGeneEvaluationService(
-              newGenomeString,
-              classScoringDurations,
-              classScoringNoteDeltas,
-              classScoringVelocities,
-              classificationGraphModel,
-              useGpuForTensorflow,
-              geneEvaluationServerHost
-            ).catch(
-              e => {
-                console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
-                clearServiceConnectionList(geneEvaluationServerHost);
-                getGenomeFromGenomeString( newGenomeString ).then( failedGenome =>
-                  saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
-                );
-              }
-            );
-          } else if( geneEvaluationProtocol === "websocket" ) {
-            newGenomeClassScores = await renderAndEvaluateGenomesViaWebsockets(
-              newGenomeString,
-              classScoringDurations,
-              classScoringNoteDeltas,
-              classScoringVelocities,
-              geneRenderingServerHost,
-              geneEvaluationServerHost
-            ).catch(
-              e => {
-                console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
-                getGenomeFromGenomeString( newGenomeString ).then( failedGenome =>
-                  saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
-                );
-              }
-            );
-          } else if( geneEvaluationProtocol === "worker" ) {
-            newGenomeClassScores = await callGeneEvaluationWorker(
-              searchBatchSize, batchIteration,
-              newGenomeString,
-              classScoringDurations,
-              classScoringNoteDeltas,
-              classScoringVelocities,
-              classificationGraphModel,
-              yamnetModelUrl,
-              useGpuForTensorflow,
-              true // supplyAudioContextInstances
-            ).catch(
-              e => {
-                console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
-              }
-            );
-          }
         }
+
+        // if( evaluationCandidateWavFilesDirPath ) {
+        //   // so we'll render the genome to wav files for all combinations under consideration
+        //   // and then return a list of paths to the wav files, for evaluation by external scripts, triggered below.
+        //   const genome = await getGenomeFromGenomeString( newGenomeString );
+        //   evaluationCandidatesJsonFilePath = await writeEvaluationCandidateWavFilesForGenome(
+        //     genome,
+        //     classScoringDurations,
+        //     classScoringNoteDeltas,
+        //     classScoringVelocities,
+        //     true, //supplyAudioContextInstances
+        //     evaluationCandidateWavFilesDirPath,
+        //     evolutionRunId, genomeId
+        //   ).catch(
+        //     e => {
+        //       console.error(`Error writing evaluation candidate wav files for gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+        //     }
+        //   );
+        //   console.log("evaluationCandidateWavFileDirPaths", evaluationCandidatesJsonFilePath);
+        // } else {
+          
+        // }
+
         // else {
         //   newGenomeClassScores = evaluate(
         //     newGenomeString,
@@ -517,11 +519,13 @@ async function mapElitesBatch(
 
     // TODO if evaluationCandidateWavFiles, call getClassScoresForCandidateWavFiles
     // - using an array of classifiers, referencing different python commands to execute
-
+    // - TODO: abandon this approach?
+    /*
     if( evaluationCandidateWavFilesDirPath ) {
       // so we can assume that evaluationCandidateWavFileDirPaths are populated;
       // call external classification scripts to evaluate the wav files
       // and populate newGenomeClassScores
+
 
       // call to external scripts to evaluate the wav files (with this ridiculous function name :P)
       batchIterationResults = populateNewGenomeClassScoresInBatchIterationResultFromEvaluationCandidateWavFiles(
@@ -530,6 +534,7 @@ async function mapElitesBatch(
         evaluationCandidateWavFilesDirPath
       );
     }
+    */
 
     for( let oneBatchIterationResult of batchIterationResults ) {
 
@@ -879,6 +884,75 @@ function getHighestScoringCell( genomeClassScores ) {
 }
 
 
+async function getGenomeClassScores(
+  newGenomeString,
+  classScoringDurations,
+  classScoringNoteDeltas,
+  classScoringVelocities,
+  classificationGraphModel,
+  useGpuForTensorflow,
+  yamnetModelUrl,
+  geneEvaluationProtocol,
+  geneRenderingServerHost,
+  geneEvaluationServerHost
+) {
+  let newGenomeClassScores;
+  // in this case we'll render and evaluate all the rendered combinations in this stack (Node.js)
+  if( geneEvaluationProtocol === "grpc" ) {
+    newGenomeClassScores = await callGeneEvaluationService(
+      newGenomeString,
+      classScoringDurations,
+      classScoringNoteDeltas,
+      classScoringVelocities,
+      classificationGraphModel,
+      useGpuForTensorflow,
+      geneEvaluationServerHost
+    ).catch(
+      e => {
+        console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+        clearServiceConnectionList(geneEvaluationServerHost);
+        getGenomeFromGenomeString( newGenomeString ).then( failedGenome =>
+          saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
+        );
+      }
+    );
+  } else if( geneEvaluationProtocol === "websocket" ) {
+    newGenomeClassScores = await renderAndEvaluateGenomesViaWebsockets(
+      newGenomeString,
+      classScoringDurations,
+      classScoringNoteDeltas,
+      classScoringVelocities,
+      geneRenderingServerHost,
+      geneEvaluationServerHost
+    ).catch(
+      e => {
+        console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+        getGenomeFromGenomeString( newGenomeString ).then( failedGenome =>
+          saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
+        );
+      }
+    );
+  } else if( geneEvaluationProtocol === "worker" ) {
+    newGenomeClassScores = await callGeneEvaluationWorker(
+      searchBatchSize, batchIteration,
+      newGenomeString,
+      classScoringDurations,
+      classScoringNoteDeltas,
+      classScoringVelocities,
+      classificationGraphModel,
+      yamnetModelUrl,
+      useGpuForTensorflow,
+      true // supplyAudioContextInstances
+    ).catch(
+      e => {
+        console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+      }
+    );
+  }
+  return newGenomeClassScores;
+}
+
+
 function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOneCell, classRestriction ) {
   if( classRestriction ) {
     const eliteScoreKeys = [];
@@ -909,7 +983,11 @@ function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOn
   }
 }
 
-function initializeGrid( evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters ) {
+function initializeGrid( 
+    evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters,
+    classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
+    classScoringVariationsAsContainerDimensions
+) {
   const { classifiers, dummyRun } = evolutionRunConfig;
   const classificationGraphModel = classifiers[0];
   let eliteMap = {
@@ -923,11 +1001,26 @@ function initializeGrid( evolutionRunId, algorithm, evolutionRunConfig, evolutio
     cells: {} // aka classes or niches
   };
   const classifierTags = getClassifierTags(classificationGraphModel, dummyRun);
-  classifierTags.forEach((oneTag, i) => {
-    eliteMap.cells[oneTag] = {
-      elts: []
-    };
-  });
+  if( classScoringVariationsAsContainerDimensions ) {
+    for( const oneDuration of classScoringDurations ) {
+      for( const oneNoteDelta of classScoringNoteDeltas ) {
+        for( const oneVelocity of classScoringVelocities ) {
+          classifierTags.forEach((oneTag, i) => {
+            const oneClassKey = `${oneTag}_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
+            eliteMap.cells[oneClassKey] = {
+              elts: []
+            };
+          });
+        }
+      }
+    }
+  } else {
+    classifierTags.forEach((oneTag, i) => {
+      eliteMap.cells[oneTag] = {
+        elts: []
+      };
+    });
+  }
   return eliteMap;
 }
 
