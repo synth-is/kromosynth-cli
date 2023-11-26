@@ -806,6 +806,8 @@ function getCellKeys( eliteMap, excludeEmptyCells = false, classRestriction ) {
       )
       .filter( oneCellKey => classRestriction.includes(oneCellKey) );
     } else {
+      // only cell keys that are in the class restriction array
+      // e.g. when aligning analysis of a QD run with classes from several single class runs
       cellKeys = Object.keys(eliteMap.cells).filter( oneCellKey => classRestriction.includes(oneCellKey) );
     }
   } else if( excludeEmptyCells ) {
@@ -813,6 +815,7 @@ function getCellKeys( eliteMap, excludeEmptyCells = false, classRestriction ) {
       oneCellKey => eliteMap.cells[oneCellKey].elts.length && null !== eliteMap.cells[oneCellKey].elts[0].s
     );
   } else if( eliteMap.evolutionRunConfig.classRestriction && eliteMap.evolutionRunConfig.classRestriction.length ) {
+    // e.g. single class restriction
     cellKeys = eliteMap.evolutionRunConfig.classRestriction;
   } else {
     cellKeys = Object.keys(eliteMap.cells);

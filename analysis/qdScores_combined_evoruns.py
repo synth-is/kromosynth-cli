@@ -3,8 +3,18 @@ import plotUtil
 import numpy as np
 import matplotlib.pyplot as plt
 from cycler import cycler
-from palettable.colorbrewer.qualitative import Set1_4
-colors = Set1_4.mpl_colors
+# from palettable.colorbrewer.qualitative import Set1_4
+# colors = Set1_4.mpl_colors
+# from palettable.colorbrewer.qualitative import Paired_4 # _duration-comparison_basic-and-CPPNonly
+# colors = Paired_4.mpl_colors
+# from palettable.colorbrewer.qualitative import Accent_3 # _duration-comparison-singleCellWin
+# colors = Accent_3.mpl_colors
+from palettable.colorbrewer.qualitative import Set1_3 # _duration-comparison-singleCellWin
+colors = Set1_3.mpl_colors
+
+# print possible line styles
+# from matplotlib import lines
+# print(lines.lineStyles.keys())
 
 json_file_path = sys.argv[1]
 x_multiplier = int(sys.argv[2])  # Set this value as the step size in the JSON file name
@@ -28,20 +38,34 @@ data = plotUtil.read_data_from_json(json_file_path)
 
 # figure, ax = plt.subplots()
 
+legend_lookup = {
+    'one_comb-dur_0.5': 'SIE',
+    'one_comb-CPPN_only-dur_0.5': 'SIE-CPPN-only',
+    'one_comb-singleCellWin-dur_0.5': 'SIE-single-cell-win',
+    'one_comb-dur_10.0': 'SIE 10s',
+    'one_comb-CPPN_only-dur_10.0': 'SIE-CPPN-only 10s',
+    'single-class': "SIE-single-class",
+}
 # https://github.com/jbmouret/matplotlib_for_papers#setting-the-limits-and-the-ticks
 params = {
-   'axes.labelsize': 10,
+   'axes.labelsize': 8,
    'font.size': 8,
-   'legend.fontsize': 10,
-   'xtick.labelsize': 10,
-   'ytick.labelsize': 10,
+   'legend.fontsize': 5,
+   'xtick.labelsize': 8,
+   'ytick.labelsize': 8,
    'text.usetex': False,
-   'figure.figsize': [7, 4] # instead of 4.5, 4.5
+#    'figure.figsize': [7, 4] # instead of 4.5, 4.5
+    'figure.constrained_layout.use': True
    }
 plt.rcParams.update(params)
 
-maxIterations = 50 # divided by x_multiplier
+cm = 1/2.54  # centimeters in inches
+plt.figure(figsize=(4*cm, 3*cm))
+# plt.figure(figsize=(6*cm, 4.5*cm))
+# plt.figure(figsize=(12*cm, 9*cm))
 
+maxIterations = 6 # divided by x_multiplier
+print("maxIterations:" + str(maxIterations) + " (divided by x_multiplier)")
 legend_lines = []
 for oneEvorun in data['evoRuns']:
     qdScoresMeans = np.array(oneEvorun['aggregates']['qdScores']['means'])[:maxIterations]
@@ -50,8 +74,11 @@ for oneEvorun in data['evoRuns']:
     print(len(qdScoresMeans))
 
     x_values = np.arange(len(qdScoresMeans)) * x_multiplier
-
-    linestyle_cycler = cycler('color', colors) + cycler('linestyle',['-','--',':','-.'])
+    # linestyle_cycler = cycler('color', colors) + cycler('linestyle',['-','--',':','-.'])
+    linestyle_cycler = cycler('color', colors) + cycler('linestyle',['-','--',':'])
+    #  _duration-comparison_basic-and-CPPNonly
+    # linestyle_cycler = cycler('color', colors) + cycler('linestyle',['-', '--', '-.', ':'])
+    # linestyle_cycler = cycler('color', colors[:2]) + cycler('linestyle',['-','--']) # _duration-comparison-singleCellWin
     plt.rc('axes', prop_cycle=linestyle_cycler)
 
     # # Plotting the mean line
@@ -65,14 +92,25 @@ for oneEvorun in data['evoRuns']:
 
     legend_lines.append((line, fill))
 
-plt.legend(legend_lines, [oneEvorun['label'][9:] for oneEvorun in data['evoRuns']], title='QD scores') # loc='upper left'
+plt.legend(legend_lines, [legend_lookup[oneEvorun['label']] for oneEvorun in data['evoRuns']]) # loc='upper left' 3 title='QD scores'
 
-plt.subplots_adjust(left=0.08, bottom=0.1, right=0.99, top=0.95, wspace=0.2, hspace=0.2)
-
-
+# plt.subplots_adjust(left=0.2, bottom=0.2, right=0.94, top=0.98, wspace=0.2, hspace=0.2)
 
 # ax.legend(loc='lower right')
 # ax.legend()
+
+# xticks = plt.xticks()[0]
+# xticklabels = [str(int(xtick/1000))+"K" for xtick in xticks]
+# plt.xticks(xticks, xticklabels)
+# # have the x-axis start at 0 and end at 50000
+# plt.xlim(0, 5000)
+
+# have x values in thousands
+xticks = plt.xticks()[0]
+xticklabels = [str(int(xtick/1000))+"K" for xtick in xticks]
+plt.xticks(xticks, xticklabels)
+# # have the x-axis start at 0 and end at 50000
+plt.xlim(0, 50000)
 
 plt.xlabel('Iteration')
 plt.ylabel('QD score')

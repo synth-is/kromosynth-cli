@@ -1,11 +1,11 @@
 {
-  // "algorithm": "mapElites_with_uBC", // uBC = unproductive bias count
-  "algorithm": "Deep-Grid-MAP-Elites",
+  "algorithm": "mapElites_with_uBC", // uBC = unproductive bias count
+  // "algorithm": "Deep-Grid-MAP-Elites",
   "seedEvals": 20,
   // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution, 
   // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
-  "eliteWinsOnlyOneCell": true,
-  "classRestriction": ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
+  "eliteWinsOnlyOneCell": false,
+  "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
   "terminationCondition": {
    "numberOfEvals": 100000
   //  or
@@ -18,22 +18,32 @@
   // Deep-Grid MAP-Elites specific:
   "populationSize": 20,
   "gridDepth": 50,
-  "evoRunsDirPath": "evoruns/",
+  "evoRunsDirPath": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/evoruns/",
   "favoritesDirPath": "/Users/bjornpjo/iCloud/Documents/synth.is/favoriteGenomes",
-  "geneEvaluationProtocol": "grpc", // grpc or worker
-  "childProcessBatchSize": 2,
+  "geneEvaluationProtocol": "websocket", // grpc, websocket or worker
+  "childProcessBatchSize": 1,
   "evaluationCandidateWavFilesDirPath": null, // "/Users/bjornpjo/Documents/synth.is/evaluationCandidates",
   "probabilityMutatingWaveNetwork": 0.5,
   "probabilityMutatingPatch": 0.5,
-  "classScoringDurations": [0.5, 1, 2, 5],
-  "classScoringNoteDeltas": [-36, -24, -12, 0, 12, 24, 36],
-  "classScoringVelocities": [0.25, 0.5, 0.75, 1],
+  // "classScoringDurations": [0.5, 1, 2, 5],
+  // "classScoringNoteDeltas": [-36, -24, -12, 0, 12, 24, 36],
+  // "classScoringVelocities": [0.25, 0.5, 0.75, 1],
+  "classScoringDurations": [0.5, 1, 2, 5, 10],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+  "classScoringVariationsAsContainerDimensions": true,
   "classifiers": ["yamnet"],
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
   "useGpuForTensorflow": true,
   // "batchDurationMs": 60000,
+
   // "gRpcHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-",
   // "gRpcServerCount": 1,
+  // "renderingSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/rendering-socket-test-host-",
+  // "renderingSocketServerCount": 1,
+  // "evaluationSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/evaluation-socket-test-host-",
+  // "evaluationSocketServerCount": 1,
+  
   // "geneVariationServerPaths": [
   //   "/tmp/grpc1.txt"
   // ],
@@ -42,25 +52,12 @@
   // ],
   "geneVariationServers": [
     "localhost:50051"
-//    ,
-//    "localhost:50052",
-//    "localhost:50053", "localhost:50054",
-//    "localhost:50055", "localhost:50056", "localhost:50057", "localhost:50058"
-    // "localhost:50052"
+  ],
+  "geneRenderingServers": [
+    "ws://localhost:30051"
   ],
   "geneEvaluationServers": [
-    "localhost:50061", "localhost:50062", "localhost:50063", "localhost:50064",
-    "localhost:50065", "localhost:50066"
-// , "localhost:50067", "localhost:50068",
-
-    // MBP 2021
-    "192.168.10.102:50061", "192.168.10.102:50062", "192.168.10.102:50063", "192.168.10.102:50064",
-    "192.168.10.102:50065", "192.168.10.102:50066", "192.168.10.102:50067", "192.168.10.102:50068"
-
-    // MBP 2019
-    "192.168.10.175:50061", "192.168.10.175:50062", "192.168.10.175:50063", "192.168.10.175:50064"
-    // , "192.168.10.175:50065", "192.168.10.175:50066"
-
+    "ws://localhost:40051"
   ]
   // ,
   // "dummyRun": { // generate dummy data without evaluations

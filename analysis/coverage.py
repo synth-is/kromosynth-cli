@@ -17,8 +17,8 @@ else:
 data = plotUtil.read_data_from_json(json_file_path)
 
 
-coverageMeans = np.array(data['evoRuns'][0]['aggregates']['coverage']['means'])
-coverageStdDevs = np.array(data['evoRuns'][0]['aggregates']['coverage']['stdDevs'])
+coverageMeans = np.array(data['evoRuns'][2]['aggregates']['coverage']['means'])
+coverageStdDevs = np.array(data['evoRuns'][2]['aggregates']['coverage']['stdDevs'])
 
 x_values = np.arange(len(coverageMeans)) * x_multiplier
 
@@ -70,5 +70,5 @@ plt.ylabel('Coverage')
 plt.subplots_adjust(left=0.08, bottom=0.1, right=0.99, top=0.95, wspace=0.2, hspace=0.2)
 
 # Save the plot
-plt.savefig(save_dir + title + '.png')
+# plt.savefig(save_dir + title + '.png')
 plt.savefig(save_dir + title + '.pdf')

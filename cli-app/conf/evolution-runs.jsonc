@@ -1,129 +1,27 @@
 {
-  "baseEvolutionRunConfigFile": "conf/evolution-run-config.jsonc",
-  "baseEvolutionaryHyperparametersFile": "conf/evolutionary-hyperparameters.jsonc",
+  "baseEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolutionary-hyperparameters.jsonc",
   "evoRuns": [
     {
+      "label": "5dur-1ndelt-1vel",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_5dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HG4DFR8N3Z21MXQ0JCFK296Z_5dur-1ndelt-1vel"
+        }
+      ]
+    },
+    {
       "label": "4dur-7ndelt-4vel",
-      "diffEvolutionRunConfigFile": "conf/evoRunDiffs/evolution-run-config_4dur-7ndelt-4vel.jsonc",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_4dur-7ndelt-4vel.jsonc",
       "diffEvolutionaryHyperparametersFile": null,
       "iterations": [
         {
-          "id": "01GWT7XQS6NW752VVKFP3M7NYY_4dur-7ndelt-4vel"
+          "id": "01GX9022W00JDCB7VGJD61B4PM_4dur-7ndelt-4vel_additive-bias"
         },
         {
-          "id": "01GXCEN2H6RRCKC5CSG0AESA1A_4dur-7ndelt-4vel"
-        },
-        {
-          "id": "01GXVJ70BEATFCA7C61CXAEY52_4dur-7ndelt-4vel"
-        }
-      ]
-    },
-    {
-      "label": "3dur-7ndelt-4vel",
-      "diffEvolutionRunConfigFile": "conf/evoRunDiffs/evolution-run-config_3dur-7ndelt-4vel.jsonc",
-      "diffEvolutionaryHyperparametersFile": null,
-      "iterations": [
-        {
-          "id": "01GX0MWR8DTJY8A3TPN0ZG00KC_3dur-7ndelt-4vel"
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
-        }
-      ]
-    },
-    {
-      "label": "2dur-7ndelt-4vel",
-      "diffEvolutionRunConfigFile": "conf/evoRunDiffs/evolution-run-config_2dur-7ndelt-4vel.jsonc",
-      "diffEvolutionaryHyperparametersFile": null,
-      "iterations": [
-        {
-          "id": "01GX1TNY2ZZWGN9YJD5E49M8YJ_2dur-7ndelt-4vel"
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
-        }
-      ]
-    },
-    {
-      "label": "1dur-7ndelt-4vel",
-      "diffEvolutionRunConfigFile": "conf/evoRunDiffs/evolution-run-config_1dur-7ndelt-4vel.jsonc",
-      "diffEvolutionaryHyperparametersFile": null,
-      "iterations": [
-        {
-          "id": "01GX2MQ3JK89SDCA5QKW7WRZMC_1dur-7ndelt-4vel"
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
-        }
-      ]
-    },
-    {
-      "label": "1dur-1ndelt-4vel",
-      "diffEvolutionRunConfigFile": "conf/evoRunDiffs/evolution-run-config_1dur-1ndelt-4vel.jsonc",
-      "diffEvolutionaryHyperparametersFile": null,
-      "iterations": [
-        {
-          "id": "01GX30E3HV2PZDFQ0K7HHZJTB2_1dur-1ndelt-4vel"
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
-        }
-      ]
-    },
-    {
-      "label": "1dur-1ndelt-1vel",
-      "diffEvolutionRunConfigFile": "conf/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
-      "diffEvolutionaryHyperparametersFile": null,
-      "iterations": [
-        {
-          "id": "01GX38GF87JMPQER62CJ0NEFG1_1dur-1ndelt-1vel"
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
-        }
-      ]
-    },
-    {
-      "label": "4dur-1ndelt-4vel",
-      "diffEvolutionRunConfigFile": "conf/evoRunDiffs/evolution-run-config_4dur-1ndelt-4vel.jsonc",
-      "diffEvolutionaryHyperparametersFile": null,
-      "iterations": [
-        {
-          "id": null
-        },
-        {
-          "id": null
-        },
-        {
-          "id": null
-        }
-      ]
-    },
-    {
-      "label": "4dur-1ndelt-1vel",
-      "diffEvolutionRunConfigFile": "conf/evoRunDiffs/evolution-run-config_4dur-1ndelt-1vel.jsonc",
-      "diffEvolutionaryHyperparametersFile": null,
-      "iterations": [
-        {
-          "id": null
-        },
-        {
-          "id": null
+          "id": "01GYQ5430670QATP2PMZ2J272S_4dur-7ndelt-4vel"
         },
         {
           "id": null
@@ -132,5 +30,5 @@
     }
   ],
   "currentEvolutionRunIndex": 0,
-  "currentEvolutionRunIteration": 2
+  "currentEvolutionRunIteration": 0
 }
