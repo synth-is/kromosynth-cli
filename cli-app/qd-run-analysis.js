@@ -292,7 +292,6 @@ export async function getGenomeSetsWithRenderingVariationsAsContainerDimensionsF
       );
     }
   }
-  console.log("genomeSets",genomeSets)
   return genomeSets;
 }
 
