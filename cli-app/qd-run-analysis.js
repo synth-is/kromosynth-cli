@@ -210,6 +210,92 @@ export async function getGenomeSetsForAllIterations( evoRunConfig, evoRunId, ste
   return { genomeSets, nodeAndConnectionCountSets, genomeSetsAdditions, genomeSetsRemovals };
 }
 
+async function getGenomeSetsWithRenderingVariationsAsContainerDimensionsForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const cellKeys = Object.keys(eliteMap.cells);
+  const renderingVariationKeys = new Set(
+    cellKeys.map( oneCellKey => oneCellKey.split("_")[1] )
+  );
+  const genomeSets = {};
+  for( const oneRenderingVariationKey of renderingVariationKeys ) {
+    cellKeys.filter( oneCellKey => oneCellKey.split("_")[1] === oneRenderingVariationKey ).map( oneCellKey => {
+      if( eliteMap.cells[oneCellKey].elts.length ) {
+        const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
+        if( !genomeSets[oneRenderingVariationKey] ) {
+          genomeSets[oneRenderingVariationKey] = new Set();
+        }
+        genomeSets[oneRenderingVariationKey].add( genomeId );
+      }
+    } );
+  }
+  // get the intersection of all sets
+  const genomeSetIntersection = new Set(
+    [...genomeSets[Object.keys(genomeSets)[0]]].filter( genomeId => {
+      return Object.keys(genomeSets).every( oneRenderingVariationKey => {
+        return genomeSets[oneRenderingVariationKey].has( genomeId );
+      } );
+    } )
+  );
+  genomeSets["intersection-all"] = genomeSetIntersection;
+
+  // another approach to get the intersection of all sets, confirming that the above approach is correct
+  // // array containing the sets as arrays
+  // const genomeSetsAsArrays = [];
+  // for( const oneRenderingVariationKey of Object.keys(genomeSets) ) {
+  //   genomeSetsAsArrays.push( [...genomeSets[oneRenderingVariationKey]] );
+  // }
+  // console.log("genomeSetsAsArrays",genomeSetsAsArrays)
+  // genomeSets["intersection2"] = new Set(genomeSetsAsArrays.reduce((a, b) => a.filter(c => b.includes(c))));
+
+  // count how often a genome appears in at least two sets
+  const genomeSetIntersectionCount = {};
+  for( const oneRenderingVariationKey of Object.keys(genomeSets) ) {
+    for( const oneGenomeId of genomeSets[oneRenderingVariationKey] ) {
+      if( !genomeSetIntersectionCount[oneGenomeId] ) {
+        genomeSetIntersectionCount[oneGenomeId] = 0;
+      }
+      genomeSetIntersectionCount[oneGenomeId]++;
+    }
+  }
+  // get the genomes that appear in at least two sets
+  const genomeSetIntersection2 = new Set(
+    Object.keys(genomeSetIntersectionCount).filter( genomeId => genomeSetIntersectionCount[genomeId] > 1 )
+  );
+  genomeSets["intersection2"] = genomeSetIntersection2;
+  // get the genomes that appear in at least three sets
+  const genomeSetIntersection3 = new Set(
+    Object.keys(genomeSetIntersectionCount).filter( genomeId => genomeSetIntersectionCount[genomeId] > 2 )
+  );
+  genomeSets["intersection3"] = genomeSetIntersection3;
+
+  // total number of genomes in all sets
+  const genomeSetUnion = new Set();
+  for( const oneRenderingVariationKey of Object.keys(genomeSets) ) {
+    for( const oneGenomeId of genomeSets[oneRenderingVariationKey] ) {
+      genomeSetUnion.add( oneGenomeId );
+    }
+  }
+  genomeSets["union"] = genomeSetUnion;
+  
+  return genomeSets;
+}
+
+export async function getGenomeSetsWithRenderingVariationsAsContainerDimensionsForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const genomeSets = new Array(Math.ceil(commitCount / stepSize));
+  for( let iterationIndex = 0, genomeSetsIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, genomeSetsIndex++ ) {
+    if( iterationIndex % stepSize === 0 ) {
+      console.log(`Calculating genome sets for iteration ${iterationIndex}...`);
+      genomeSets[genomeSetsIndex] = await getGenomeSetsWithRenderingVariationsAsContainerDimensionsForOneIteration(
+        evoRunConfig, evoRunId, iterationIndex
+      );
+    }
+  }
+  console.log("genomeSets",genomeSets)
+  return genomeSets;
+}
+
 export async function getGenomeCountsForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
   const genomeSetsCollection = await getGenomeSetsForAllIterations( evoRunConfig, evoRunId, stepSize );
   return { // conversion to arrays for JSON.stringify
@@ -217,6 +303,21 @@ export async function getGenomeCountsForAllIterations( evoRunConfig, evoRunId, s
     nodeAndConnectionCountSetCount: genomeSetsCollection.nodeAndConnectionCountSets.map( oneSet => [...oneSet].length ),
     genomeSetsAdditions: genomeSetsCollection.genomeSetsAdditions.map( oneSet => [...oneSet].length ),
     genomeSetsRemovals: genomeSetsCollection.genomeSetsRemovals.map( oneSet => [...oneSet].length )
+  };
+}
+
+export async function getGenomeCountsWithRenderingVariationsAsContainerDimensionsForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+  const genomeSetsCollection = await getGenomeSetsWithRenderingVariationsAsContainerDimensionsForAllIterations( evoRunConfig, evoRunId, stepSize );
+  return { // conversion to arrays for JSON.stringify
+    genomeCount: genomeSetsCollection.map( oneSet => {
+      // [...oneSet].length
+      // for each key in oneSet, get the size of the set and map to an objct with the key as the key and the size as the value
+      const genomeCount = {};
+      for( const oneKey of Object.keys(oneSet) ) {
+        genomeCount[oneKey] = oneSet[oneKey].size;
+      }
+      return genomeCount;
+    } )
   };
 }
 
