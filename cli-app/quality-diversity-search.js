@@ -108,7 +108,7 @@ export async function qdSearch(
     _geneRenderingServers = [];
     for( let i=1; i <= renderingSocketServerCount; i++ ) {
       const hostFilePath = `${renderingSocketHostFilePathPrefix}${i}`;
-      const renderingHost = await readFromFileWhenItExists(hostFilePath, 0);
+      const renderingHost = "ws://" + await readFromFileWhenItExists(hostFilePath, 0);
       if( renderingHost ) _geneRenderingServers.push(renderingHost);
     }
   } else if( geneRenderingServerPaths && geneRenderingServerPaths.length ) {
@@ -123,7 +123,7 @@ export async function qdSearch(
     _geneEvaluationServers = [];
     for( let i=1; i <= evaluationSocketServerCount; i++ ) {
       const hostFilePath = `${evaluationSocketHostFilePathPrefix}${i}`;
-      const evaluationHost = await readFromFileWhenItExists(hostFilePath, 0);
+      const evaluationHost = "ws://" + await readFromFileWhenItExists(hostFilePath, 0);
       if( evaluationHost ) _geneEvaluationServers.push(evaluationHost);
     }
   } else if( geneEvaluationServerPaths && geneEvaluationServerPaths.length ) {
