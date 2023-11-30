@@ -3,8 +3,8 @@ message: "If you use this software, please cite it as below."
 authors:
 - family-names: "Jónsson"
   given-names: "Björn Þór"
-orcid: "https://orcid.org/0000-0003-1304-5913"
-title:synth-is/kromosynth-cli: 2023-11-30
+  orcid: "https://orcid.org/0000-0003-1304-5913"
+title: "synth-is/kromosynth-cli: 2023-11-30"
 version: 2023-11-30
 doi: 10.5281/zenodo.10228846
 date-released: 2023-11-30
