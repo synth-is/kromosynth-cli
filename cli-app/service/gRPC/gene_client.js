@@ -69,6 +69,7 @@ export function callGeneEvaluationService(
   classScoringVelocities,
   classificationGraphModel,
   useGpuForTensorflow,
+  antiAliasing,
   gRPCHost
 ) {
   return new Promise((resolve, reject) => {
@@ -78,7 +79,8 @@ export function callGeneEvaluationService(
       classScoringNoteDeltas: struct.encode( classScoringNoteDeltas ),
       classScoringVelocities: struct.encode( classScoringVelocities ),
       classificationGraphModel,
-      useGpuForTensorflow
+      useGpuForTensorflow,
+      antiAliasing
     };
     getClient( gRPCHost ).GenomeEvaluation( payload, (err, response) => {
       if( err ) {

@@ -6,6 +6,8 @@ export async function renderAndEvaluateGenomesViaWebsockets(
   classScoringDurations,
   classScoringNoteDeltas,
   classScoringVelocities,
+  useGPU,
+  antiAliasing,
   geneRenderingWebsocketServerHost,
   geneEvaluationWebsocketServerHost
 ) {
@@ -21,6 +23,8 @@ export async function renderAndEvaluateGenomesViaWebsockets(
               duration,
               noteDelta,
               velocity,
+              useGPU,
+              antiAliasing,
               geneRenderingWebsocketServerHost
             );
             if( audioBufferChannelData ) {
@@ -64,6 +68,8 @@ export async function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
   duration,
   noteDelta,
   velocity,
+  useGPU,
+  antiAliasing,
   geneRenderingWebsocketServerHost
 ) {
   return new Promise((resolve, reject) => {
@@ -71,7 +77,9 @@ export async function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
       genomeString: genome,
       duration,
       noteDelta,
-      velocity
+      velocity,
+      useGPU,
+      antiAliasing
     };
     const ws = getClient( geneRenderingWebsocketServerHost );
     ws.on('open', () => {

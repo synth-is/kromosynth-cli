@@ -6,8 +6,9 @@
   // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
   "eliteWinsOnlyOneCell": false,
   "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
+  "batchSize": 1,
   "terminationCondition": {
-   "numberOfEvals": 100000
+  "numberOfEvals": 300000,
   //  or
   //  "averageFitnessInMap": 0.1
   // or
@@ -31,6 +32,7 @@
   "classScoringDurations": [0.5, 1, 2, 5, 10],
   "classScoringNoteDeltas": [0],
   "classScoringVelocities": [1],
+  "antiAliasing": true,
   "classScoringVariationsAsContainerDimensions": true,
   "classifiers": ["yamnet"],
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
@@ -55,9 +57,13 @@
   ],
   "geneRenderingServers": [
     "ws://localhost:30051"
+    // "ws://localhost:30052",
+    // "ws://localhost:30053"
   ],
   "geneEvaluationServers": [
     "ws://localhost:40051"
+    // "ws://localhost:40052",
+    // "ws://localhost:40053"
   ]
   // ,
   // "dummyRun": { // generate dummy data without evaluations

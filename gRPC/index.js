@@ -103,7 +103,8 @@ async function evaluateGenome( call, callback ) {
     classScoringNoteDeltas,
     classScoringVelocities,
     classificationGraphModel,
-    useGpuForTensorflow
+    useGpuForTensorflow,
+    antiAliasing
   } = call.request;
   const genome = await getGenomeFromGenomeString( genomeString );
   const genomeClassScores = await getClassScoresForGenome(
@@ -113,6 +114,7 @@ async function evaluateGenome( call, callback ) {
     Object.values(struct.decode( classScoringVelocities )),
     classificationGraphModel, modelUrl,
     useGpuForTensorflow,
+    antiAliasing,
     true, // supplyAudioContextInstances
     true, // useOvertoneInharmonicityFactors
   )

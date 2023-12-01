@@ -40,6 +40,7 @@ message GenomeEvaluationRequest {
   google.protobuf.Struct classScoringVelocities = 4;
   string classificationGraphModel = 5;
   bool useGpuForTensorflow = 6;
+  bool antiAliasing = 7;
 }
 message GenomeClassScoresReply {
   google.protobuf.Struct genomeClassScores = 1;
