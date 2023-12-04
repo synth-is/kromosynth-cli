@@ -104,7 +104,8 @@ async function evaluateGenome( call, callback ) {
     classScoringVelocities,
     classificationGraphModel,
     useGpuForTensorflow,
-    antiAliasing
+    antiAliasing,
+    frequencyUpdatesApplyToAllPathcNetworkOutputs
   } = call.request;
   const genome = await getGenomeFromGenomeString( genomeString );
   const genomeClassScores = await getClassScoresForGenome(
@@ -117,6 +118,7 @@ async function evaluateGenome( call, callback ) {
     antiAliasing,
     true, // supplyAudioContextInstances
     true, // useOvertoneInharmonicityFactors
+    frequencyUpdatesApplyToAllPathcNetworkOutputs,
   )
   .catch( e => {
     console.error("mapElites -> getClassScoresForGenome: ", e);

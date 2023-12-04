@@ -41,6 +41,7 @@ message GenomeEvaluationRequest {
   string classificationGraphModel = 5;
   bool useGpuForTensorflow = 6;
   bool antiAliasing = 7;
+  bool frequencyUpdatesApplyToAllPathcNetworkOutputs = 8;
 }
 message GenomeClassScoresReply {
   google.protobuf.Struct genomeClassScores = 1;

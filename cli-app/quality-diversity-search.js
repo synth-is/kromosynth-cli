@@ -71,6 +71,7 @@ export async function qdSearch(
     probabilityMutatingWaveNetwork, probabilityMutatingPatch,
     classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
     antiAliasing,
+    frequencyUpdatesApplyToAllPathcNetworkOutputs,
     classScoringVariationsAsContainerDimensions,
     classifiers, yamnetModelUrl,
     useGpuForTensorflow,
@@ -204,6 +205,7 @@ export async function qdSearch(
         _geneVariationServers, _geneRenderingServers, _geneEvaluationServers,
         useGpuForTensorflow,
         antiAliasing,
+        frequencyUpdatesApplyToAllPathcNetworkOutputs,
         evoRunDirPath, evoRunFailedGenesDirPath,
         evaluationCandidateWavFilesDirPath, classifiers,
         patchFitnessTestDuration,
@@ -250,6 +252,7 @@ async function mapElitesBatch(
   _geneVariationServers, _geneRenderingServers, _geneEvaluationServers,
   useGpuForTensorflow,
   antiAliasing,
+  frequencyUpdatesApplyToAllPathcNetworkOutputs,
   evoRunDirPath, evoRunFailedGenesDirPath,
   evaluationCandidateWavFilesDirPath, classifiers,
   patchFitnessTestDuration,
@@ -433,6 +436,7 @@ async function mapElitesBatch(
                   [oneVelocity],
                   useGpuForTensorflow,
                   antiAliasing,
+                  frequencyUpdatesApplyToAllPathcNetworkOutputs,
                   classificationGraphModel,
                   yamnetModelUrl,
                   geneEvaluationProtocol,
@@ -896,6 +900,7 @@ async function getGenomeClassScores(
   classScoringVelocities,
   useGPU,
   antiAliasing,
+  frequencyUpdatesApplyToAllPathcNetworkOutputs,
   classificationGraphModel,
   yamnetModelUrl,
   geneEvaluationProtocol,
@@ -913,6 +918,7 @@ async function getGenomeClassScores(
       classificationGraphModel,
       useGPU,
       antiAliasing,
+      frequencyUpdatesApplyToAllPathcNetworkOutputs,
       geneEvaluationServerHost
     ).catch(
       e => {
@@ -931,6 +937,7 @@ async function getGenomeClassScores(
       classScoringVelocities,
       useGPU,
       antiAliasing,
+      frequencyUpdatesApplyToAllPathcNetworkOutputs,
       geneRenderingServerHost,
       geneEvaluationServerHost
     ).catch(

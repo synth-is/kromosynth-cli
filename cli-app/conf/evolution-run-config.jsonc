@@ -33,6 +33,7 @@
   "classScoringNoteDeltas": [0],
   "classScoringVelocities": [1],
   "antiAliasing": true,
+  "frequencyUpdatesApplyToAllPathcNetworkOutputs": false,
   "classScoringVariationsAsContainerDimensions": true,
   "classifiers": ["yamnet"],
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
