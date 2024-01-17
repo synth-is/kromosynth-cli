@@ -82,7 +82,7 @@ export async function qdSearch(
     classifiers, classifierIndex, yamnetModelUrl,
     useGpuForTensorflow,
     renderSampleRateForClassifier,
-    eliteMapSnapshotEvery,
+    commitEliteMapToGitEveryNIterations, addGenomesToGit,
     batchDurationMs,
     gRpcHostFilePathPrefix, gRpcServerCount,
     renderingSocketHostFilePathPrefix, renderingSocketServerCount,
@@ -252,6 +252,7 @@ export async function qdSearch(
     if( algorithmKey === "mapElites_with_uBC" ) {
       await mapElitesBatch(
         eliteMap, cellFeatures, algorithmKey, evolutionRunId,
+        commitEliteMapToGitEveryNIterations, addGenomesToGit,
         searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
         probabilityMutatingWaveNetwork, probabilityMutatingPatch,
         audioGraphMutationParams, evolutionaryHyperparameters,
@@ -302,6 +303,7 @@ export async function qdSearch(
 
 async function mapElitesBatch(
   eliteMap, cellFeatures, algorithmKey, evolutionRunId,
+  commitEliteMapToGitEveryNIterations, addGenomesToGit,
   searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
   probabilityMutatingWaveNetwork, probabilityMutatingPatch,
   audioGraphMutationParams, evolutionaryHyperparameters,
@@ -750,7 +752,7 @@ async function mapElitesBatch(
               // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
               eliteMap.cells[classKey].uBC = 10;
             }
-            saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, true );
+            saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
             if( randomClassKey ) {
               eliteMap.cells[randomClassKey].uBC = 10;
             }
@@ -765,8 +767,10 @@ async function mapElitesBatch(
         eliteMap.timestamp = Date.now();
         saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
 
-        // git commit iteration
-        runCmd(`git -C ${evoRunDirPath} commit -a -m "Iteration ${eliteMap.generationNumber}"`);
+        if( commitEliteMapToGitEveryNIterations && eliteMap.generationNumber % commitEliteMapToGitEveryNIterations === 0 ) {
+          // git commit iteration
+          runCmd(`git -C ${evoRunDirPath} commit -a -m "Iteration ${eliteMap.generationNumber}"`);
+        }
 
         eliteMap.generationNumber++; // TODO: well, it's more like iteration number, but we'll keep the name for now
 
@@ -777,6 +781,7 @@ async function mapElitesBatch(
   }); // await Promise.all( searchPromises ).then( async (batchIterationResult) => {
 }
 
+// TODO: the implementation of this variant has fallen behind and isn't really used / working to well?
 async function deepGridMapElitesBatch(
   eliteMap, algorithmKey, evolutionRunId,
   populationSize, gridDepth,

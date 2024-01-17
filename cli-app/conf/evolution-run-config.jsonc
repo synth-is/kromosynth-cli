@@ -8,7 +8,7 @@
   "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
   "batchSize": 1,
   "terminationCondition": {
-    "numberOfEvals": 300000,
+    "numberOfEvals": 300000
   //  or
   //  "averageFitnessInMap": 0.1
   // or
@@ -45,6 +45,9 @@
   "useGpuForTensorflow": true,
   "renderSampleRateForClassifier": 16000,
   // "batchDurationMs": 60000,
+
+  "commitEliteMapToGitEveryNIterations": 1000,
+  "addGenomesToGit": false,
 
   // "gRpcHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-",
   // "gRpcServerCount": 1,
