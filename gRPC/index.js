@@ -1,3 +1,4 @@
+/// genome creation and variation gRPC services (genomeEvaluation is not in use)
 import grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
 import { struct } from 'pb-util';

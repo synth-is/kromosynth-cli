@@ -327,3 +327,19 @@ export function standardDeviationAttributes(data) {
 
   return attributeStdDevs;
 }
+
+export function invertedLogarithmicRamp(i, n) {
+  // We add 1 to i as the index is 0-based and log(1) is 0
+  // This ensures the first proportion (when i = 0) isn't 0 and last reaches to 1 (or very near).
+  const adjustedI = i + 1;
+  const adjustedN = n;
+
+  // Using the natural logarithm for scaling
+  const logMax = Math.log(adjustedN);
+  const logCurrent = Math.log(adjustedI);
+
+  // The proportion of the way through the total iterations (scaled logarithmically)
+  const proportion = logCurrent / logMax;
+
+  return proportion;
+}

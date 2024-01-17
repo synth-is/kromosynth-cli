@@ -8,7 +8,7 @@
   "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
   "batchSize": 1,
   "terminationCondition": {
-  "numberOfEvals": 300000,
+    "numberOfEvals": 300000,
   //  or
   //  "averageFitnessInMap": 0.1
   // or
@@ -16,6 +16,7 @@
   //  or
   //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
   },
+  "scoreProportionalToNumberOfEvalsTerminationCondition": true,
   // Deep-Grid MAP-Elites specific:
   "populationSize": 20,
   "gridDepth": 50,
@@ -29,23 +30,39 @@
   // "classScoringDurations": [0.5, 1, 2, 5],
   // "classScoringNoteDeltas": [-36, -24, -12, 0, 12, 24, 36],
   // "classScoringVelocities": [0.25, 0.5, 0.75, 1],
-  "classScoringDurations": [0.5, 1, 2, 5, 10],
+  "classScoringDurations": [4],
   "classScoringNoteDeltas": [0],
   "classScoringVelocities": [1],
   "antiAliasing": true,
   "frequencyUpdatesApplyToAllPathcNetworkOutputs": false,
-  "classScoringVariationsAsContainerDimensions": true,
-  "classifiers": ["yamnet"],
+  "classScoringVariationsAsContainerDimensions": false,
+  "classifiers": [
+    "yamnet",
+    [10, 10] // feature map to project the bahaviour space to, e.g. with dimensionality reduction
+  ],
+  "classifierIndex" : 1,
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
   "useGpuForTensorflow": true,
+  "renderSampleRateForClassifier": 16000,
   // "batchDurationMs": 60000,
 
   // "gRpcHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-",
   // "gRpcServerCount": 1,
   // "renderingSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/rendering-socket-test-host-",
   // "renderingSocketServerCount": 1,
+
+  // it's either evaluationSocketHostFilePathPrefix and evaluationSocketServerCount
+  // or evaluationFeatureSocketHostFilePathPrefix, evaluationFeatureSocketServerCount, evaluationQualitySocketHostFilePathPrefix, evaluationQualitySocketServerCount and evaluationProjectionSocketHostFilePathPrefix, evaluationProjectionSocketServerCount
+  
   // "evaluationSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/evaluation-socket-test-host-",
   // "evaluationSocketServerCount": 1,
+
+  // "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/evaluation-feature-socket-test-host-",
+  // "evaluationFeatureSocketServerCount": 1,
+  // "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/evaluation-quality-socket-test-host-",
+  // "evaluationQualitySocketServerCount": 1,
+  // "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/evaluation-projection-socket-test-host-",
+  // "evaluationProjectionSocketServerCount": 1,
   
   // "geneVariationServerPaths": [
   //   "/tmp/grpc1.txt"
@@ -61,10 +78,25 @@
     // "ws://localhost:30052",
     // "ws://localhost:30053"
   ],
+
+  // it's either geneEvaluationServers or evaluationFeatureServers, evaluationQualityServers and evaluationProjectionServers
+  // - geneEvaluationServers are for pre-trained classification models
+  // - evaluationFeatureServers, evaluationQualityServers and evaluationProjectionServers are for unsupervised measurements: feature extraction, quality evaluation and projection
+
   "geneEvaluationServers": [
-    "ws://localhost:40051"
+    // "ws://localhost:40051"
     // "ws://localhost:40052",
     // "ws://localhost:40053"
+  ],
+
+  "evaluationFeatureServers": [ // feature extraction
+    "ws://localhost:8081"
+  ],
+  "evaluationQualityServers": [ // quality evaluation
+    "ws://localhost:8082"
+  ],
+  "evaluationProjectionServers": [ // projection
+    "ws://localhost:8083"
   ]
   // ,
   // "dummyRun": { // generate dummy data without evaluations

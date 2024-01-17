@@ -9,7 +9,7 @@ export async function renderAndEvaluateGenomesViaWebsockets(
   useGPU,
   antiAliasing,
   frequencyUpdatesApplyToAllPathcNetworkOutputs,
-  geneRenderingWebsocketServerHost,
+  geneRenderingWebsocketServerHost, renderSampleRateForClassifier,
   geneEvaluationWebsocketServerHost
 ) {
   const predictionsAggregate = {};
@@ -27,7 +27,7 @@ export async function renderAndEvaluateGenomesViaWebsockets(
               useGPU,
               antiAliasing,
               frequencyUpdatesApplyToAllPathcNetworkOutputs,
-              geneRenderingWebsocketServerHost
+              geneRenderingWebsocketServerHost, renderSampleRateForClassifier,
             );
             if( audioBufferChannelData ) {
               const predictions = await getAudioClassPredictionsFromWebsocket(
@@ -65,7 +65,7 @@ export async function renderAndEvaluateGenomesViaWebsockets(
 }
 
 // send websocket message to server, with genome and meta
-export async function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
+export function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
   genome,
   duration,
   noteDelta,
@@ -73,7 +73,7 @@ export async function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
   useGPU,
   antiAliasing,
   frequencyUpdatesApplyToAllPathcNetworkOutputs,
-  geneRenderingWebsocketServerHost
+  geneRenderingWebsocketServerHost, renderSampleRateForClassifier
 ) {
   return new Promise((resolve, reject) => {
     const payload = {
@@ -83,7 +83,8 @@ export async function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
       velocity,
       useGPU,
       antiAliasing,
-      frequencyUpdatesApplyToAllPathcNetworkOutputs
+      frequencyUpdatesApplyToAllPathcNetworkOutputs,
+      sampleRate: renderSampleRateForClassifier
     };
     const ws = getClient( geneRenderingWebsocketServerHost );
     ws.on('open', () => {
@@ -93,7 +94,7 @@ export async function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
 
       const buffer = new Uint8Array( message );
       const channelData = new Float32Array( buffer.buffer );
-
+      // console.log('channelData', channelData);
       resolve( channelData );
     });
     ws.on('error', (error) => {
@@ -104,7 +105,7 @@ export async function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
 }
 
 // send websocket message to server, with audio buffer
-export async function getAudioClassPredictionsFromWebsocket( 
+export function getAudioClassPredictionsFromWebsocket( 
   audioBufferChannelData,
   geneEvaluationWebsocketServerHost
 ) {
@@ -122,6 +123,76 @@ export async function getAudioClassPredictionsFromWebsocket(
     });
     ws.on('error', (error) => {
       delete clients[geneEvaluationWebsocketServerHost];
+      reject( error );
+    });
+  });
+}
+
+// send websocket message to server, with audio buffer an receive features
+export function getFeaturesFromWebsocket( 
+  audioBufferChannelData,
+  evaluationFeatureHost
+) {
+  const ws = getClient( evaluationFeatureHost );
+  ws.binaryType = "arraybuffer"; // Set binary type for receiving array buffers
+  return new Promise((resolve, reject) => {
+    ws.on('open', () => {
+      ws.send( audioBufferChannelData );
+    });
+    ws.on('message', (message) => {
+      const features = JSON.parse( message );
+      resolve( features );
+    });
+    ws.on('error', (error) => {
+      delete clients[evaluationFeatureHost];
+      reject( error );
+    });
+  });
+}
+
+// send websocket message to server, with audio buffer an receive quality
+export function getQualityFromWebsocket( 
+  audioBufferChannelData,
+  evaluationQualityHost
+) {
+  const ws = getClient( evaluationQualityHost );
+  ws.binaryType = "arraybuffer"; // Set binary type for receiving array buffers
+  return new Promise((resolve, reject) => {
+    ws.on('open', () => {
+      ws.send( audioBufferChannelData );
+    });
+    ws.on('message', (message) => {
+      const quality = JSON.parse( message );
+      resolve( quality );
+    });
+    ws.on('error', (error) => {
+      delete clients[evaluationQualityHost];
+      reject( error );
+    });
+  });
+}
+
+// send websocket message to server, with feature vectors and fitness values and receive diversity
+export function getDiversityFromWebsocket( 
+  featureVectors,
+  fitnessValues,
+  evaluationDiversityHost
+) {
+  const ws = getClient( evaluationDiversityHost );
+  return new Promise((resolve, reject) => {
+    ws.on('open', () => {
+      const diversityMessage = {
+        "feature_vectors": featureVectors,
+        "fitness_values": fitnessValues,
+      };
+      ws.send( JSON.stringify( diversityMessage ) );
+    });
+    ws.on('message', (message) => {
+      const diversity = JSON.parse( message );
+      resolve( diversity );
+    });
+    ws.on('error', (error) => {
+      delete clients[evaluationDiversityHost];
       reject( error );
     });
   });
