@@ -53,7 +53,7 @@ function newGenome( call, callback ) {
 
 async function mutatedGenome( call, callback ) {
   const {
-    genomeString,
+    genomeStrings,
     evolutionRunId, 
     generationNumber, 
     algorithmKey,
@@ -66,9 +66,10 @@ async function mutatedGenome( call, callback ) {
   let error = null;
   let newGenome;
   try {
-    const genome = await getGenomeFromGenomeString( genomeString );
+    const genomeStringsArray = struct.decode( genomeStrings ).genomeStrings;
+    const genomes = await Promise.all( genomeStringsArray.map( async genomeString => await getGenomeFromGenomeString( genomeString ) ) );
     newGenome = await getNewAudioSynthesisGenomeByMutation(
-      genome,
+      genomes,
       evolutionRunId, generationNumber, -1, algorithmKey, 
       getAudioContext(),
       probabilityMutatingWaveNetwork,

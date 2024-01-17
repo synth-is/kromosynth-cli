@@ -27,7 +27,7 @@ export async function geneVariation(
 ) {
   const genome = await getGenomeFromGenomeString( genomeJSONString );
   return await getNewAudioSynthesisGenomeByMutation(
-    genome,
+    [genome],
     evolutionRunId, generationNumber, -1, algorithmKey, getAudioContext(),
     probabilityMutatingWaveNetwork,
     probabilityMutatingPatch,

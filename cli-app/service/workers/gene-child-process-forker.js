@@ -31,7 +31,7 @@ export function callRandomGeneWorker(
 
 export function callGeneVariationWorker(
   threadCount, threadNumber,
-  genomeString,
+  genomeStrings,
   evolutionRunId,
   generationNumber,
   algorithmKey,
@@ -57,7 +57,7 @@ export function callGeneVariationWorker(
       if (code !== 0) reject(new Error(`Worker stopped with exit code ${code}`));
     });
     childProcess.send({
-      genomeString,
+      genomeStrings,
       evolutionRunId,
       generationNumber,
       algorithmKey,

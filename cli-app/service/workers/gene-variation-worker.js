@@ -6,9 +6,9 @@ let audioCtx;
 const SAMPLE_RATE = 16000;
 
 // On child process fork message, mutate the genome and return the result to the main thread
-process.on('message', (msg) => {
+process.on('message', async (msg) => {
   const {
-    genomeString,
+    genomeStrings,
     evolutionRunId,
     generationNumber,
     algorithmKey,
@@ -18,21 +18,20 @@ process.on('message', (msg) => {
     evolutionaryHyperparameters,
     patchFitnessTestDuration
   } = msg;
-  getGenomeFromGenomeString( genomeString ).then( genome => {
-    getNewAudioSynthesisGenomeByMutation(
-      genome,
-      evolutionRunId, generationNumber, -1, algorithmKey,
-      getAudioContext(),
-      probabilityMutatingWaveNetwork,
-      probabilityMutatingPatch,
-      audioGraphMutationParams,
-      evolutionaryHyperparameters,
-      OfflineAudioContext,
-      patchFitnessTestDuration
-    ).then( newGenome => {
-      const newGenomeString = JSON.stringify(newGenome);
-      process.send({newGenomeString});
-    });
+  const genomes = await Promise.all( genomeStrings.map( async genomeString => await getGenomeFromGenomeString( genomeString ) ) );
+  getNewAudioSynthesisGenomeByMutation(
+    genomes,
+    evolutionRunId, generationNumber, -1, algorithmKey,
+    getAudioContext(),
+    probabilityMutatingWaveNetwork,
+    probabilityMutatingPatch,
+    audioGraphMutationParams,
+    evolutionaryHyperparameters,
+    OfflineAudioContext,
+    patchFitnessTestDuration
+  ).then( newGenome => {
+    const newGenomeString = JSON.stringify(newGenome);
+    process.send({newGenomeString});
   });
 });
 

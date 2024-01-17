@@ -7,6 +7,7 @@
   "eliteWinsOnlyOneCell": false,
   "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
   "batchSize": 1,
+  "maxNumberOfParents": 10,
   "terminationCondition": {
     "numberOfEvals": 300000
   //  or

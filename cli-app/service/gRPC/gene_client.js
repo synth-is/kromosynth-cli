@@ -31,7 +31,7 @@ console.log(response);
 }
 
 export function callGeneVariationService(
-  genomeString,
+  genomeStrings,
   evolutionRunId, generationNumber, algorithmKey,
   probabilityMutatingWaveNetwork,
   probabilityMutatingPatch,
@@ -42,7 +42,7 @@ export function callGeneVariationService(
 ) {
   return new Promise((resolve, reject) => {
     const payload = {
-      genomeString,
+      genomeStrings: struct.encode( {genomeStrings} ),
       evolutionRunId, 
       generationNumber, 
       algorithmKey,

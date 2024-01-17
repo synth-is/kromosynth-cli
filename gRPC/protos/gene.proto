@@ -22,7 +22,7 @@ message RandomGenomeRequest {
 }
 
 message GenomeVariationRequest {
-  string genomeString = 1;
+  google.protobuf.Struct genomeStrings = 1;
   string evolutionRunId = 2;
   int32 generationNumber = 3;
   string algorithmKey = 4;

@@ -68,6 +68,7 @@ export async function qdSearch(
     algorithm: algorithmKey,
     seedEvals, 
     eliteWinsOnlyOneCell, classRestriction,
+    maxNumberOfParents,
     terminationCondition, scoreProportionalToNumberOfEvalsTerminationCondition,
     evoRunsDirPath,
     populationSize, gridDepth,
@@ -254,6 +255,7 @@ export async function qdSearch(
         eliteMap, cellFeatures, algorithmKey, evolutionRunId,
         commitEliteMapToGitEveryNIterations, addGenomesToGit,
         searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
+        maxNumberOfParents,
         probabilityMutatingWaveNetwork, probabilityMutatingPatch,
         audioGraphMutationParams, evolutionaryHyperparameters,
         classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
@@ -305,6 +307,7 @@ async function mapElitesBatch(
   eliteMap, cellFeatures, algorithmKey, evolutionRunId,
   commitEliteMapToGitEveryNIterations, addGenomesToGit,
   searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
+  maxNumberOfParents,
   probabilityMutatingWaveNetwork, probabilityMutatingPatch,
   audioGraphMutationParams, evolutionaryHyperparameters,
   classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
@@ -410,39 +413,51 @@ async function mapElitesBatch(
             undefined === eliteMap.cells[ck].uBC ? 10 : eliteMap.cells[ck].uBC
           );
           const nonzeroClassBiasCount = classBiases.filter(b => b > 0).length;
-          if( nonzeroClassBiasCount > 0 ) {
-            randomClassKey = chance.weighted(classKeys, classBiases);
-          } else { // if all are zero or below, .weighted complains
-            randomClassKey = chance.pickone(classKeys);
+          
+          let numberOfParentGenomes = Math.floor(Math.random() * (maxNumberOfParents - 1 +1)) + 1; // https://stackoverflow.com/a/1527820/169858
+          console.log("numberOfParentGenomes", numberOfParentGenomes);
+          const randomClassKeys = [];
+          // TODO: match diverse parents together, rather than just picking randomly
+          // - maybe by picking most distant elites in an unsupervised feature space
+          // - possibly something like this: https://dl.acm.org/doi/10.1145/3449726.3459431
+          for( let i=0; i < numberOfParentGenomes; i++ ) {
+            if( nonzeroClassBiasCount > 0 ) {
+              randomClassKey = chance.weighted(classKeys, classBiases);
+            } else { // if all are zero or below, .weighted complains
+              randomClassKey = chance.pickone(classKeys);
+            }
+            randomClassKeys.push(randomClassKey);
           }
-        const {
-          // genome: classEliteGenomeId,
-          // score,
-          // generationNumber
-          g: classEliteGenomeId,
-          s,
-          gN
-        } = getCurrentClassElite(randomClassKey, eliteMap);
 
-        const classEliteGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, classEliteGenomeId, evoRunDirPath );
+          const classEliteGenomeStrings = [];
+          for( const randomClassKey of randomClassKeys ) {
+            const {
+              // genome: classEliteGenomeId,
+              // score,
+              // generationNumber
+              g: classEliteGenomeId,
+              s,
+              gN
+            } = getCurrentClassElite(randomClassKey, eliteMap);
+            classEliteGenomeStrings.push( await readGenomeAndMetaFromDisk( evolutionRunId, classEliteGenomeId, evoRunDirPath ) );
+            parentGenomes.push( {
+              genomeId: classEliteGenomeId,
+              eliteClass: randomClassKey,
+              // score, generationNumber,
+              s, gN,
+            } );
+          }
 
-        parentGenomes.push( {
-          genomeId: classEliteGenomeId,
-          eliteClass: randomClassKey,
-          // score, generationNumber,
-          s, gN,
-        } );
-
-        if( dummyRun ) {
-          newGenomeString = classEliteGenomeString;
-        } else {
+          if( dummyRun ) {
+            newGenomeString = classEliteGenomeStrings[0];
+          } else {
 
           try {
             ///// variation
             if( geneEvaluationProtocol === "grpc" || geneEvaluationProtocol === "websocket" ) {
               try {
                 newGenomeString = await callGeneVariationService(
-                  classEliteGenomeString,
+                  classEliteGenomeStrings,
                   evolutionRunId, eliteMap.generationNumber, algorithmKey,
                   probabilityMutatingWaveNetwork,
                   probabilityMutatingPatch,
@@ -458,7 +473,7 @@ async function mapElitesBatch(
             } else if( geneEvaluationProtocol === "worker" ) {
                const geneVariationWorkerResponse = await callGeneVariationWorker(
                 searchBatchSize, batchIteration,
-                classEliteGenomeString,
+                classEliteGenomeStrings,
                 evolutionRunId, eliteMap.generationNumber, algorithmKey,
                 probabilityMutatingWaveNetwork,
                 probabilityMutatingPatch,
@@ -469,9 +484,9 @@ async function mapElitesBatch(
               newGenomeString = geneVariationWorkerResponse.newGenomeString;
             }
             else {
-              const classEliteGenome = await getGenomeFromGenomeString(classEliteGenomeString, evolutionaryHyperparameters);
+              const classEliteGenomes = await Promise.all( classEliteGenomeStrings.map( async classEliteGenomeString => await getGenomeFromGenomeString(classEliteGenomeString, evolutionaryHyperparameters) ) );
               const newGenome = getNewAudioSynthesisGenomeByMutation(
-                classEliteGenome,
+                classEliteGenomes,
                 evolutionRunId, generationNumber, -1, algorithmKey,
                 getAudioContext(),
                 probabilityMutatingWaveNetwork,
