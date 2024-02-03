@@ -8,11 +8,118 @@ const SAMPLE_RATE = 16000;
 
 // Function to generate a random audio buffer (mock data)
 function generateRandomSoundBuffer(length) {
-  const buffer = new ArrayBuffer(length);
+  // each Float32Array element is 4 bytes
+  const arrayBufferLength = length * 4;
+  const buffer = new ArrayBuffer(arrayBufferLength);
   const view = new Float32Array(buffer);
   for (let i = 0; i < view.length; i++) {
     // Fill the buffer with random values between -1.0 and 1.0
     view[i] = Math.random() * 2 - 1;
+  }
+  return buffer;
+}
+
+function generateSoundBufferWithSineWave(length) {
+  // each Float32Array element is 4 bytes
+  const arrayBufferLength = length * 4;
+  const buffer = new ArrayBuffer(arrayBufferLength);
+  const view = new Float32Array(buffer);
+  for (let i = 0; i < view.length; i++) {
+    // Fill the buffer with a sine wave
+    view[i] = Math.sin(i / 1000);
+  }
+  return buffer;
+}
+
+function generateSoundBufferWithSquareWave(length) {
+  // each Float32Array element is 4 bytes
+  const arrayBufferLength = length * 4;
+  const buffer = new ArrayBuffer(arrayBufferLength);
+  const view = new Float32Array(buffer);
+  for (let i = 0; i < view.length; i++) {
+    // Fill the buffer with a square wave
+    view[i] = Math.sin(i / 1000) > 0 ? 1 : -1;
+  }
+  return buffer;
+}
+
+function generateSoundBufferWithTriangleWave(length) {
+  // each Float32Array element is 4 bytes
+  const arrayBufferLength = length * 4;
+  const buffer = new ArrayBuffer(arrayBufferLength);
+  const view = new Float32Array(buffer);
+  for (let i = 0; i < view.length; i++) {
+    // Fill the buffer with a triangle wave
+    view[i] = Math.asin(Math.sin(i / 1000));
+  }
+  return buffer;
+}
+
+function generateSoundBufferWithSawtoothWave(length) {
+  // each Float32Array element is 4 bytes
+  const arrayBufferLength = length * 4;
+  const buffer = new ArrayBuffer(arrayBufferLength);
+  const view = new Float32Array(buffer);
+  for (let i = 0; i < view.length; i++) {
+    // Fill the buffer with a sawtooth wave
+    view[i] = Math.atan(Math.tan(i / 1000));
+  }
+  return buffer;
+}
+
+function generateSoundBufferWithSpikesAndGaps(length) {
+  // each Float32Array element is 4 bytes
+  const arrayBufferLength = length * 4;
+  const buffer = new ArrayBuffer(arrayBufferLength);
+  const view = new Float32Array(buffer);
+  console.log('audio buffer length:', view.length);
+  for (let i = 0; i < view.length; i++) {
+    // Fill the buffer with a sine wave
+    // - introduce spikes to test the robustness of the feature extraction service
+    view[i] = Math.sin(i / 1000);
+    if (i % 1000 === 0) {
+      view[i] += .5;
+    }
+    // add a spike to the sound at random intervals, adding a value between .05 and .5
+    if (Math.random() > 0.99) {
+      view[i] += Math.random() * .5;
+    }
+    // introduce random gaps in the sound, over random lengths of time
+    if (Math.random() > 0.99) {
+      const gapLength = Math.floor(Math.random() * 1000);
+      for (let j = 0; j < gapLength; j++) {
+        view[i + j] = 0;
+      }
+      i += gapLength;
+    }
+    // introduce hum in the sound, over random lengths of time
+    // if (Math.random() > 0.99) {
+    //   const humLength = Math.floor(Math.random() * 1000);
+    //   for (let j = 0; j < humLength; j++) {
+    //     view[i + j] += Math.sin(j / 100);
+    //   }
+    //   i += humLength;
+    // }
+
+    // introduce clipping in the sound, over random lengths of time
+    // if (Math.random() > 0.99) {
+    //   const clippingLength = Math.floor(Math.random() * 1000);
+    //   for (let j = 0; j < clippingLength; j++) {
+    //     view[i + j] = 1;
+    //   }
+    //   i += clippingLength;
+    // }
+
+    // introduce noise in the sound, over random lengths of time
+    if (Math.random() > 0.59) {
+      const noiseLength = Math.floor(Math.random() * 100);
+      for (let j = 0; j < noiseLength; j++) {
+        // view[i + j] += Math.random() * .5;
+        view[i + j] += Math.random() * 2 - 1;
+      }
+      i += noiseLength;
+    }
+
   }
   return buffer;
 }
@@ -102,7 +209,12 @@ async function callDiversityEvaluationServiceWithFeatureVectorsAndFitnessValues(
   const featureVectors = [];
   const fitnessValues = [];
   for (let i = 0; i < numberOfEvaluationCandidates; i++) {
-    const audioBuffer = generateRandomSoundBuffer(SAMPLE_RATE);
+    // const audioBuffer = generateRandomSoundBuffer(SAMPLE_RATE*10);
+    // const audioBuffer = generateSoundBufferWithSpikesAndGaps(SAMPLE_RATE*10);
+    // const audioBuffer = generateSoundBufferWithSineWave(SAMPLE_RATE*10);
+    const audioBuffer = generateSoundBufferWithSquareWave(SAMPLE_RATE*10);
+    // const audioBuffer = generateSoundBufferWithTriangleWave(SAMPLE_RATE*10);
+    // const audioBuffer = generateSoundBufferWithSawtoothWave(SAMPLE_RATE*10);
     const featureVector = await callFeatureExtractionService( audioBuffer );
     const fitnessValue = await callQualityEvaluationService( audioBuffer );
     featureVectors.push(featureVector);

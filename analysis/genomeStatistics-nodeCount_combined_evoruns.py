@@ -19,6 +19,19 @@ data = plotUtil.read_data_from_json(json_file_path)
 
 plt.clf()
 
+# special font scaling for genomeStatistics_node_type_count_CPPN.pdf, has a lower scale than genomeStatistics_node_type_count_asNEATPatch.pdf in the Innov. eng. v1 paper
+# params = {
+#    'axes.labelsize': 16,
+#    'font.size': 8,
+#    'legend.fontsize': 16,
+#    'xtick.labelsize': 16,
+#    'ytick.labelsize': 8,
+#    'text.usetex': False,
+# #    'figure.figsize': [7, 4] # instead of 4.5, 4.5
+#     'figure.constrained_layout.use': True
+#    }
+# plt.rcParams.update(params)
+
 plt.rcParams['figure.constrained_layout.use'] = True
 
 legend_lookup = {
@@ -35,6 +48,8 @@ def plot_bar_chart(legend_texts, node_type_counts, node_type_counts_std_devs, xt
     n_bars = len(legend_texts)
     # cut off the 'Node' suffix from the group labels
     groups = list(set().union(*[obj.keys() for obj in node_type_counts]))
+    # sort groups by key
+    groups = sorted(groups)
     n_groups = len(groups)
 
     values = np.zeros((n_bars, n_groups))
@@ -103,8 +118,19 @@ node_type_counts = []
 node_type_counts_std_devs = []
 for oneEvorun in data['evoRuns']:
     asNEATPatchNodeTypeCounts = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCounts']
+    # sort asNEATPatchNodeTypeCounts by key
+    asNEATPatchNodeTypeCounts = dict(sorted(asNEATPatchNodeTypeCounts.items()))
+    print("--- asNEATPatchNodeTypeCounts")
+    print(asNEATPatchNodeTypeCounts)
     asNEATPatchNodeTypeCountsStdDevs = oneEvorun['aggregates']['genomeStatistics']['asNEATPatchNodeTypeCountsStdDevs']
-    
+    # sort asNEATPatchNodeTypeCountsStdDevs by key
+    asNEATPatchNodeTypeCountsStdDevs = dict(sorted(asNEATPatchNodeTypeCountsStdDevs.items()))
+    print("--- asNEATPatchNodeTypeCountsStdDevs")
+    print(asNEATPatchNodeTypeCountsStdDevs)
+
+    print("--- oneEvorun['label']")
+    print(oneEvorun['label'])
+
     node_type_counts.append(asNEATPatchNodeTypeCounts)
     node_type_counts_std_devs.append(asNEATPatchNodeTypeCountsStdDevs)
     legend_texts.append(oneEvorun['label'])

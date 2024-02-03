@@ -72,7 +72,7 @@ export async function calculateQDScoreForOneIteration(
   // and that the qdScore is the performance against individual classes, rather than a sum over all
   if( classRestriction && classRestriction.length ) {
     console.log("dividing qd score, from", cellScoreCounts, "cellScoreCounts by", cellCount)
-    qdScore = cumulativeScore / cellCount;
+    qdScore = cumulativeScore / cellCount; // TODO: median?
   } else {
     qdScore = cumulativeScore;
   }
