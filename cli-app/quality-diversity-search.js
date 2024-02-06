@@ -233,7 +233,10 @@ export async function qdSearch(
   // - gc will be triggered manually at regular intervals below
 // TODO temporarily commenting out:  runCmd('git config --global gc.auto 0');
 
-  let cellFeatures = {};
+  let cellFeatures = readCellFeaturesFromDisk( evolutionRunId, evoRunDirPath );
+  if( ! cellFeatures ) {
+    cellFeatures = {};
+  }
 
   while( 
       ! shouldTerminate(terminationCondition, eliteMap, dummyRun)
@@ -531,6 +534,13 @@ async function mapElitesBatch(
                     quality: _evaluationQualityServers[ (batchIteration + iterationIncrement) % _evaluationQualityServers.length ]
                   };
                   const oneClassKeySuffix = `_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
+                  await populateAndSaveCellFeatures( 
+                    eliteMap, cellFeatures, 
+                    oneDuration, oneNoteDelta, oneVelocity, useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+                    geneRenderingServerHost, renderSampleRateForClassifier,
+                    geneEvaluationServerHost.feature,
+                    evoRunDirPath, evolutionRunId 
+                  );
                   const oneCombinationClassScores = await getGenomeClassScoresByDiversityProjectionWithNewGenomes(
                     [newGenomeString],
                     oneDuration,
@@ -558,6 +568,13 @@ async function mapElitesBatch(
               }
             }
           } else {
+            await populateAndSaveCellFeatures( 
+              eliteMap, cellFeatures, 
+              classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+              geneRenderingServerHost, renderSampleRateForClassifier,
+              geneEvaluationServerHost.feature,
+              evoRunDirPath, evolutionRunId 
+            );
             newGenomeClassScores = await getGenomeClassScoresByDiversityProjectionWithNewGenomes(
               [newGenomeString],
               classScoringDurations,
@@ -1137,35 +1154,15 @@ async function getGenomeClassScores(
   return newGenomeClassScores;
 }
 
-async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
-  genomeStrings,
-  durations, 
-  noteDeltas,
-  velocities,
-  useGPU,
-  antiAliasing,
-  frequencyUpdatesApplyToAllPathcNetworkOutputs,
-  geneRenderingServerHost, renderSampleRateForClassifier,
-  evaluationFeatureExtractionHost,
-  evaluationQualityHost,
-  evaluationDiversityHost,
-  eliteMap, // TODO: this may become obsolete, if the TODO extract to method below is implemented
-  cellFeatures,
-  evolutionRunId, evoRunDirPath,
-  classificationGraphModel,
-  scoreProportion
-) {
-  // not supporting arrays of durations, noteDeltas and velocities for now, as is done in getGenomeClassScores
-  const duration = durations[0];
-  const noteDelta = noteDeltas[0];
-  const velocity = velocities[0];
-
   // for all cells in eliteMap, get the feature vector if there is a genome in the cell
   // - if the feature vector is not present in the cellFeatures cache map, call the feature extraction service
-
-  const cellFitnessValues = [];
-
-  // TODO: extract to a method, that is called before this method, to ensure cellFeatures is populated; and then not 
+async function populateAndSaveCellFeatures(
+  eliteMap, cellFeatures, 
+  duration, noteDelta, velocity, useGPU, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+  geneRenderingServerHost, renderSampleRateForClassifier,
+  evaluationFeatureExtractionHost,
+  evoRunDirPath, evolutionRunId
+) {
   for( const cellKey in eliteMap.cells ) {
     const cell = eliteMap.cells[cellKey];
     if( cell.elts && cell.elts.length ) {
@@ -1189,9 +1186,46 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
         const cellGenomeFeatures = featuresResponse.features;
         cellFeatures[cellKey] = cellGenomeFeatures;
       }
+    }
+  }
+  saveCellFeaturesToDisk( cellFeatures, eliteMap.generationNumber, evoRunDirPath, evolutionRunId );
+}
+
+async function getCellFitnessValues( eliteMap ) {
+  const cellFitnessValues = [];
+  for( const cellKey in eliteMap.cells ) {
+    const cell = eliteMap.cells[cellKey];
+    if( cell.elts && cell.elts.length ) {
       cellFitnessValues.push( cell.elts[0].s );
     }
   }
+  return cellFitnessValues;
+}
+
+async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
+  genomeStrings,
+  durations, 
+  noteDeltas,
+  velocities,
+  useGPU,
+  antiAliasing,
+  frequencyUpdatesApplyToAllPathcNetworkOutputs,
+  geneRenderingServerHost, renderSampleRateForClassifier,
+  evaluationFeatureExtractionHost,
+  evaluationQualityHost,
+  evaluationDiversityHost,
+  eliteMap,
+  cellFeatures,
+  evolutionRunId, evoRunDirPath,
+  classificationGraphModel,
+  scoreProportion
+) {
+  // not supporting arrays of durations, noteDeltas and velocities for now, as is done in getGenomeClassScores
+  const duration = durations[0];
+  const noteDelta = noteDeltas[0];
+  const velocity = velocities[0];
+
+  const cellFitnessValues = await getCellFitnessValues( eliteMap );
 
   const newGenomesFeatures = [];
   const newGenomesFitnessValues = [];
@@ -1207,6 +1241,10 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       antiAliasing,
       frequencyUpdatesApplyToAllPathcNetworkOutputs,
       geneRenderingServerHost, renderSampleRateForClassifier
+    ).catch(
+      e => {
+        console.error(`Error rendering gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+      }
     );
 
     if( audioBuffer && audioBuffer.length && ! audioBuffer.some( value => isNaN(value) ) ) {
@@ -1251,7 +1289,7 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
     // assume classificationGraphModel is an array defining the grid dimensions and size, like [10,10] or [10,10,10]
     if( eliteMap.generationNumber < classificationGraphModel.length ) {
       // if this is the first generation, just add the first new genome to the elite map
-      // - the projection requires at least two genomes
+      // - the projection requires at least n genomes, where n is the number of dimensions in the grid
       const randomClassKey = chance.pickone( Object.keys(eliteMap.cells) );
       newGenomeClassScores[ randomClassKey ] = {
         score: allFitnessValues[0],
@@ -1267,7 +1305,12 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
         evaluationDiversityHost
       );
 
-      const { feature_map, fitness_values, indices_to_keep } = diversityProjection;
+      let featureMap;
+      if( diversityProjection.status === "ERROR" ) {
+        throw new Error("Error in diversity projection");
+      } else {
+        featureMap = diversityProjection.feature_map;
+      }
 
       // work the new projection into the elite map
       // - basing on the array element ordering:
@@ -1283,8 +1326,10 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
         // if( i in indices_to_keep ) {
         const newGenomeFitnessValue = allFitnessValues[i];
         const newGenomeFeatureVector = allFeaturesToProject[i];
-        const diversityMapKey = feature_map[i].join(",");
+        const diversityMapKey = featureMap[i].join(",");
 
+        // TODO: hmm, isn't fitness comparision missing?
+        
         if( newGenomeFeatureVector) cellFeatures[ diversityMapKey ] = newGenomeFeatureVector;
 
         newGenomeClassScores[ diversityMapKey ] = {
@@ -1390,7 +1435,6 @@ function saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, generation
   // add file to git (possibly redundantly)
   // runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
 }
-
 function readEliteMapFromDisk( evolutionRunId, evoRunDirPath ) {
   let eliteMap;
   try {
@@ -1403,6 +1447,33 @@ function readEliteMapFromDisk( evolutionRunId, evoRunDirPath ) {
     console.error("readEliteMapFromDisk: ", err);
   }
   return eliteMap;
+}
+
+function saveCellFeaturesToDisk( cellFeatures, generationNumber, evoRunDirPath, evolutionRunId ) {
+  const cellFeaturesToSave = { ...cellFeatures }
+  cellFeaturesToSave["_timestamp"] = Date.now();
+  cellFeaturesToSave["_generationNumber"] = generationNumber;
+  const cellFeaturesFileName = `cellFeatures_${evolutionRunId}.json`;
+  const cellFeaturesFilePath = `${evoRunDirPath}${cellFeaturesFileName}`;
+  const cellFeaturesStringified = JSON.stringify(cellFeaturesToSave, null, 2); // prettified to obtain the benefits (compression of git diffs)
+  fs.writeFileSync( cellFeaturesFilePath, cellFeaturesStringified );
+}
+function readCellFeaturesFromDisk( evolutionRunId, evoRunDirPath ) {
+  let cellFeatures;
+  try {
+    const cellFeaturesFilePath = `${evoRunDirPath}cellFeatures_${evolutionRunId}.json`;
+    if( fs.existsSync (cellFeaturesFilePath) ) {
+      const cellFeaturesJSONString = fs.readFileSync( cellFeaturesFilePath, 'utf8' );
+      cellFeatures = JSON.parse( cellFeaturesJSONString );
+    }
+  } catch( err ) {
+    console.error("readCellFeaturesFromDisk: ", err);
+  }
+  if( cellFeatures ) {
+    delete cellFeatures["_timestamp"];
+    delete cellFeatures["_generationNumber"];
+  }
+  return cellFeatures;
 }
 
 function saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath, addToGit ) {

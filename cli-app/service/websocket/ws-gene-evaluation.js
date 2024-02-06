@@ -92,15 +92,25 @@ export function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
     });
     ws.on('message', (message) => {
 
-      const buffer = new Uint8Array( message );
-      const channelData = new Float32Array( buffer.buffer );
-      // console.log('channelData', channelData);
-      resolve( channelData );
+      // is this a buffer or a string?
+      if( message instanceof Buffer ) {
+        const buffer = new Uint8Array( message );
+        const channelData = new Float32Array( buffer.buffer );
+        // console.log('channelData', channelData);
+        resolve( channelData );
+      } else {
+        reject( message );
+      }
     });
     ws.on('error', (error) => {
       delete clients[geneRenderingWebsocketServerHost];
       reject( error );
     });
+    ws.on('close', function handleClose(code, reason) { // this actually catches the case when the server encounters WS_ERR_UNSUPPORTED_MESSAGE_LENGTH
+      console.log(`WebSocket connection closed with code: ${code}`);
+      reject( code );
+    });
+    
   });
 }
 

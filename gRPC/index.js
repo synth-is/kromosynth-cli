@@ -162,7 +162,10 @@ async function main() {
   process.title = processTitle;
   process.on('SIGINT', () => process.exit(1)); // so it can be stopped with Ctrl-C
   
-  const server = new grpc.Server();
+  const server = new grpc.Server({
+    'grpc.max_send_message_length': 100*1024*1024, // 100MB
+    'grpc.max_receive_message_length': 100*1024*1024
+  });
   server.addService( gene_proto.Genome.service, {
     randomGenome: newGenome,
     genomeVariation: mutatedGenome,

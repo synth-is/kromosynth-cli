@@ -107,11 +107,15 @@ function getClient( gRPCHost ) {
        longs: String,
        enums: String,
        defaults: true,
-       oneofs: true}
+       oneofs: true
+      }
     );
     const gene_proto = grpc.loadPackageDefinition(packageDefinition).kromosynthgene;
 
-    clients[_host] = new gene_proto.Genome(_host, grpc.credentials.createInsecure());
+    clients[_host] = new gene_proto.Genome(_host, grpc.credentials.createInsecure(), {
+      'grpc.max_send_message_length': 100*1024*1024, // 100MB
+      'grpc.max_receive_message_length': 100*1024*1024
+    });
   }
   return clients[_host];
 }

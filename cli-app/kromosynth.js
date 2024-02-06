@@ -1632,7 +1632,7 @@ function getEvolutionRunConfig( evolutionRunConfigJsonFile ) {
 	} else if( cli.flags.evolutionRunConfigJsonString ) {
 		evoRunConfig = getParamsFromJSONString( cli.flags.evolutionRunConfigJsonString );
 	} else {
-		evoParams = {};
+		evoRunConfig = {};
 	}
 	return evoRunConfig;
 }

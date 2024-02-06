@@ -39,7 +39,7 @@
   "classScoringVariationsAsContainerDimensions": false,
   "classifiers": [
     "yamnet",
-    [10, 10] // feature map to project the bahaviour space to, e.g. with dimensionality reduction
+    [100, 100] // feature map to project the bahaviour space to, e.g. with dimensionality reduction
   ],
   "classifierIndex" : 1,
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
@@ -78,9 +78,9 @@
     "localhost:50051"
   ],
   "geneRenderingServers": [
-    "ws://localhost:30051"
-    // "ws://localhost:30052",
-    // "ws://localhost:30053"
+    "ws://localhost:30051",
+    "ws://localhost:30052",
+    "ws://localhost:30053"
   ],
 
   // it's either geneEvaluationServers or evaluationFeatureServers, evaluationQualityServers and evaluationProjectionServers
