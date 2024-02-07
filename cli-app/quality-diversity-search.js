@@ -683,14 +683,14 @@ async function mapElitesBatch(
 
 
       }
-      console.log(
+      console.log( // welcome to the world of ternary operators
         "Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined), 
         (geneEvaluationProtocol === "worker" ? ", thread #"+batchIteration : ", evaluation host: "+geneEvaluationServerHost), 
-        classRestriction && classRestriction.length ? classRestriction[0]+" score:" : newGenomeClassScores.length === 1 ? /* one feature mapping for the new genome */ Object.keys(newGenomeClassScores)[0] : " - Music score:", 
+        classRestriction && classRestriction.length ? classRestriction[0]+" score:" : newGenomeClassScores && newGenomeClassScores.length === 1 ? /* one feature mapping for the new genome */ Object.keys(newGenomeClassScores)[0] : " - Music score:", 
         classRestriction && classRestriction.length ?
             newGenomeClassScores && newGenomeClassScores[ classRestriction[0] ] ? newGenomeClassScores[ classRestriction[0] ].score : "N/A"
           :
-            newGenomeClassScores.length === 1 ? /* one feature mapping for the new genome */
+          newGenomeClassScores && newGenomeClassScores.length === 1 ? /* one feature mapping for the new genome */
             newGenomeClassScores[0].score
           :
           newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : "N/A"

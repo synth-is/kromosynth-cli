@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const MAX_MESSAGE_SIZE = 100*1024*1024; // 100MB
+
 const PROTO_PATH = __dirname + '/../../../gRPC/protos/gene.proto';
 let clients = {};
 
@@ -113,8 +115,9 @@ function getClient( gRPCHost ) {
     const gene_proto = grpc.loadPackageDefinition(packageDefinition).kromosynthgene;
 
     clients[_host] = new gene_proto.Genome(_host, grpc.credentials.createInsecure(), {
-      'grpc.max_send_message_length': 100*1024*1024, // 100MB
-      'grpc.max_receive_message_length': 100*1024*1024
+      
+      'grpc.max_send_message_length': MAX_MESSAGE_SIZE,
+      'grpc.max_receive_message_length': MAX_MESSAGE_SIZE
     });
   }
   return clients[_host];
