@@ -155,9 +155,7 @@ async function main() {
   } else {
     port = argv.port || process.env.PORT || '50051';
   }
-  console.log("port:",port);
   modelUrl = argv.modelUrl;
-  console.log("modelUrl:",modelUrl);
   const processTitle = argv.processTitle || 'kromosynth-gRPC';
   process.title = processTitle;
   process.on('SIGINT', () => process.exit(1)); // so it can be stopped with Ctrl-C
@@ -172,6 +170,8 @@ async function main() {
     genomeVariation: mutatedGenome,
     genomeEvaluation: evaluateGenome
   });
+
+  console.log("Genome variation gRPC server starting...", {port, hostname}, "modelUrl:", modelUrl);
   if( hostname ) {
     server.bindAsync( hostname, grpc.ServerCredentials.createInsecure(), (error, port) => {
       server.start();

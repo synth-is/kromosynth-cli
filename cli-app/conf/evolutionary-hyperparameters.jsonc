@@ -42,8 +42,8 @@
       "splitMutationChance": 0.2,
       "addOscillatorChance": 0.1,
       "addAudioBufferSourceChance": 0.1,
-      "addPartialAndEnvelopeChance": 0.0,
-      "addConnectionChance": 0.2,
+      "addPartialAndEnvelopeChance": 0.1,
+      "addConnectionChance": 0.1,
       "mutateConnectionWeightsChance": 0.2, // 0.25,
       "mutateNodeParametersChance": 0.2 // 0.25
     },

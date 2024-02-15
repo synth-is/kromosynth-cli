@@ -6,7 +6,8 @@
   // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
   "eliteWinsOnlyOneCell": false,
   "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
-  "batchSize": 1,
+  // "batchSize": 200,
+  "batchSize": 20,
   "maxNumberOfParents": 10,
   "terminationCondition": {
     "numberOfEvals": 300000
@@ -49,6 +50,10 @@
 
   "commitEliteMapToGitEveryNIterations": 1000,
   "addGenomesToGit": false,
+  "prunePastEliteGenomesEveryNIterations": 200,
+  "renderEliteMapToWavFilesEveryNIterations": 10000,
+
+  "processingUtilisation": null, //  0.7,
 
   // "gRpcHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-",
   // "gRpcServerCount": 1,
@@ -75,7 +80,9 @@
   //   "/tmp/grpc1.txt"
   // ],
   "geneVariationServers": [
-    "localhost:50051"
+    "localhost:50051",
+    "localhost:50052",
+    "localhost:50053"
   ],
   "geneRenderingServers": [
     "ws://localhost:30051",
@@ -94,13 +101,20 @@
   ],
 
   "evaluationFeatureServers": [ // feature extraction
-    "ws://localhost:8081"
+    "ws://localhost:31051",
+    "ws://localhost:31052"
   ],
   "evaluationQualityServers": [ // quality evaluation
-    "ws://localhost:8082"
+    "ws://localhost:32051",
+    "ws://localhost:32052"
   ],
   "evaluationProjectionServers": [ // projection
-    "ws://localhost:8083"
+    // "ws://localhost:33051",
+    // "ws://localhost:33052",
+    // "ws://localhost:33053",
+    // "ws://localhost:33054",
+    // "ws://localhost:33055"
+    "ws://localhost:8080"
   ]
   // ,
   // "dummyRun": { // generate dummy data without evaluations

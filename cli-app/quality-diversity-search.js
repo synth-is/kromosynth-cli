@@ -1,8 +1,10 @@
 import fs from 'fs';
+import path from 'path';
 import {glob} from 'glob';
 import {ulid} from 'ulid';
 import Chance from 'chance';
 import sample from "lodash-es/sample.js";
+import toWav from 'audiobuffer-to-wav';
 import { getAudioGraphMutationParams } from "./kromosynth.js";
 import { yamnetTags } from 'kromosynth/workers/audio-classification/classificationTags.js';
 import {
@@ -24,12 +26,14 @@ import {
   runCmd, runCmdAsync, readGenomeAndMetaFromDisk, getGenomeKey, calcStandardDeviation,
   writeEvaluationCandidateWavFilesForGenome,
   populateNewGenomeClassScoresInBatchIterationResultFromEvaluationCandidateWavFiles,
-  invertedLogarithmicRamp
+  invertedLogarithmicRamp,
+  deleteAllGenomesNotInEliteMap
 } from './util/qd-common.js';
 import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker } from './service/workers/gene-child-process-forker.js';
 import { get } from 'http';
-import { i } from 'mathjs';
+import { add, e, i } from 'mathjs';
 import { log } from 'console';
+import { getAudioContext } from './util/rendering-common.js';
 
 const chance = new Chance();
 
@@ -83,7 +87,10 @@ export async function qdSearch(
     classifiers, classifierIndex, yamnetModelUrl,
     useGpuForTensorflow,
     renderSampleRateForClassifier,
-    commitEliteMapToGitEveryNIterations, addGenomesToGit,
+    commitEliteMapToGitEveryNIterations, 
+    addGenomesToGit, prunePastEliteGenomesEveryNIterations,
+    renderEliteMapToWavFilesEveryNIterations,
+    processingUtilisation,
     batchDurationMs,
     gRpcHostFilePathPrefix, gRpcServerCount,
     renderingSocketHostFilePathPrefix, renderingSocketServerCount,
@@ -238,6 +245,8 @@ export async function qdSearch(
     cellFeatures = {};
   }
 
+  let seedFeaturesAndScores = [];
+
   while( 
       ! shouldTerminate(terminationCondition, eliteMap, dummyRun)
       &&
@@ -252,11 +261,15 @@ export async function qdSearch(
       scoreProportion = 1.0;
     }
 
+    const batchStartTimeMs = performance.now();
+
     console.log("algorithmKey",algorithmKey);
     if( algorithmKey === "mapElites_with_uBC" ) {
       await mapElitesBatch(
-        eliteMap, cellFeatures, algorithmKey, evolutionRunId,
-        commitEliteMapToGitEveryNIterations, addGenomesToGit,
+        eliteMap, cellFeatures, seedFeaturesAndScores,
+        algorithmKey, evolutionRunId,
+        commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNIterations,
+        renderEliteMapToWavFilesEveryNIterations,
         searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
         maxNumberOfParents,
         probabilityMutatingWaveNetwork, probabilityMutatingPatch,
@@ -294,6 +307,18 @@ export async function qdSearch(
       throw new Error(`algorithmKey ${algorithmKey} not recognised`);
     }
 
+    const batchEndTimeMs = performance.now();
+    const batchDurationMs = batchEndTimeMs - batchStartTimeMs;
+    console.log("batchDurationMs", batchDurationMs);
+    if( processingUtilisation ) {
+      console.log("waiting for", processingUtilisation * batchDurationMs, "ms, to utilise", processingUtilisation, "of the available processing time");
+      await new Promise( resolve => setTimeout(resolve, processingUtilisation * batchDurationMs) );
+    }
+
+    if( eliteMap.generationNumber > seedEvals && seedFeaturesAndScores !== undefined ) {
+      seedFeaturesAndScores = undefined; // free up memory
+    }
+
   } // while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
   if( ! (batchDurationMs && batchDurationMs < Date.now() - startTimeMs) ) {
     // process not stopped due to time limit, but should now have reached a general termination contidtion
@@ -307,8 +332,10 @@ export async function qdSearch(
 }
 
 async function mapElitesBatch(
-  eliteMap, cellFeatures, algorithmKey, evolutionRunId,
-  commitEliteMapToGitEveryNIterations, addGenomesToGit,
+  eliteMap, cellFeatures, seedFeaturesAndScores,
+  algorithmKey, evolutionRunId,
+  commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNIterations,
+  renderEliteMapToWavFilesEveryNIterations,
   searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
   maxNumberOfParents,
   probabilityMutatingWaveNetwork, probabilityMutatingPatch,
@@ -329,383 +356,431 @@ async function mapElitesBatch(
   scoreProportion,
   dummyRun
 ) {
-  const searchPromises = new Array(searchBatchSize);
-  for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
-    console.log("batchIteration", batchIteration);
-    let geneVariationServerHost;
-    let geneRenderingServerHost;
-    let geneEvaluationServerHost;
-    if( dummyRun ) {
-      geneVariationServerHost = _geneVariationServers[0];
-      geneRenderingServerHost = _geneVariationServers[0];
-      geneEvaluationServerHost = _geneEvaluationServers[0];
-    } else {
-      geneVariationServerHost = _geneVariationServers[ batchIteration % _geneVariationServers.length ];
-      geneRenderingServerHost = _geneRenderingServers[ batchIteration % _geneRenderingServers.length ];
-      if( _geneEvaluationServers && _geneEvaluationServers.length ) {
-        // we're using a pre-trained classification for the diversity projection and quality evaluation
-        geneEvaluationServerHost = _geneEvaluationServers[ batchIteration % _geneEvaluationServers.length ];
-      } else if( 
-        _evaluationFeatureServers && _evaluationFeatureServers.length &&
-        _evaluationProjectionServers && _evaluationProjectionServers.length &&
-        _evaluationQualityServers && _evaluationQualityServers.length
-      ) {
-        // using feature extraction and dimensionality reduction for diversity projection and a separate quality evaluation service
-        geneEvaluationServerHost = {
-          feature: _evaluationFeatureServers[ batchIteration % _evaluationFeatureServers.length ],
-          projection: _evaluationProjectionServers[ batchIteration % _evaluationProjectionServers.length ],
-          quality: _evaluationQualityServers[ batchIteration % _evaluationQualityServers.length ]
-        };
-      }
+  let searchPromises;
+  const isUnsupervisedDiversityEvaluation = (_evaluationFeatureServers && _evaluationFeatureServers.length > 0) &&
+    (_evaluationProjectionServers && _evaluationProjectionServers.length > 0) &&
+    (_evaluationQualityServers && _evaluationQualityServers.length > 0);
+
+  const isSeedRound = eliteMap.generationNumber < seedEvals;
+
+  if( ! isSeedRound && isUnsupervisedDiversityEvaluation && ! Object.keys(cellFeatures).length && seedFeaturesAndScores.length ) {
+
+    // seed rounds are over, we're doing unsupervised diversity evaluation, but we haven't yet projected the features:
+    // - so far the have been collected: let's project the whole collection
+    searchPromises = new Array( seedFeaturesAndScores.length );
+    const seedFeatureClassKeys = await getClassKeysFromSeedFeatures(
+      seedFeaturesAndScores, _evaluationProjectionServers[0], evoRunDirPath
+    );
+    for( let i=0; i < seedFeaturesAndScores.length; i++ ) {
+      searchPromises[i] = new Promise( async (resolve, reject) => {
+        const seedFeatureAndScore = seedFeaturesAndScores[i];
+        const { 
+          genomeId, genomeString,
+          score, duration, noteDelta, velocity
+        } = seedFeatureAndScore;
+        const classKey = seedFeatureClassKeys[i];
+        const newGenomeClassScores = { [classKey]: {
+          score, duration, noteDelta, velocity
+        } };
+        resolve({
+          genomeId, 
+          randomClassKey: classKey.join(","),
+          newGenomeString: genomeString,
+          newGenomeClassScores,
+          parentGenomes: []
+        });
+      });
     }
-    const isUnsupervisedDiversityEvaluation = geneEvaluationServerHost && geneEvaluationServerHost.feature && geneEvaluationServerHost.projection && geneEvaluationServerHost.quality;
-    if( geneEvaluationProtocol === "grpc" ) {
-      console.log("geneVariationServerHost",geneVariationServerHost);
-      console.log("geneEvaluationServerHost",geneEvaluationServerHost);
+    // getClassKeysFromSeedFeatures trains the projection: let's set the projection fit index according to the number of seed features, from the current generation number
+    eliteMap.lastProjectionFitIndex = getNextFitGenerationIndex( eliteMap.generationNumber + seedFeaturesAndScores.length );
+
+  } else {
+
+    searchPromises = new Array(searchBatchSize);
+
+    if( isUnsupervisedDiversityEvaluation && _evaluationFeatureServers && _evaluationFeatureServers.length ) {
+      await populateAndSaveCellFeatures( 
+        eliteMap, cellFeatures, 
+        classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+        _geneRenderingServers, renderSampleRateForClassifier,
+        _evaluationFeatureServers,
+        evoRunDirPath, evolutionRunId 
+      );
     }
-    searchPromises[batchIteration] = new Promise( async (resolve, reject) => {
+    for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
 
-      let randomClassKey;
-      const parentGenomes = [];
-
-      ///// gene initialisation
-
-      let newGenomeString;
-      if( eliteMap.generationNumber < seedEvals ) {
-
-        if( geneEvaluationProtocol === "grpc" || geneEvaluationProtocol === "websocket" ) {
-          try {
-            newGenomeString = await callRandomGeneService(
-              evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters,
-              geneVariationServerHost
-            );
-          } catch (error) {
-            console.error("Error calling gene seed service: " + error);
-            clearServiceConnectionList(geneVariationServerHost);
-          }
-        } else if( geneEvaluationProtocol === "worker" ) {
-           const randomGeneWorkerResponse = await callRandomGeneWorker(
-            searchBatchSize, batchIteration,
-            evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters
-          );
-          newGenomeString = randomGeneWorkerResponse.genomeString;
+      console.log("batchIteration", batchIteration);
+      let geneVariationServerHost;
+      let geneRenderingServerHost;
+      let geneEvaluationServerHost;
+      if( dummyRun ) {
+        geneVariationServerHost = _geneVariationServers[0];
+        geneRenderingServerHost = _geneVariationServers[0];
+        geneEvaluationServerHost = _geneEvaluationServers[0];
+      } else {
+        geneVariationServerHost = _geneVariationServers[ batchIteration % _geneVariationServers.length ];
+        geneRenderingServerHost = _geneRenderingServers[ batchIteration % _geneRenderingServers.length ];
+        if( _geneEvaluationServers && _geneEvaluationServers.length ) {
+          // we're using a pre-trained classification for the diversity projection and quality evaluation
+          geneEvaluationServerHost = _geneEvaluationServers[ batchIteration % _geneEvaluationServers.length ];
+        } else if( isUnsupervisedDiversityEvaluation ) {
+          // using feature extraction and dimensionality reduction for diversity projection and a separate quality evaluation service
+          geneEvaluationServerHost = {
+            feature: _evaluationFeatureServers[ batchIteration % _evaluationFeatureServers.length ],
+            projection: _evaluationProjectionServers[ batchIteration % _evaluationProjectionServers.length ],
+            quality: _evaluationQualityServers[ batchIteration % _evaluationQualityServers.length ]
+          };
         }
-        // else {
-        //   const genome = getNewAudioSynthesisGenome(
-        //     evolutionRunId,
-        //     generationNumber,
-        //     undefined,
-        //     evolutionaryHyperparameters
-        //   );
-        //   newGenomeString = JSON.stringify(genome);
-        // }
-
-        } else {
-          ///// selection
-          let classKeys;
-          if( classRestriction && classRestriction.length ) {
-            console.log("classRestriction:", classRestriction);
-            classKeys = classRestriction;
-          } else if( eliteWinsOnlyOneCell || isUnsupervisedDiversityEvaluation ) {
-            // select only cell keys where the elts attribute referes to a non-empty array
-            classKeys = Object.keys(eliteMap.cells).filter( ck => eliteMap.cells[ck].elts.length > 0 );
-          } else {
-            classKeys = Object.keys(eliteMap.cells);
-          }
-          const classBiases = classKeys.map( ck =>
-            undefined === eliteMap.cells[ck].uBC ? 10 : eliteMap.cells[ck].uBC
-          );
-          const nonzeroClassBiasCount = classBiases.filter(b => b > 0).length;
-          
-          let numberOfParentGenomes = Math.floor(Math.random() * (maxNumberOfParents - 1 +1)) + 1; // https://stackoverflow.com/a/1527820/169858
-          console.log("numberOfParentGenomes", numberOfParentGenomes);
-          const randomClassKeys = [];
-          // TODO: match diverse parents together, rather than just picking randomly
-          // - maybe by picking most distant elites in an unsupervised feature space
-          // - possibly something like this: https://dl.acm.org/doi/10.1145/3449726.3459431
-          for( let i=0; i < numberOfParentGenomes; i++ ) {
-            if( nonzeroClassBiasCount > 0 ) {
-              randomClassKey = chance.weighted(classKeys, classBiases);
-            } else { // if all are zero or below, .weighted complains
-              randomClassKey = chance.pickone(classKeys);
+      }
+  
+      searchPromises[batchIteration] = new Promise( async (resolve, reject) => {
+  
+        let randomClassKey;
+        const parentGenomes = [];
+  
+        ///// gene initialisation
+  
+        let newGenomeString;
+        if( isSeedRound ) {
+  
+          if( geneEvaluationProtocol === "grpc" || geneEvaluationProtocol === "websocket" ) {
+            try {
+              newGenomeString = await callRandomGeneService(
+                evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters,
+                geneVariationServerHost
+              );
+            } catch (error) {
+              console.error("Error calling gene seed service: " + error);
+              clearServiceConnectionList(geneVariationServerHost);
             }
-            randomClassKeys.push(randomClassKey);
+          } else if( geneEvaluationProtocol === "worker" ) {
+             const randomGeneWorkerResponse = await callRandomGeneWorker(
+              searchBatchSize, batchIteration,
+              evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters
+            );
+            newGenomeString = randomGeneWorkerResponse.genomeString;
           }
-
-          const classEliteGenomeStrings = [];
-          for( const randomClassKey of randomClassKeys ) {
-            const {
-              // genome: classEliteGenomeId,
-              // score,
-              // generationNumber
-              g: classEliteGenomeId,
-              s,
-              gN
-            } = getCurrentClassElite(randomClassKey, eliteMap);
-            classEliteGenomeStrings.push( await readGenomeAndMetaFromDisk( evolutionRunId, classEliteGenomeId, evoRunDirPath ) );
-            parentGenomes.push( {
-              genomeId: classEliteGenomeId,
-              eliteClass: randomClassKey,
-              // score, generationNumber,
-              s, gN,
-            } );
-          }
-
-          if( dummyRun ) {
-            newGenomeString = classEliteGenomeStrings[0];
+          // else {
+          //   const genome = getNewAudioSynthesisGenome(
+          //     evolutionRunId,
+          //     generationNumber,
+          //     undefined,
+          //     evolutionaryHyperparameters
+          //   );
+          //   newGenomeString = JSON.stringify(genome);
+          // }
+  
           } else {
-
-          try {
-            ///// variation
-            if( geneEvaluationProtocol === "grpc" || geneEvaluationProtocol === "websocket" ) {
-              try {
-                newGenomeString = await callGeneVariationService(
+            ///// selection
+            let classKeys;
+            if( classRestriction && classRestriction.length ) {
+              console.log("classRestriction:", classRestriction);
+              classKeys = classRestriction;
+            } else if( eliteWinsOnlyOneCell || isUnsupervisedDiversityEvaluation ) {
+              // select only cell keys where the elts attribute referes to a non-empty array
+              classKeys = Object.keys(eliteMap.cells).filter( ck => eliteMap.cells[ck].elts.length > 0 );
+            } else {
+              classKeys = Object.keys(eliteMap.cells);
+            }
+            const classBiases = classKeys.map( ck =>
+              undefined === eliteMap.cells[ck].uBC ? 10 : eliteMap.cells[ck].uBC
+            );
+            const nonzeroClassBiasCount = classBiases.filter(b => b > 0).length;
+            
+            let numberOfParentGenomes = Math.floor(Math.random() * (maxNumberOfParents - 1 +1)) + 1; // https://stackoverflow.com/a/1527820/169858
+            console.log("numberOfParentGenomes", numberOfParentGenomes);
+            const randomClassKeys = [];
+            // TODO: match diverse parents together, rather than just picking randomly
+            // - maybe by picking most distant elites in an unsupervised feature space
+            // - possibly something like this: https://dl.acm.org/doi/10.1145/3449726.3459431
+            for( let i=0; i < numberOfParentGenomes; i++ ) {
+              if( nonzeroClassBiasCount > 0 ) {
+                randomClassKey = chance.weighted(classKeys, classBiases);
+              } else { // if all are zero or below, .weighted complains
+                randomClassKey = chance.pickone(classKeys);
+              }
+              randomClassKeys.push(randomClassKey);
+            }
+  
+            const classEliteGenomeStrings = [];
+            for( const randomClassKey of randomClassKeys ) {
+              const {
+                // genome: classEliteGenomeId,
+                // score,
+                // generationNumber
+                g: classEliteGenomeId,
+                s,
+                gN
+              } = getCurrentClassElite(randomClassKey, eliteMap);
+              classEliteGenomeStrings.push( await readGenomeAndMetaFromDisk( evolutionRunId, classEliteGenomeId, evoRunDirPath ) );
+              parentGenomes.push( {
+                genomeId: classEliteGenomeId,
+                eliteClass: randomClassKey,
+                // score, generationNumber,
+                s, gN,
+              } );
+            }
+  
+            if( dummyRun ) {
+              newGenomeString = classEliteGenomeStrings[0];
+            } else {
+  
+            try {
+              ///// variation
+              if( geneEvaluationProtocol === "grpc" || geneEvaluationProtocol === "websocket" ) {
+                try {
+                  newGenomeString = await callGeneVariationService(
+                    classEliteGenomeStrings,
+                    evolutionRunId, eliteMap.generationNumber, algorithmKey,
+                    probabilityMutatingWaveNetwork,
+                    probabilityMutatingPatch,
+                    audioGraphMutationParams,
+                    evolutionaryHyperparameters,
+                    patchFitnessTestDuration,
+                    geneVariationServerHost
+                  );  
+                } catch (e) {
+                  console.error("Error from callGeneVariationService", e);
+                  clearServiceConnectionList(geneVariationServerHost);
+                  reject(e);
+                }
+              } else if( geneEvaluationProtocol === "worker" ) {
+                 const geneVariationWorkerResponse = await callGeneVariationWorker(
+                  searchBatchSize, batchIteration,
                   classEliteGenomeStrings,
                   evolutionRunId, eliteMap.generationNumber, algorithmKey,
                   probabilityMutatingWaveNetwork,
                   probabilityMutatingPatch,
                   audioGraphMutationParams,
                   evolutionaryHyperparameters,
-                  patchFitnessTestDuration,
-                  geneVariationServerHost
-                );  
-              } catch (e) {
-                console.error("Error from callGeneVariationService", e);
-                clearServiceConnectionList(geneVariationServerHost);
+                  patchFitnessTestDuration
+                );
+                newGenomeString = geneVariationWorkerResponse.newGenomeString;
               }
-            } else if( geneEvaluationProtocol === "worker" ) {
-               const geneVariationWorkerResponse = await callGeneVariationWorker(
-                searchBatchSize, batchIteration,
-                classEliteGenomeStrings,
-                evolutionRunId, eliteMap.generationNumber, algorithmKey,
-                probabilityMutatingWaveNetwork,
-                probabilityMutatingPatch,
-                audioGraphMutationParams,
-                evolutionaryHyperparameters,
-                patchFitnessTestDuration
-              );
-              newGenomeString = geneVariationWorkerResponse.newGenomeString;
+              else {
+                const classEliteGenomes = await Promise.all( classEliteGenomeStrings.map( async classEliteGenomeString => await getGenomeFromGenomeString(classEliteGenomeString, evolutionaryHyperparameters) ) );
+                const newGenome = getNewAudioSynthesisGenomeByMutation(
+                  classEliteGenomes,
+                  evolutionRunId, eliteMap.generationNumber, -1, algorithmKey,
+                  getAudioContext(),
+                  probabilityMutatingWaveNetwork,
+                  probabilityMutatingPatch,
+                  audioGraphMutationParams,
+                  evolutionaryHyperparameters,
+                  patchFitnessTestDuration
+                );
+                newGenomeString = JSON.stringify(newGenome);
+              }
+            } catch (error) {
+              console.error("Error calling gene variation service: " + error);
+              clearServiceConnectionList(geneVariationServerHost);
             }
-            else {
-              const classEliteGenomes = await Promise.all( classEliteGenomeStrings.map( async classEliteGenomeString => await getGenomeFromGenomeString(classEliteGenomeString, evolutionaryHyperparameters) ) );
-              const newGenome = getNewAudioSynthesisGenomeByMutation(
-                classEliteGenomes,
-                evolutionRunId, generationNumber, -1, algorithmKey,
-                getAudioContext(),
-                probabilityMutatingWaveNetwork,
-                probabilityMutatingPatch,
-                audioGraphMutationParams,
-                evolutionaryHyperparameters,
-                patchFitnessTestDuration
-              );
-              newGenomeString = JSON.stringify(newGenome);
-            }
-          } catch (error) {
-            console.error("Error calling gene variation service: " + error);
-            clearServiceConnectionList(geneVariationServerHost);
           }
+        } // if( isSeedRound ) {  } else { 
+  
+        const genomeId = ulid();
+  
+        let newGenomeClassScores;
+        let evaluationCandidatesJsonFilePath;
+        if( dummyRun && dummyRun.iterations ) {
+          newGenomeClassScores = getDummyClassScoresForGenome( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
+        } else if( newGenomeString ) {
+  
+          ///// evaluate
+  
+          // check if geneEvaluationServerHost is an object with feature, projection and quality properties
+          // - if so, we're using feature extraction and dimensionality reduction for diversity projection and a separate quality evaluation service
+          // - otherwise, we're using a pre-trained classification for the diversity projection and quality evaluation
+          if( isUnsupervisedDiversityEvaluation ) {
+            if( isSeedRound ) {
+  
+              // TODO call getGenomeClassScoresByDiversityProjectionWithSeedGenomes and populate seedFeaturesAndScores
+              // - then use seedFeaturesAndScores to populate cellFeatures
+  
+              const seedGenomeScoreAndFeatures = await getGenomeScoreAndFeatures(
+                genomeId,
+                newGenomeString,
+                classScoringDurations,
+                classScoringNoteDeltas,
+                classScoringVelocities,
+                useGpuForTensorflow,
+                antiAliasing,
+                frequencyUpdatesApplyToAllPathcNetworkOutputs,
+                geneRenderingServerHost, renderSampleRateForClassifier,
+                geneEvaluationServerHost.feature,
+                geneEvaluationServerHost.quality,
+                scoreProportion
+              );
+              seedFeaturesAndScores.push(seedGenomeScoreAndFeatures);
+              saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
+              resolve({genomeId, newGenomeString, seedFeaturesAndScores}); // really just used to increment eliteMap.genertionNumber in the Promise.all iterations below
+            } else {
 
-        }
-      } // if( eliteMap.generationNumber < seedEvals ) {
-
-      const genomeId = ulid();
-
-      let newGenomeClassScores;
-      let evaluationCandidatesJsonFilePath;
-      if( dummyRun && dummyRun.iterations ) {
-        newGenomeClassScores = getDummyClassScoresForGenome( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
-      } else if( newGenomeString ) {
-
-        ///// evaluate
-
-        // check if geneEvaluationServerHost is an object with feature, projection and quality properties
-        // - if so, we're using feature extraction and dimensionality reduction for diversity projection and a separate quality evaluation service
-        // - otherwise, we're using a pre-trained classification for the diversity projection and quality evaluation
-        if( isUnsupervisedDiversityEvaluation ) {
-          if( classScoringVariationsAsContainerDimensions ) {
-            newGenomeClassScores = {};
-            let iterationIncrement = 0;
-            for( const oneDuration of classScoringDurations ) {
-              for( const oneNoteDelta of classScoringNoteDeltas ) {
-                for( const oneVelocity of classScoringVelocities ) {
-                  geneEvaluationServerHost = {
-                    feature: _evaluationFeatureServers[ (batchIteration + iterationIncrement) % _evaluationFeatureServers.length ],
-                    projection: _evaluationProjectionServers[ (batchIteration + iterationIncrement) % _evaluationProjectionServers.length ],
-                    quality: _evaluationQualityServers[ (batchIteration + iterationIncrement) % _evaluationQualityServers.length ]
-                  };
-                  const oneClassKeySuffix = `_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
-                  await populateAndSaveCellFeatures( 
-                    eliteMap, cellFeatures, 
-                    oneDuration, oneNoteDelta, oneVelocity, useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
-                    geneRenderingServerHost, renderSampleRateForClassifier,
-                    geneEvaluationServerHost.feature,
-                    evoRunDirPath, evolutionRunId 
-                  );
-                  const oneCombinationClassScores = await getGenomeClassScoresByDiversityProjectionWithNewGenomes(
-                    [newGenomeString],
-                    oneDuration,
-                    oneNoteDelta,
-                    oneVelocity,
-                    useGpuForTensorflow,
-                    antiAliasing,
-                    frequencyUpdatesApplyToAllPathcNetworkOutputs,
-                    geneRenderingServerHost, renderSampleRateForClassifier,
-                    geneEvaluationServerHost.feature,
-                    geneEvaluationServerHost.quality,
-                    geneEvaluationServerHost.projection,
-                    eliteMap, cellFeatures,
-                    evolutionRunId, evoRunDirPath,
-                    classificationGraphModel,
-                    scoreProportion
-                  );
-                  for( const oneClassKey in oneCombinationClassScores ) { // TODO: here this will just be one iteration for now
-                    const oneClassScores = oneCombinationClassScores[oneClassKey];
-                    const oneClassKeyWithSuffix = oneClassKey + oneClassKeySuffix;
-                    newGenomeClassScores[ oneClassKeyWithSuffix ] = oneClassScores;
+              const generationIncrement = eliteMap.generationNumber + batchIteration;
+              const shouldFit = getShouldFit(eliteMap.lastProjectionFitIndex, generationIncrement);
+              // TODO fitting in a batch iteration is not ideal, at least when waiting time me result in in a Promise timeout?
+              
+              if( classScoringVariationsAsContainerDimensions ) {
+                newGenomeClassScores = {};
+                let iterationIncrement = 0;
+                for( const oneDuration of classScoringDurations ) {
+                  for( const oneNoteDelta of classScoringNoteDeltas ) {
+                    for( const oneVelocity of classScoringVelocities ) {
+                      geneEvaluationServerHost = {
+                        feature: _evaluationFeatureServers[ (batchIteration + iterationIncrement) % _evaluationFeatureServers.length ],
+                        projection: _evaluationProjectionServers[ (batchIteration + iterationIncrement) % _evaluationProjectionServers.length ],
+                        quality: _evaluationQualityServers[ (batchIteration + iterationIncrement) % _evaluationQualityServers.length ]
+                      };
+                      const oneClassKeySuffix = `_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
+                      // await populateAndSaveCellFeatures( 
+                      //   eliteMap, cellFeatures, 
+                      //   oneDuration, oneNoteDelta, oneVelocity, useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+                      //   geneRenderingServerHost, renderSampleRateForClassifier,
+                      //   geneEvaluationServerHost.feature,
+                      //   evoRunDirPath, evolutionRunId 
+                      // );
+                      const oneCombinationClassScores = await getGenomeClassScoresByDiversityProjectionWithNewGenomes(
+                        [newGenomeString],
+                        oneDuration,
+                        oneNoteDelta,
+                        oneVelocity,
+                        useGpuForTensorflow,
+                        antiAliasing,
+                        frequencyUpdatesApplyToAllPathcNetworkOutputs,
+                        geneRenderingServerHost, renderSampleRateForClassifier,
+                        geneEvaluationServerHost.feature,
+                        geneEvaluationServerHost.quality,
+                        geneEvaluationServerHost.projection,
+                        eliteMap, cellFeatures,
+                        evolutionRunId, evoRunDirPath,
+                        classificationGraphModel,
+                        scoreProportion,
+                        shouldFit, generationIncrement
+                      ).catch( e => {
+                        console.error("Error getting genome class scores by diversity projection with new genomes", e);
+                        reject(e);
+                      });
+                      for( const oneClassKey in oneCombinationClassScores ) { // TODO: here this will just be one iteration for now
+                        const oneClassScores = oneCombinationClassScores[oneClassKey];
+                        const oneClassKeyWithSuffix = oneClassKey + oneClassKeySuffix;
+                        newGenomeClassScores[ oneClassKeyWithSuffix ] = oneClassScores;
+                      }
+                      iterationIncrement++;
+                    }
                   }
-                  iterationIncrement++;
+                }
+              } else {
+                // await populateAndSaveCellFeatures( 
+                //   eliteMap, cellFeatures, 
+                //   classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+                //   geneRenderingServerHost, renderSampleRateForClassifier,
+                //   geneEvaluationServerHost.feature,
+                //   evoRunDirPath, evolutionRunId 
+                // );
+                newGenomeClassScores = await getGenomeClassScoresByDiversityProjectionWithNewGenomes(
+                  [newGenomeString],
+                  classScoringDurations,
+                  classScoringNoteDeltas,
+                  classScoringVelocities,
+                  useGpuForTensorflow,
+                  antiAliasing,
+                  frequencyUpdatesApplyToAllPathcNetworkOutputs,
+                  geneRenderingServerHost, renderSampleRateForClassifier,
+                  geneEvaluationServerHost.feature,
+                  geneEvaluationServerHost.quality,
+                  geneEvaluationServerHost.projection,
+                  eliteMap, cellFeatures,
+                  evolutionRunId, evoRunDirPath,
+                  classificationGraphModel,
+                  scoreProportion,
+                  shouldFit, generationIncrement
+                ).catch( e => {
+                  console.error("Error getting genome class scores by diversity projection with new genomes", e);
+                  reject(e);
+                });
+              }
+            }
+          } else if( geneEvaluationServerHost ) {
+            // we're using a pre-trained classification for the diversity projection and quality evaluation
+            // - so we'll render the genome to wav files for all combinations under consideration
+            if( classScoringVariationsAsContainerDimensions ) {
+              newGenomeClassScores = {};
+              let iterationIncrement = 0;
+              for( const oneDuration of classScoringDurations ) {
+                for( const oneNoteDelta of classScoringNoteDeltas ) {
+                  for( const oneVelocity of classScoringVelocities ) {
+                    geneEvaluationServerHost = _geneEvaluationServers[ (batchIteration + iterationIncrement) % _geneEvaluationServers.length ];
+                    // const oneClassRestriction = [`${oneDuration},${oneNoteDelta},${oneVelocity}`];
+                    const oneClassKeySuffix = `_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
+                    const oneCombinationClassScores = await getGenomeClassScores(
+                      newGenomeString,
+                      [oneDuration],
+                      [oneNoteDelta],
+                      [oneVelocity],
+                      useGpuForTensorflow,
+                      antiAliasing,
+                      frequencyUpdatesApplyToAllPathcNetworkOutputs,
+                      classificationGraphModel,
+                      yamnetModelUrl,
+                      geneEvaluationProtocol,
+                      geneRenderingServerHost, renderSampleRateForClassifier,
+                      geneEvaluationServerHost
+                    );
+                    for( const oneClassKey in oneCombinationClassScores ) {
+                      const oneClassScores = oneCombinationClassScores[oneClassKey];
+                      const oneClassKeyWithSuffix = oneClassKey + oneClassKeySuffix;
+                      newGenomeClassScores[ oneClassKeyWithSuffix ] = oneClassScores;
+                    }
+                    iterationIncrement++;
+                  }
                 }
               }
+            } else {
+              newGenomeClassScores = await getGenomeClassScores(
+                newGenomeString,
+                classScoringDurations,
+                classScoringNoteDeltas,
+                classScoringVelocities,
+                useGpuForTensorflow,
+                antiAliasing,
+                classificationGraphModel,
+                yamnetModelUrl,
+                geneEvaluationProtocol,
+                geneRenderingServerHost, renderSampleRateForClassifier,
+                geneEvaluationServerHost
+              );
             }
-          } else {
-            await populateAndSaveCellFeatures( 
-              eliteMap, cellFeatures, 
-              classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
-              geneRenderingServerHost, renderSampleRateForClassifier,
-              geneEvaluationServerHost.feature,
-              evoRunDirPath, evolutionRunId 
-            );
-            newGenomeClassScores = await getGenomeClassScoresByDiversityProjectionWithNewGenomes(
-              [newGenomeString],
-              classScoringDurations,
-              classScoringNoteDeltas,
-              classScoringVelocities,
-              useGpuForTensorflow,
-              antiAliasing,
-              frequencyUpdatesApplyToAllPathcNetworkOutputs,
-              geneRenderingServerHost, renderSampleRateForClassifier,
-              geneEvaluationServerHost.feature,
-              geneEvaluationServerHost.quality,
-              geneEvaluationServerHost.projection,
-              eliteMap, cellFeatures,
-              evolutionRunId, evoRunDirPath,
-              classificationGraphModel,
-              scoreProportion
-            );
           }
-        } else if( geneEvaluationServerHost ) {
-          // we're using a pre-trained classification for the diversity projection and quality evaluation
-          // - so we'll render the genome to wav files for all combinations under consideration
-          if( classScoringVariationsAsContainerDimensions ) {
-            newGenomeClassScores = {};
-            let iterationIncrement = 0;
-            for( const oneDuration of classScoringDurations ) {
-              for( const oneNoteDelta of classScoringNoteDeltas ) {
-                for( const oneVelocity of classScoringVelocities ) {
-                  geneEvaluationServerHost = _geneEvaluationServers[ (batchIteration + iterationIncrement) % _geneEvaluationServers.length ];
-                  // const oneClassRestriction = [`${oneDuration},${oneNoteDelta},${oneVelocity}`];
-                  const oneClassKeySuffix = `_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
-                  const oneCombinationClassScores = await getGenomeClassScores(
-                    newGenomeString,
-                    [oneDuration],
-                    [oneNoteDelta],
-                    [oneVelocity],
-                    useGpuForTensorflow,
-                    antiAliasing,
-                    frequencyUpdatesApplyToAllPathcNetworkOutputs,
-                    classificationGraphModel,
-                    yamnetModelUrl,
-                    geneEvaluationProtocol,
-                    geneRenderingServerHost, renderSampleRateForClassifier,
-                    geneEvaluationServerHost
-                  );
-                  for( const oneClassKey in oneCombinationClassScores ) {
-                    const oneClassScores = oneCombinationClassScores[oneClassKey];
-                    const oneClassKeyWithSuffix = oneClassKey + oneClassKeySuffix;
-                    newGenomeClassScores[ oneClassKeyWithSuffix ] = oneClassScores;
-                  }
-                  iterationIncrement++;
-                }
-              }
-            }
-          } else {
-            newGenomeClassScores = await getGenomeClassScores(
-              newGenomeString,
-              classScoringDurations,
-              classScoringNoteDeltas,
-              classScoringVelocities,
-              useGpuForTensorflow,
-              antiAliasing,
-              classificationGraphModel,
-              yamnetModelUrl,
-              geneEvaluationProtocol,
-              geneRenderingServerHost, renderSampleRateForClassifier,
-              geneEvaluationServerHost
-            );
-          }
+  
         }
+        console.log( // welcome to the world of ternary operators 😅
+          "Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined), 
+          (geneEvaluationProtocol === "worker" ? ", thread #"+batchIteration : ", evaluation host: "+ typeof geneEvaluationServerHost === 'object' ? `feature:{geneEvaluationServerHost.feature}, projection:{geneEvaluationServerHost.projection}, quality:{geneEvaluationServerHost.quality}` : geneEvaluationServerHost), 
+          classRestriction && classRestriction.length ? classRestriction[0]+" score:" : newGenomeClassScores && Object.keys(newGenomeClassScores).length ? /* one feature mapping for the new genome */ Object.keys(newGenomeClassScores)[0] : " - Music score:", 
+          classRestriction && classRestriction.length ?
+              newGenomeClassScores && newGenomeClassScores[ classRestriction[0] ] ? newGenomeClassScores[ classRestriction[0] ].score : "N/A"
+            :
+            newGenomeClassScores && newGenomeClassScores.length === 1 ? /* one feature mapping for the new genome */
+              newGenomeClassScores[0].score
+            :
+            newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : newGenomeClassScores && Object.keys(newGenomeClassScores)[0] ? newGenomeClassScores[Object.keys(newGenomeClassScores)[0]].score : "N/A"
+        );
+  
+        resolve({
+          genomeId,
+          randomClassKey,
+          newGenomeString,
+          newGenomeClassScores,
+          evaluationCandidatesJsonFilePath, // TODO remove
+          parentGenomes
+        });
+  
+      }); // new Promise( async (resolve) => {
+    } // for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
 
-        
-
-        // if( evaluationCandidateWavFilesDirPath ) {
-        //   // so we'll render the genome to wav files for all combinations under consideration
-        //   // and then return a list of paths to the wav files, for evaluation by external scripts, triggered below.
-        //   const genome = await getGenomeFromGenomeString( newGenomeString );
-        //   evaluationCandidatesJsonFilePath = await writeEvaluationCandidateWavFilesForGenome(
-        //     genome,
-        //     classScoringDurations,
-        //     classScoringNoteDeltas,
-        //     classScoringVelocities,
-        //     true, //supplyAudioContextInstances
-        //     evaluationCandidateWavFilesDirPath,
-        //     evolutionRunId, genomeId
-        //   ).catch(
-        //     e => {
-        //       console.error(`Error writing evaluation candidate wav files for gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
-        //     }
-        //   );
-        //   console.log("evaluationCandidateWavFileDirPaths", evaluationCandidatesJsonFilePath);
-        // } else {
-          
-        // }
-
-        // else {
-        //   newGenomeClassScores = evaluate(
-        //     newGenomeString,
-        //     classScoringDurations,
-        //     classScoringNoteDeltas,
-        //     classScoringVelocities,
-        //     classificationGraphModel,
-        //     useGpuForTensorflow,
-        //     geneEvaluationServerHost
-        //   );
-        // }
+  } // if( ! isSeedRound && isUnsupervisedDiversityEvaluation && ! Object.keys(cellFeatures).length && seedFeaturesAndScores.length ) { } else {
 
 
-      }
-      console.log( // welcome to the world of ternary operators
-        "Resolution for genome ID" + genomeId + ", class scores defined: " + (newGenomeClassScores!==undefined), 
-        (geneEvaluationProtocol === "worker" ? ", thread #"+batchIteration : ", evaluation host: "+geneEvaluationServerHost), 
-        classRestriction && classRestriction.length ? classRestriction[0]+" score:" : newGenomeClassScores && newGenomeClassScores.length === 1 ? /* one feature mapping for the new genome */ Object.keys(newGenomeClassScores)[0] : " - Music score:", 
-        classRestriction && classRestriction.length ?
-            newGenomeClassScores && newGenomeClassScores[ classRestriction[0] ] ? newGenomeClassScores[ classRestriction[0] ].score : "N/A"
-          :
-          newGenomeClassScores && newGenomeClassScores.length === 1 ? /* one feature mapping for the new genome */
-            newGenomeClassScores[0].score
-          :
-          newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : "N/A"
-      );
-      resolve({
-        genomeId,
-        randomClassKey,
-        newGenomeString,
-        newGenomeClassScores,
-        evaluationCandidatesJsonFilePath,
-        parentGenomes
-      });
-
-    }); // new Promise( async (resolve) => {
-  } // for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
 
   await Promise.all( searchPromises ).then( async (batchIterationResults) => {
 
@@ -731,64 +806,67 @@ async function mapElitesBatch(
     for( let oneBatchIterationResult of batchIterationResults ) {
 
       const {
-        genomeId, randomClassKey, newGenomeString, newGenomeClassScores,  parentGenomes
+        genomeId, randomClassKey, newGenomeString, newGenomeClassScores, parentGenomes,
+        seedFeaturesAndScores
       } = oneBatchIterationResult;
 
       ///// add to archive
 
-        if( newGenomeClassScores !== undefined && Object.keys(newGenomeClassScores).length ) {
-          let eliteClassKeys;
-          if( dummyRun && dummyRun.iterations ) {
-            eliteClassKeys = getDummyClassKeysWhereScoresAreElite( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
-          } else {
-            eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap, eliteWinsOnlyOneCell, classRestriction );
+      if( newGenomeClassScores !== undefined && Object.keys(newGenomeClassScores).length ) {
+        let eliteClassKeys;
+        if( dummyRun && dummyRun.iterations ) {
+          eliteClassKeys = getDummyClassKeysWhereScoresAreElite( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
+        } else {
+          eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap, eliteWinsOnlyOneCell, classRestriction );
+        }
+        if( eliteClassKeys.length > 0 ) {
+          // const classScoresSD = getClassScoresStandardDeviation( newGenomeClassScores );
+          // console.log("classScoresSD", classScoresSD);
+          eliteMap.newEliteCount = eliteClassKeys.length;
+          const newGenome = await getGenomeFromGenomeString( newGenomeString );
+          newGenome.tags = [];
+          newGenome.parentGenomes = parentGenomes.length ? parentGenomes : undefined;
+          newGenome.generationNumber = eliteMap.generationNumber;
+          for( const classKey of eliteClassKeys ) {
+            const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
+            const updated = Date.now();
+            eliteMap.cells[classKey].elts = [
+              // genomeId
+            // .push(
+            {
+              g: genomeId, //genome: genomeId,
+              // duration,
+              // noteDelta,
+              // velocity,
+              s: score, // score: score.toFixed(4),
+              gN: eliteMap.generationNumber, // generationNumber: eliteMap.generationNumber,
+              // parentGenomes: newGenome.parentGenomes
+            }
+            ];
+            // );
+            newGenome.tags.push({
+              tag: classKey,
+              score, duration, noteDelta, velocity,
+              updated
+            });
+            // delete the last top elite (if any) from genomeMap
+            /*
+            if( eliteMap[classKey].elts.length > 2 ) {
+              // const lastTopEliteGenomeId = eliteMap[classKey].elts[ eliteMap[classKey].elts.length-2 ].genome;
+              // delete genomeMap[lastTopEliteGenomeId];
+              eliteMap[classKey].elts = eliteMap[classKey].elts.slice( - 1 );
+            }
+            */
+            // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
+            eliteMap.cells[classKey].uBC = 10;
+
+            cellFeatures[classKey] = newGenomeClassScores[classKey].features;
           }
-          if( eliteClassKeys.length > 0 ) {
-            // const classScoresSD = getClassScoresStandardDeviation( newGenomeClassScores );
-            // console.log("classScoresSD", classScoresSD);
-            eliteMap.newEliteCount = eliteClassKeys.length;
-            const newGenome = await getGenomeFromGenomeString( newGenomeString );
-            newGenome.tags = [];
-            newGenome.parentGenomes = parentGenomes.length ? parentGenomes : undefined;
-            newGenome.generationNumber = eliteMap.generationNumber;
-            for( const classKey of eliteClassKeys ) {
-              const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
-              const updated = Date.now();
-              eliteMap.cells[classKey].elts = [
-                // genomeId
-              // .push(
-              {
-                g: genomeId, //genome: genomeId,
-                // duration,
-                // noteDelta,
-                // velocity,
-                s: score, // score: score.toFixed(4),
-                gN: eliteMap.generationNumber, // generationNumber: eliteMap.generationNumber,
-                // parentGenomes: newGenome.parentGenomes
-              }
-              ];
-              // );
-              newGenome.tags.push({
-                tag: classKey,
-                score, duration, noteDelta, velocity,
-                updated
-              });
-              // delete the last top elite (if any) from genomeMap
-              /*
-              if( eliteMap[classKey].elts.length > 2 ) {
-                // const lastTopEliteGenomeId = eliteMap[classKey].elts[ eliteMap[classKey].elts.length-2 ].genome;
-                // delete genomeMap[lastTopEliteGenomeId];
-                eliteMap[classKey].elts = eliteMap[classKey].elts.slice( - 1 );
-              }
-              */
-              // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
-              eliteMap.cells[classKey].uBC = 10;
-            }
-            saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
-            if( randomClassKey ) {
-              eliteMap.cells[randomClassKey].uBC = 10;
-            }
-          } else if( randomClassKey ) { // if( eliteClassKeys.length > 0 ) {
+          saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
+          if( randomClassKey ) {
+            eliteMap.cells[randomClassKey].uBC = 10;
+          }
+        } else if( randomClassKey ) { // if( eliteClassKeys.length > 0 ) {
 
           // bias search away from exploring niches that produce fewer innovations
           eliteMap.cells[randomClassKey].uBC -= 1; // TODO should stop at zero?
@@ -804,9 +882,24 @@ async function mapElitesBatch(
           runCmd(`git -C ${evoRunDirPath} commit -a -m "Iteration ${eliteMap.generationNumber}"`);
         }
 
+        if( prunePastEliteGenomesEveryNIterations && eliteMap.generationNumber % prunePastEliteGenomesEveryNIterations === 0 ) {
+          deleteAllGenomesNotInEliteMap( eliteMap, evoRunDirPath );
+        }
+
+        if( renderEliteMapToWavFilesEveryNIterations && eliteMap.generationNumber % renderEliteMapToWavFilesEveryNIterations === 0 ) {
+          await renderEliteMapToWavFiles(
+            eliteMap, evolutionRunId, evoRunDirPath, eliteMap.generationNumber,
+            classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+            _geneRenderingServers, renderSampleRateForClassifier
+          );
+        }
+
         eliteMap.generationNumber++; // TODO: well, it's more like iteration number, but we'll keep the name for now
 
-      } // if( newGenomeClassScores !== undefined ) {
+      } else if( seedFeaturesAndScores !== undefined && seedFeaturesAndScores.length ) { // if( newGenomeClassScores !== undefined ) {
+        // we have scores and features from a seed round
+        eliteMap.generationNumber++;
+      }
 
     } // for( let oneBatchIterationResult of batchIterationResults ) {
 
@@ -1078,6 +1171,49 @@ function getHighestScoringCell( genomeClassScores ) {
   return {score, duration, noteDelta, velocity, class: highestScoringClassKey};
 }
 
+// render all elites in eliteMap to wav files
+async function renderEliteMapToWavFiles( 
+  eliteMap, evolutionRunId, evoRunDirPath, iteration, 
+  duration, noteDelta, velocity, useGPU, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+  geneRenderingServerHosts, renderSampleRateForClassifier 
+) {
+  const soundObjectsDirPath = path.join(evoRunDirPath, "soundobjects", iteration.toString() );
+  let cellKeyIndex = 0;
+  for( const classKey in eliteMap.cells ) {
+    const cell = eliteMap.cells[classKey];
+    if( cell.elts && cell.elts.length ) {
+      const eliteGenomeId = cell.elts[0].g;
+      const eliteGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, eliteGenomeId, evoRunDirPath );
+      const renderingServer = geneRenderingServerHosts[cellKeyIndex % geneRenderingServerHosts.length];
+      const audioChannelData = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
+        eliteGenomeString,
+        duration,
+        noteDelta,
+        velocity,
+        useGPU,
+        antiAliasing,
+        frequencyUpdatesApplyToAllPathcNetworkOutputs,
+        renderingServer, renderSampleRateForClassifier
+      );
+      // create aduioBuffer from the Float32Array in audioChannelData
+      const audioContext = getAudioContext(renderSampleRateForClassifier);
+      const audioBuffer = audioContext.createBuffer(1, audioChannelData.length, renderSampleRateForClassifier);
+      audioBuffer.copyToChannel(audioChannelData, 0);
+      
+      if( !fs.existsSync(soundObjectsDirPath) ) fs.mkdirSync(soundObjectsDirPath, {recursive: true});
+      // replace commas in classKey with underscores (AudioStellar doesn't like commas in file names)
+      const classKeySansCommas = classKey.replace(/,/g, "_");
+      const filePath = path.join(soundObjectsDirPath, `${classKeySansCommas}_${eliteGenomeId}.wav`);
+
+      console.log("writing wav file to", filePath, "for elite genome", eliteGenomeId, "from rendering server at", renderingServer);
+
+      const wav = toWav(audioBuffer);
+      const wavBuffer = Buffer.from(new Uint8Array(wav));
+      fs.writeFileSync( filePath, wavBuffer );
+      cellKeyIndex++;
+    }
+  }
+}
 
 async function getGenomeClassScores(
   newGenomeString,
@@ -1159,10 +1295,11 @@ async function getGenomeClassScores(
 async function populateAndSaveCellFeatures(
   eliteMap, cellFeatures, 
   duration, noteDelta, velocity, useGPU, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
-  geneRenderingServerHost, renderSampleRateForClassifier,
-  evaluationFeatureExtractionHost,
+  geneRenderingServerHosts, renderSampleRateForClassifier,
+  evaluationFeatureExtractionHosts,
   evoRunDirPath, evolutionRunId
 ) {
+  let cellKeyIndex = 0;
   for( const cellKey in eliteMap.cells ) {
     const cell = eliteMap.cells[cellKey];
     if( cell.elts && cell.elts.length ) {
@@ -1177,16 +1314,19 @@ async function populateAndSaveCellFeatures(
           useGPU,
           antiAliasing,
           frequencyUpdatesApplyToAllPathcNetworkOutputs,
-          geneRenderingServerHost, renderSampleRateForClassifier
+          geneRenderingServerHosts[cellKeyIndex % geneRenderingServerHosts.length], renderSampleRateForClassifier
         );
         const featuresResponse = await getFeaturesFromWebsocket(
           audioBuffer,
-          evaluationFeatureExtractionHost
+          evaluationFeatureExtractionHosts[cellKeyIndex % evaluationFeatureExtractionHosts.length]
         );
         const cellGenomeFeatures = featuresResponse.features;
         cellFeatures[cellKey] = cellGenomeFeatures;
+
+        cellKeyIndex++;
       }
     }
+
   }
   saveCellFeaturesToDisk( cellFeatures, eliteMap.generationNumber, evoRunDirPath, evolutionRunId );
 }
@@ -1218,7 +1358,8 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
   cellFeatures,
   evolutionRunId, evoRunDirPath,
   classificationGraphModel,
-  scoreProportion
+  scoreProportion,
+  shouldFit, modelFitGeneration
 ) {
   // not supporting arrays of durations, noteDeltas and velocities for now, as is done in getGenomeClassScores
   const duration = durations[0];
@@ -1246,13 +1387,17 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
         console.error(`Error rendering gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
       }
     );
+    // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes audioBuffer", audioBuffer);
 
     if( audioBuffer && audioBuffer.length && ! audioBuffer.some( value => isNaN(value) ) ) {
     // get features from audio buffer
       const featuresResponse = await getFeaturesFromWebsocket(
         audioBuffer,
         evaluationFeatureExtractionHost
-      );
+      ).catch(e => {
+        console.error(`Error getting features at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+      });
+      // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes featuresResponse", featuresResponse);
       const newGenomeFeatureVector = featuresResponse.features;
       newGenomesFeatures.push( newGenomeFeatureVector );
 
@@ -1260,93 +1405,230 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       let newGenomeQuality = await getQualityFromWebsocket(
         audioBuffer,
         evaluationQualityHost
-      );
+      ).catch(e => {
+        console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+      });
+      // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes newGenomeQuality", newGenomeQuality);
       newGenomesFitnessValues.push( newGenomeQuality.fitness * scoreProportion );
     }
   }
 
-  const cellKeysWithFeatures = Object.keys(cellFeatures);
-  const allFeaturesToProject = [];
-  for( const cellKeyWithFeatures of cellKeysWithFeatures ) {
-    allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures] );
-  }
-  for( const newGenomeFeatures of newGenomesFeatures ) {
-    allFeaturesToProject.push( newGenomeFeatures );
-  }
-
-  const allFitnessValues = [];
-  for( const cellFitnessValue of cellFitnessValues ) {
-    allFitnessValues.push( cellFitnessValue );
-  }
-  for( const newGenomeFitnessValue of newGenomesFitnessValues ) {
-    allFitnessValues.push( newGenomeFitnessValue );
-  }
-
   const newGenomeClassScores = {};
 
-  if( cellFitnessValues.length < allFitnessValues.length ) { // some genomes were successfully rendered
+  if( shouldFit ) {
+    // let's blast all available features into the diversity projection, and then pick the new genome projections from the result
 
-    // assume classificationGraphModel is an array defining the grid dimensions and size, like [10,10] or [10,10,10]
-    if( eliteMap.generationNumber < classificationGraphModel.length ) {
-      // if this is the first generation, just add the first new genome to the elite map
-      // - the projection requires at least n genomes, where n is the number of dimensions in the grid
-      const randomClassKey = chance.pickone( Object.keys(eliteMap.cells) );
-      newGenomeClassScores[ randomClassKey ] = {
-        score: allFitnessValues[0],
+    console.log(`Retraining projection after generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`);
+
+    const cellKeysWithFeatures = Object.keys(cellFeatures);
+    const allFeaturesToProject = [];
+    for( const cellKeyWithFeatures of cellKeysWithFeatures ) {
+      allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures] );
+    }
+    for( const newGenomeFeatures of newGenomesFeatures ) {
+      allFeaturesToProject.push( newGenomeFeatures );
+    }
+  
+    const allFitnessValues = [];
+    for( const cellFitnessValue of cellFitnessValues ) {
+      allFitnessValues.push( cellFitnessValue );
+    }
+    for( const newGenomeFitnessValue of newGenomesFitnessValues ) {
+      allFitnessValues.push( newGenomeFitnessValue );
+    }
+  
+    if( cellFitnessValues.length < allFitnessValues.length ) { // some genomes were successfully rendered
+  
+      // // assume classificationGraphModel is an array defining the grid dimensions and size, like [10,10] or [10,10,10]
+      // if( eliteMap.generationNumber < classificationGraphModel.length ) {
+      //   // if this is the first generation, just add the first new genome (somewhere!) to the elite map
+      //   // - the projection requires at least n genomes, where n is the number of dimensions in the grid
+      //   const randomClassKey = chance.pickone( Object.keys(eliteMap.cells) );
+      //   newGenomeClassScores[ randomClassKey ] = {
+      //     score: allFitnessValues[0],
+      //     duration,
+      //     noteDelta,
+      //     velocity,
+      //     features: newGenomesFeatures[0]
+      //   };
+      // } else {
+  
+        // call the diversity projection service
+        const diversityProjection = await getDiversityFromWebsocket(
+          allFeaturesToProject,
+          undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
+          evaluationDiversityHost,
+          evoRunDirPath,
+          shouldFit
+        ).catch(e => {
+          console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+        });
+        // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes diversityProjection", diversityProjection);
+        let featureMap;
+        if( diversityProjection.status === "ERROR" ) {
+          throw new Error("Error in diversity projection");
+        } else {
+          featureMap = diversityProjection.feature_map;
+        }
+  
+        // work the new projection into the elite map
+        // - basing on the array element ordering:
+        // - - the first Object.keys(cellFeatures).length (or cellFitnessValues.length) elements are the cells that were already in the elite map
+        // - - the remaining elements are the new genomes
+        // - - so we can iterate over the new genomes and add them to the elite map
+        // - - iff their index is in indices_to_keep
+        // TODO: for now this will just be one iteration, as we're just evlauating one genome at a time within the current framework
+  
+        // TODO: start the iteration after cellKeysWithFeatures.length, as we're not using fitness values for unique cell projection for now
+  
+        for( let i = cellFitnessValues.length; i < allFitnessValues.length; i++ ) {
+          // if( i in indices_to_keep ) {
+          const newGenomeFitnessValue = allFitnessValues[i];
+          const newGenomeFeatureVector = allFeaturesToProject[i];
+          const diversityMapKey = featureMap[i].join(",");
+          
+          // if( newGenomeFeatureVector) cellFeatures[ diversityMapKey ] = newGenomeFeatureVector;
+  
+          newGenomeClassScores[ diversityMapKey ] = {
+            score: newGenomeFitnessValue,
+            duration,
+            noteDelta,
+            velocity,
+            features: newGenomeFeatureVector
+          };
+        }
+      // }
+      eliteMap.projectionSizes.push( featureMap.length );
+    }
+
+    eliteMap.lastProjectionFitIndex++;
+    eliteMap.projectionModelFitGenerations.push( modelFitGeneration );
+    
+
+  } else {
+    // assume we already have a trained projection model, and just project the new genome features
+    const diversityProjection = await getDiversityFromWebsocket(
+      newGenomesFeatures,
+      undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
+      evaluationDiversityHost,
+      evoRunDirPath,
+      shouldFit // this should be false
+    ).catch(e => {
+      console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+    });
+    for( let i = 0; i < newGenomesFeatures.length; i++ ) {
+      const newGenomeFitnessValue = newGenomesFitnessValues[i];
+      const newGenomeFeatureVector = newGenomesFeatures[i];
+      const diversityMapKey = diversityProjection.feature_map[i].join(",");
+      newGenomeClassScores[ diversityMapKey ] = {
+        score: newGenomeFitnessValue,
         duration,
         noteDelta,
-        velocity
+        velocity,
+        features: newGenomeFeatureVector
       };
-    } else {
-      // call the diversity projection service
-      const diversityProjection = await getDiversityFromWebsocket(
-        allFeaturesToProject,
-        undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
-        evaluationDiversityHost
-      );
-
-      let featureMap;
-      if( diversityProjection.status === "ERROR" ) {
-        throw new Error("Error in diversity projection");
-      } else {
-        featureMap = diversityProjection.feature_map;
-      }
-
-      // work the new projection into the elite map
-      // - basing on the array element ordering:
-      // - - the first Object.keys(cellFeatures).length (or cellFitnessValues.length) elements are the cells that were already in the elite map
-      // - - the remaining elements are the new genomes
-      // - - so we can iterate over the new genomes and add them to the elite map
-      // - - iff their index is in indices_to_keep
-      // TODO: for now this will just be one iteration, as we're just evlauating one genome at a time within the current framework
-
-      // TODO: start the iteration after cellKeysWithFeatures.length, as we're not using fitness values for unique cell projection for now
-
-      for( let i = cellFitnessValues.length; i < allFitnessValues.length; i++ ) {
-        // if( i in indices_to_keep ) {
-        const newGenomeFitnessValue = allFitnessValues[i];
-        const newGenomeFeatureVector = allFeaturesToProject[i];
-        const diversityMapKey = featureMap[i].join(",");
-
-        // TODO: hmm, isn't fitness comparision missing?
-        
-        if( newGenomeFeatureVector) cellFeatures[ diversityMapKey ] = newGenomeFeatureVector;
-
-        newGenomeClassScores[ diversityMapKey ] = {
-          score: newGenomeFitnessValue,
-          duration,
-          noteDelta,
-          velocity
-        };
-      }
     }
-    
   }
-  
+
   // TODO: this is dependent on only one genome being evaluated at a time (so the for loop above is pointless atm):
   // - might want to return an array of newGenomeClassScores, one for each genomeString
   // - then the search promise in each batchIteration would need to resolve with an array of newGenomeClassScores
   return newGenomeClassScores;
+}
+
+// similar to getGenomeClassScoresByDiversityProjectionWithNewGenomes, but specialised for the seed rounds
+async function getGenomeScoreAndFeatures(
+  genomeId,
+  genomeString,
+  duration,
+  noteDelta,
+  velocity,
+  useGPU,
+  antiAliasing,
+  frequencyUpdatesApplyToAllPathcNetworkOutputs,
+  geneRenderingServerHost, renderSampleRateForClassifier,
+  evaluationFeatureExtractionHost,
+  evaluationQualityHost,
+  scoreProportion
+) {
+  const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
+    genomeString,
+    duration,
+    noteDelta,
+    velocity,
+    useGPU,
+    antiAliasing,
+    frequencyUpdatesApplyToAllPathcNetworkOutputs,
+    geneRenderingServerHost, renderSampleRateForClassifier
+  ).catch(
+    e => {
+      console.error(`Error rendering gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+    }
+  );
+
+  let newGenomeFeatureVector;
+  let newGenomeQuality;
+  if( audioBuffer && audioBuffer.length && ! audioBuffer.some( value => isNaN(value) ) ) {
+    // get features from audio buffer
+    const featuresResponse = await getFeaturesFromWebsocket(
+      audioBuffer,
+      evaluationFeatureExtractionHost
+    ).catch(e => {
+      console.error(`getGenomeScoreAndFeatures: Error getting features for genomeId ${genomeId}`, e);
+    });
+    newGenomeFeatureVector = featuresResponse.features;
+
+    // get quality from audio buffer
+    newGenomeQuality = await getQualityFromWebsocket(
+      audioBuffer,
+      evaluationQualityHost
+    ).catch(e => {
+      console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+    });
+  }
+
+  return {
+    genomeId,
+    genomeString,
+    score: newGenomeQuality.fitness * scoreProportion,
+    duration,
+    noteDelta,
+    velocity,
+    features: newGenomeFeatureVector
+  };
+}
+
+async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDiversityHost, evoRunDirPath ) {
+  const featuresArray = seedFeaturesAndScores.map( f => f.features );
+  const diversityProjection = await getDiversityFromWebsocket(
+    featuresArray,
+    undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
+    evaluationDiversityHost,
+    evoRunDirPath,
+    true // shouldFit
+  ).catch(e => {
+    console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+  });
+  return diversityProjection.feature_map;
+}
+
+const projectionRetrainingLinearGapIncrement = 10;
+function getShouldFit( lastProjectionFitIndex, generationNumber ) {
+  // T_n = n * k * (n + 1) / 2,
+  const nextProjectionFitIndex = lastProjectionFitIndex + 1;
+  const nextFitGenerationNumber = nextProjectionFitIndex * projectionRetrainingLinearGapIncrement * (nextProjectionFitIndex + 1) / 2;
+  const shouldFit = generationNumber === nextFitGenerationNumber;
+  return shouldFit;
+}
+// only called once, after the seed rounds are over:
+function getNextFitGenerationIndex( lastProjectionFitGenerationNumber ) {
+  let nextFitGenerationIndex = 0;
+  do {
+    const nextFitGenerationNumber = nextFitGenerationIndex * projectionRetrainingLinearGapIncrement * (nextFitGenerationIndex + 1) / 2;
+    if( nextFitGenerationNumber > lastProjectionFitGenerationNumber ) {
+      return nextFitGenerationIndex;
+    }
+  } while( ++nextFitGenerationIndex );
 }
 
 function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOneCell, classRestriction ) {
@@ -1393,6 +1675,9 @@ function initializeGrid(
     algorithm,
     evolutionRunConfig, evolutionaryHyperparameters,
     generationNumber: 0,
+    lastProjectionFitIndex: 0, // or re-training of the projection model
+    projectionModelFitGenerations: [],
+    projectionSizes: [], // aka coverage
     timestamp: Date.now(),
     eliteCountAtGeneration: 0,
     terminated: false,

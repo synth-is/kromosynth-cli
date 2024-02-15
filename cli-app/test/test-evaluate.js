@@ -1,10 +1,11 @@
 import WebSocket from "ws";
 
-const featureExtractionServerHost = 'ws://localhost:8081';
-const qualityEvaluationServerHost = 'ws://localhost:8082';
-const diversityEvaluationServerHost = 'ws://localhost:8083';
+const featureExtractionServerHost = 'ws://localhost:31051';
+const qualityEvaluationServerHost = 'ws://localhost:8080';
+const diversityEvaluationServerHost = 'ws://localhost:33051';
 
-const SAMPLE_RATE = 16000;
+// const SAMPLE_RATE = 16000;
+const SAMPLE_RATE = 48000;
 
 // Function to generate a random audio buffer (mock data)
 function generateRandomSoundBuffer(length) {
@@ -209,12 +210,12 @@ async function callDiversityEvaluationServiceWithFeatureVectorsAndFitnessValues(
   const featureVectors = [];
   const fitnessValues = [];
   for (let i = 0; i < numberOfEvaluationCandidates; i++) {
-    // const audioBuffer = generateRandomSoundBuffer(SAMPLE_RATE*10);
-    // const audioBuffer = generateSoundBufferWithSpikesAndGaps(SAMPLE_RATE*10);
-    // const audioBuffer = generateSoundBufferWithSineWave(SAMPLE_RATE*10);
-    const audioBuffer = generateSoundBufferWithSquareWave(SAMPLE_RATE*10);
-    // const audioBuffer = generateSoundBufferWithTriangleWave(SAMPLE_RATE*10);
-    // const audioBuffer = generateSoundBufferWithSawtoothWave(SAMPLE_RATE*10);
+    // const audioBuffer = generateRandomSoundBuffer(SAMPLE_RATE*5);
+    // const audioBuffer = generateSoundBufferWithSpikesAndGaps(SAMPLE_RATE*5);
+    // const audioBuffer = generateSoundBufferWithSineWave(SAMPLE_RATE*5);
+    const audioBuffer = generateSoundBufferWithSquareWave(SAMPLE_RATE*5);
+    // const audioBuffer = generateSoundBufferWithTriangleWave(SAMPLE_RATE*5);
+    // const audioBuffer = generateSoundBufferWithSawtoothWave(SAMPLE_RATE*5);
     const featureVector = await callFeatureExtractionService( audioBuffer );
     const fitnessValue = await callQualityEvaluationService( audioBuffer );
     featureVectors.push(featureVector);
@@ -234,4 +235,4 @@ async function callDiversityEvaluationServiceWithFeatureVectorsAndFitnessValues(
 // callFeatureExtractionService();
 // callQualityEvaluationService();
 
-callDiversityEvaluationServiceWithFeatureVectorsAndFitnessValues(30);
+callDiversityEvaluationServiceWithFeatureVectorsAndFitnessValues(2);

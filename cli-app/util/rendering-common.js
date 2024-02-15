@@ -5,8 +5,8 @@ let audioBufferSourceNode;
 
 export const SAMPLE_RATE = 48000;
 
-export function getAudioContext() {
-	if( ! audioCtx ) audioCtx = new AudioContext({sampleRate: SAMPLE_RATE});
+export function getAudioContext( sampleRate = SAMPLE_RATE) {
+	if( ! audioCtx ) audioCtx = new AudioContext({sampleRate});
 	return audioCtx;
 }
 

@@ -27,6 +27,20 @@ export function getGenomeKey( evolutionRunId, genomeId ) {
   return `genome_${evolutionRunId}_${genomeId}`;
 }
 
+export function deleteAllGenomesNotInEliteMap( eliteMap, evoRunDirPath ) {
+  const eliteGenomeIds = Object.fromEntries( 
+    Object.values(eliteMap.cells).filter( oneCell => oneCell.elts.length > 0).map( oneCell => [oneCell.elts[0].g, true] )
+  );
+  const genomeFiles = fs.readdirSync(evoRunDirPath).filter( file => file.startsWith('genome_') );
+  for( let genomeFile of genomeFiles ) {
+    // genome ID from genomeFile name like "genome_1_2.json" -> "2"
+    const genomeId = genomeFile.substring(genomeFile.lastIndexOf("_")+1, genomeFile.length - 5);
+    if( !eliteGenomeIds[genomeId] ) {
+      fs.unlink(`${evoRunDirPath}${genomeFile}`);
+    }
+  }
+}
+
 
 // bjarnij
 export function runCmd( cmd ) {

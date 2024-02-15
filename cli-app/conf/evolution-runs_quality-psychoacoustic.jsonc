@@ -1,0 +1,21 @@
+{
+  "baseEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "features-mfcc_quality-problems_psychoacoustic-pca-quantised_parents-max-10",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_mfcc_quality-problems_psychoacoustic-pca-quantised_parents-max-10.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HP7BS4EKC40REJW12KGDACBY_features-mfcc_quality-problems_psychoacoustic-pca-quantised_parents-max-10"
+        },
+        {
+          "id": "01HP7D4A4T0PNRQR66DF62ZXMJ_features-mfcc_quality-problems_psychoacoustic-pca-quantised_parents-max-10"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 1
+}

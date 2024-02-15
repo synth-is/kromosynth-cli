@@ -186,7 +186,9 @@ export function getQualityFromWebsocket(
 export function getDiversityFromWebsocket( 
   featureVectors,
   fitnessValues,
-  evaluationDiversityHost
+  evaluationDiversityHost,
+  evoRunDirPath,
+  shouldFit
 ) {
   const ws = getClient( evaluationDiversityHost );
   return new Promise((resolve, reject) => {
@@ -194,6 +196,8 @@ export function getDiversityFromWebsocket(
       const diversityMessage = {
         "feature_vectors": featureVectors,
         "fitness_values": fitnessValues,
+        "evorun_dir": evoRunDirPath,
+        "should_fit": shouldFit
       };
       ws.send( JSON.stringify( diversityMessage ) );
     });

@@ -1,0 +1,24 @@
+{
+  "baseEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "features-mfcc_quality-problems_projection-pca-quantised_parents-max-10",
+      "diffEvolutionRunConfigFile": null,
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HNQHH41K6JB0F2S64W292RMV"
+        },
+        {
+          "id": "01HP3QYCRX67FFS3BGTT12C3WN_features-mfcc_quality-problems_projection-pca-quantised"
+        },
+        {
+          "id": "01HP6Z50RK32MZKP9ZBPPGXSHE_features-mfcc_quality-problems_projection-pca-quantised_parents-max-10"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 2
+}
