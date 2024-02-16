@@ -8,7 +8,8 @@ import toWav from 'audiobuffer-to-wav';
 import { getAudioGraphMutationParams } from "./kromosynth.js";
 import { yamnetTags } from 'kromosynth/workers/audio-classification/classificationTags.js';
 import {
-  getGenomeFromGenomeString, getNewAudioSynthesisGenomeByMutation
+  getGenomeFromGenomeString, getNewAudioSynthesisGenomeByMutation,
+  getAudioBufferFromGenomeAndMeta
 } from 'kromosynth';
 // import { callRandomGeneService } from './service/gene-random-worker-client.js';
 import {
@@ -33,7 +34,7 @@ import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker
 import { get } from 'http';
 import { add, e, i } from 'mathjs';
 import { log } from 'console';
-import { getAudioContext } from './util/rendering-common.js';
+import { getAudioContext, getNewOfflineAudioContext } from './util/rendering-common.js';
 
 const chance = new Chance();
 
@@ -781,7 +782,7 @@ async function mapElitesBatch(
   } // if( ! isSeedRound && isUnsupervisedDiversityEvaluation && ! Object.keys(cellFeatures).length && seedFeaturesAndScores.length ) { } else {
 
 
-
+  let shouldRenderWaveFiles = false;
   await Promise.all( searchPromises ).then( async (batchIterationResults) => {
 
     // TODO if evaluationCandidateWavFiles, call getClassScoresForCandidateWavFiles
@@ -887,11 +888,7 @@ async function mapElitesBatch(
         }
 
         if( renderEliteMapToWavFilesEveryNIterations && eliteMap.generationNumber % renderEliteMapToWavFilesEveryNIterations === 0 ) {
-          await renderEliteMapToWavFiles(
-            eliteMap, evolutionRunId, evoRunDirPath, eliteMap.generationNumber,
-            classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
-            _geneRenderingServers, renderSampleRateForClassifier
-          );
+          shouldRenderWaveFiles = true;
         }
 
         eliteMap.generationNumber++; // TODO: well, it's more like iteration number, but we'll keep the name for now
@@ -904,6 +901,15 @@ async function mapElitesBatch(
     } // for( let oneBatchIterationResult of batchIterationResults ) {
 
   }); // await Promise.all( searchPromises ).then( async (batchIterationResult) => {
+
+  if( shouldRenderWaveFiles ) {
+    await renderEliteMapToWavFiles(
+      eliteMap, evolutionRunId, evoRunDirPath, eliteMap.generationNumber,
+      classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+      _geneRenderingServers, renderSampleRateForClassifier
+    );
+  }
+
 }
 
 // TODO: the implementation of this variant has fallen behind and isn't really used / working to well?
@@ -1173,46 +1179,78 @@ function getHighestScoringCell( genomeClassScores ) {
 
 // render all elites in eliteMap to wav files
 async function renderEliteMapToWavFiles( 
-  eliteMap, evolutionRunId, evoRunDirPath, iteration, 
-  duration, noteDelta, velocity, useGPU, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+  eliteMap, evolutionRunId, evoRunDirPath, iteration,
+  duration, noteDelta, velocity, useGPU, 
+  antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
   geneRenderingServerHosts, renderSampleRateForClassifier 
 ) {
   const soundObjectsDirPath = path.join(evoRunDirPath, "soundobjects", iteration.toString() );
   let cellKeyIndex = 0;
-  for( const classKey in eliteMap.cells ) {
-    const cell = eliteMap.cells[classKey];
-    if( cell.elts && cell.elts.length ) {
-      const eliteGenomeId = cell.elts[0].g;
-      const eliteGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, eliteGenomeId, evoRunDirPath );
-      const renderingServer = geneRenderingServerHosts[cellKeyIndex % geneRenderingServerHosts.length];
-      const audioChannelData = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
-        eliteGenomeString,
-        duration,
-        noteDelta,
-        velocity,
-        useGPU,
-        antiAliasing,
-        frequencyUpdatesApplyToAllPathcNetworkOutputs,
-        renderingServer, renderSampleRateForClassifier
+  let audioBuffer;
+  let genomeString;
+  // let audioChannelData;
+  let genomeAndMeta;
+  const cellsKeysWithChampions = Object.keys(eliteMap.cells).filter( classKey => eliteMap.cells[classKey].elts && eliteMap.cells[classKey].elts.length );
+  for( let classKey of cellsKeysWithChampions ) {
+    let cell = eliteMap.cells[classKey];
+  // for( let classKey of eliteMap.cells ) {
+  //   const cell = eliteMap.cells[classKey];
+  //   if( cell.elts && cell.elts.length ) {
+      let eliteGenomeId = cell.elts[0].g;
+      genomeString = await readGenomeAndMetaFromDisk( evolutionRunId, eliteGenomeId, evoRunDirPath );
+      genomeAndMeta = JSON.parse( genomeString );
+      
+      // let renderingServer = geneRenderingServerHosts[cellKeyIndex % geneRenderingServerHosts.length];
+      // audioChannelData = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
+      //   genomeString,
+      //   duration,
+      //   noteDelta,
+      //   velocity,
+      //   useGPU,
+      //   antiAliasing,
+      //   frequencyUpdatesApplyToAllPathcNetworkOutputs,
+      //   renderingServer, renderSampleRateForClassifier
+      // );
+      // // create aduioBuffer from the Float32Array in audioChannelData
+      // // let audioContext = getAudioContext(renderSampleRateForClassifier);
+      // audioBuffer = getAudioContext(renderSampleRateForClassifier).createBuffer(1, audioChannelData.length, renderSampleRateForClassifier);
+      // audioBuffer.copyToChannel(audioChannelData, 0);
+
+      audioBuffer = await getAudioBufferFromGenomeAndMeta(
+        genomeAndMeta,
+        duration, noteDelta, velocity, 
+        false, // reverse,
+        false, // asDataArray
+        getNewOfflineAudioContext( duration ),
+        getAudioContext(),
+        true, // useOvertoneInharmonicityFactors
+        true // useGPU
       );
-      // create aduioBuffer from the Float32Array in audioChannelData
-      const audioContext = getAudioContext(renderSampleRateForClassifier);
-      const audioBuffer = audioContext.createBuffer(1, audioChannelData.length, renderSampleRateForClassifier);
-      audioBuffer.copyToChannel(audioChannelData, 0);
       
       if( !fs.existsSync(soundObjectsDirPath) ) fs.mkdirSync(soundObjectsDirPath, {recursive: true});
       // replace commas in classKey with underscores (AudioStellar doesn't like commas in file names)
-      const classKeySansCommas = classKey.replace(/,/g, "_");
-      const filePath = path.join(soundObjectsDirPath, `${classKeySansCommas}_${eliteGenomeId}.wav`);
+      let classKeySansCommas = classKey.replace(/,/g, "_");
+      let filePath = path.join(soundObjectsDirPath, `${classKeySansCommas}_${eliteGenomeId}.wav`);
 
-      console.log("writing wav file to", filePath, "for elite genome", eliteGenomeId, "from rendering server at", renderingServer);
+      console.log("writing wav file to", filePath, "for elite genome", eliteGenomeId
+      // , "from rendering server at", renderingServer
+      );
 
-      const wav = toWav(audioBuffer);
-      const wavBuffer = Buffer.from(new Uint8Array(wav));
+      let wav = toWav(audioBuffer);
+      let wavBuffer = Buffer.from(new Uint8Array(wav));
       fs.writeFileSync( filePath, wavBuffer );
       cellKeyIndex++;
-    }
+
+      audioBuffer = undefined;
+      genomeString = undefined;
+      // genomeAndMeta = undefined;
+      // audioChannelData = undefined;
+      // this seems to prevent a memory leak! - also using "let" above instead of "const", in case that matters?
+      if( cellKeyIndex % 100 === 0 ) await new Promise(resolve => setTimeout(resolve, 100));
+  //   }
+  // }
   }
+  await new Promise(resolve => setTimeout(resolve, 1000));
 }
 
 async function getGenomeClassScores(

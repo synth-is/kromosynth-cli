@@ -171,11 +171,11 @@ async function main() {
     genomeEvaluation: evaluateGenome
   });
 
-  console.log("Genome variation gRPC server starting...", {port, hostname}, "modelUrl:", modelUrl);
+  console.log("Genome variation gRPC server starting...", "modelUrl:", modelUrl);
   if( hostname ) {
     server.bindAsync( hostname, grpc.ServerCredentials.createInsecure(), (error, port) => {
       server.start();
-      console.log("Listenig on host:port", hostname);
+      console.log("Listenig on host:port", hostname, port);
     } );
   } else {
     server.bindAsync( `0.0.0.0:${port}`, grpc.ServerCredentials.createInsecure(), (error, port) => {
