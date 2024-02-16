@@ -67,15 +67,19 @@ async function mutatedGenome( call, callback ) {
   let newGenome;
   try {
     const genomeStringsArray = struct.decode( genomeStrings ).genomeStrings;
-    const genomes = await Promise.all( genomeStringsArray.map( async genomeString => await getGenomeFromGenomeString( genomeString ) ) );
+    const audioGraphMutationParamsDecoded = struct.decode( audioGraphMutationParams );
+    const evolutionaryHyperparametersDecoded = struct.decode( evolutionaryHyperparameters );
+    const genomes = await Promise.all( genomeStringsArray.map( async genomeString => await getGenomeFromGenomeString( 
+      genomeString, evolutionaryHyperparametersDecoded 
+    ) ) );
     newGenome = await getNewAudioSynthesisGenomeByMutation(
       genomes,
       evolutionRunId, generationNumber, -1, algorithmKey, 
       getAudioContext(),
       probabilityMutatingWaveNetwork,
       probabilityMutatingPatch,
-      struct.decode( audioGraphMutationParams ),
-      struct.decode( evolutionaryHyperparameters ),
+      audioGraphMutationParamsDecoded,
+      evolutionaryHyperparametersDecoded,
       OfflineAudioContext,
       patchFitnessTestDuration
     );  

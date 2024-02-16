@@ -75,7 +75,7 @@ export async function qdSearch(
     eliteWinsOnlyOneCell, classRestriction,
     maxNumberOfParents,
     terminationCondition, scoreProportionalToNumberOfEvalsTerminationCondition,
-    evoRunsDirPath,
+    evoRunsDirPath, evoRendersDirPath,
     populationSize, gridDepth,
     geneEvaluationProtocol, childProcessBatchSize, 
     batchSize, batchMultiplicationFactor,
@@ -190,6 +190,7 @@ export async function qdSearch(
 
   // initialise git
   const evoRunDirPath = `${evoRunsDirPath}${evolutionRunId}/`;
+  const evoRenderDirPath = `${evoRendersDirPath}${evolutionRunId}/`;
   const evoRunFailedGenesDirPath = `${evoRunsDirPath}${evolutionRunId}_failed-genes/`;
   let eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath );
   if( ! eliteMap ) {
@@ -285,7 +286,7 @@ export async function qdSearch(
         useGpuForTensorflow,
         antiAliasing,
         frequencyUpdatesApplyToAllPathcNetworkOutputs,
-        evoRunDirPath, evoRunFailedGenesDirPath,
+        evoRunDirPath, evoRunFailedGenesDirPath, evoRenderDirPath,
         evaluationCandidateWavFilesDirPath, classifiers,
         patchFitnessTestDuration,
         scoreProportion,
@@ -351,7 +352,7 @@ async function mapElitesBatch(
   useGpuForTensorflow,
   antiAliasing,
   frequencyUpdatesApplyToAllPathcNetworkOutputs,
-  evoRunDirPath, evoRunFailedGenesDirPath,
+  evoRunDirPath, evoRunFailedGenesDirPath, evoRenderDirPath,
   evaluationCandidateWavFilesDirPath, classifiers,
   patchFitnessTestDuration,
   scoreProportion,
@@ -904,7 +905,7 @@ async function mapElitesBatch(
 
   if( shouldRenderWaveFiles ) {
     await renderEliteMapToWavFiles(
-      eliteMap, evolutionRunId, evoRunDirPath, eliteMap.generationNumber,
+      eliteMap, evolutionRunId, evoRenderDirPath, eliteMap.generationNumber,
       classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
       _geneRenderingServers, renderSampleRateForClassifier
     );

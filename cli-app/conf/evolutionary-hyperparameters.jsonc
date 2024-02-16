@@ -1,10 +1,10 @@
 {
   "waveNetwork": {
     "neatParameters": { // see kromosynth > cppn-neat > network-evolution.js
-      "pMutateAddConnection": 0.13,
-      "pMutateAddNode": 0.13,
-      "pMutateDeleteSimpleNeuron": 0.00,
-      "pMutateDeleteConnection": 0.00,
+      "pMutateAddConnection": 0.10,
+      "pMutateAddNode": 0.10,
+      "pMutateDeleteSimpleNeuron": 0.06,
+      "pMutateDeleteConnection": 0.06,
       "pMutateConnectionWeights": 0.72,
       "pMutateChangeActivations": 0.02,
 
@@ -69,7 +69,8 @@
       "addAudioBufferSourceWavetableChance": 0.3,
       "addAudioBufferSourceAdditiveChance": 0.4,
 
-      "includeNoise": true,
+      // "includeNoise": true,
+      "includeNoise": false,
       
       // initial node chances must add up to 1
       "initialOscillatorChance": 0.5,
