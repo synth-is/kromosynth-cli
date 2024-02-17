@@ -50,8 +50,9 @@
 
   "commitEliteMapToGitEveryNIterations": 1000,
   "addGenomesToGit": false,
-  "prunePastEliteGenomesEveryNIterations": 200,
-  "renderEliteMapToWavFilesEveryNIterations": 10000,
+  "prunePastEliteGenomesEveryNIterations": 20,
+  "renderEliteMapToWavFilesEveryNIterations": null, // 50000,
+  "renderElitesToWavFiles": true,
   "evoRendersDirPath": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/evorenders/",
 
   "processingUtilisation": null, // 0.9,
@@ -82,8 +83,8 @@
   // ],
   "geneVariationServers": [
     "localhost:50051",
-    // "localhost:50052",
-    // "localhost:50053"
+    "localhost:50052",
+    "localhost:50053"
   ],
   "geneRenderingServers": [
     "ws://localhost:30051",

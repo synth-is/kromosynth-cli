@@ -36,7 +36,23 @@ export function deleteAllGenomesNotInEliteMap( eliteMap, evoRunDirPath ) {
     // genome ID from genomeFile name like "genome_1_2.json" -> "2"
     const genomeId = genomeFile.substring(genomeFile.lastIndexOf("_")+1, genomeFile.length - 5);
     if( !eliteGenomeIds[genomeId] ) {
-      fs.unlink(`${evoRunDirPath}${genomeFile}`);
+      fs.unlinkSync(`${evoRunDirPath}${genomeFile}`);
+    }
+  }
+}
+
+export function deleteAllGenomeRendersNotInEliteMap( eliteMap, evoRenderDirPath ) {
+  const eliteGenomeIds = Object.fromEntries(
+    Object.values(eliteMap.cells).filter( oneCell => oneCell.elts.length > 0).map( oneCell => [oneCell.elts[0].g, true] )
+  );
+  const wavFiles = fs.readdirSync(evoRenderDirPath);
+  for( let wavFile of wavFiles ) {
+    // genome ID from wavFile name like "56_28_<ID>.wav" -> "<ID>"
+    const genomeId = wavFile.substring(wavFile.lastIndexOf("_")+1, wavFile.length - 4);
+    if( !eliteGenomeIds[genomeId] ) {
+      const wavFilePath = `${evoRenderDirPath}${wavFile}`;
+      console.log(`deleting genome render: ${wavFilePath}`);
+      fs.unlinkSync(wavFilePath);
     }
   }
 }

@@ -28,7 +28,7 @@ import {
   writeEvaluationCandidateWavFilesForGenome,
   populateNewGenomeClassScoresInBatchIterationResultFromEvaluationCandidateWavFiles,
   invertedLogarithmicRamp,
-  deleteAllGenomesNotInEliteMap
+  deleteAllGenomesNotInEliteMap, deleteAllGenomeRendersNotInEliteMap
 } from './util/qd-common.js';
 import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker } from './service/workers/gene-child-process-forker.js';
 import { get } from 'http';
@@ -90,7 +90,7 @@ export async function qdSearch(
     renderSampleRateForClassifier,
     commitEliteMapToGitEveryNIterations, 
     addGenomesToGit, prunePastEliteGenomesEveryNIterations,
-    renderEliteMapToWavFilesEveryNIterations,
+    renderEliteMapToWavFilesEveryNIterations, renderElitesToWavFiles,
     processingUtilisation,
     batchDurationMs,
     gRpcHostFilePathPrefix, gRpcServerCount,
@@ -271,7 +271,7 @@ export async function qdSearch(
         eliteMap, cellFeatures, seedFeaturesAndScores,
         algorithmKey, evolutionRunId,
         commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNIterations,
-        renderEliteMapToWavFilesEveryNIterations,
+        renderEliteMapToWavFilesEveryNIterations, renderElitesToWavFiles,
         searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
         maxNumberOfParents,
         probabilityMutatingWaveNetwork, probabilityMutatingPatch,
@@ -337,7 +337,7 @@ async function mapElitesBatch(
   eliteMap, cellFeatures, seedFeaturesAndScores,
   algorithmKey, evolutionRunId,
   commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNIterations,
-  renderEliteMapToWavFilesEveryNIterations,
+  renderEliteMapToWavFilesEveryNIterations, renderElitesToWavFiles,
   searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
   maxNumberOfParents,
   probabilityMutatingWaveNetwork, probabilityMutatingPatch,
@@ -868,6 +868,12 @@ async function mapElitesBatch(
           if( randomClassKey ) {
             eliteMap.cells[randomClassKey].uBC = 10;
           }
+          if( renderElitesToWavFiles ) {
+            renderEliteGenomeToWavFile(
+              newGenome, genomeId, eliteClassKeys.join("__"), eliteMap.generationNumber, evoRenderDirPath,
+              classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs
+            );
+          }
         } else if( randomClassKey ) { // if( eliteClassKeys.length > 0 ) {
 
           // bias search away from exploring niches that produce fewer innovations
@@ -886,6 +892,9 @@ async function mapElitesBatch(
 
         if( prunePastEliteGenomesEveryNIterations && eliteMap.generationNumber % prunePastEliteGenomesEveryNIterations === 0 ) {
           deleteAllGenomesNotInEliteMap( eliteMap, evoRunDirPath );
+          if( renderElitesToWavFiles ) {
+            deleteAllGenomeRendersNotInEliteMap( eliteMap, evoRenderDirPath );
+          }
         }
 
         if( renderEliteMapToWavFilesEveryNIterations && eliteMap.generationNumber % renderEliteMapToWavFilesEveryNIterations === 0 ) {
@@ -905,7 +914,7 @@ async function mapElitesBatch(
 
   if( shouldRenderWaveFiles ) {
     await renderEliteMapToWavFiles(
-      eliteMap, evolutionRunId, evoRenderDirPath, eliteMap.generationNumber,
+      eliteMap, evolutionRunId, evoRunDirPath, evoRenderDirPath, eliteMap.generationNumber,
       classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
       _geneRenderingServers, renderSampleRateForClassifier
     );
@@ -1180,12 +1189,12 @@ function getHighestScoringCell( genomeClassScores ) {
 
 // render all elites in eliteMap to wav files
 async function renderEliteMapToWavFiles( 
-  eliteMap, evolutionRunId, evoRunDirPath, iteration,
+  eliteMap, evolutionRunId, evoRunDirPath, evoRenderDirPath, iteration,
   duration, noteDelta, velocity, useGPU, 
   antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
   geneRenderingServerHosts, renderSampleRateForClassifier 
 ) {
-  const soundObjectsDirPath = path.join(evoRunDirPath, "soundobjects", iteration.toString() );
+  const soundObjectsDirPath = path.join(evoRenderDirPath, iteration.toString() );
   let cellKeyIndex = 0;
   let audioBuffer;
   let genomeString;
@@ -1225,7 +1234,7 @@ async function renderEliteMapToWavFiles(
         getNewOfflineAudioContext( duration ),
         getAudioContext(),
         true, // useOvertoneInharmonicityFactors
-        true // useGPU
+        useGPU // useGPU
       );
       
       if( !fs.existsSync(soundObjectsDirPath) ) fs.mkdirSync(soundObjectsDirPath, {recursive: true});
@@ -1252,6 +1261,32 @@ async function renderEliteMapToWavFiles(
   // }
   }
   await new Promise(resolve => setTimeout(resolve, 1000));
+}
+
+async function renderEliteGenomeToWavFile(
+  genome, eliteGenomeId, classKey, iteration, evoRenderDirPath,
+  duration, noteDelta, velocity, useGPU,
+  antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs
+) {
+  const audioBuffer = await getAudioBufferFromGenomeAndMeta(
+    {genome: genome, meta: {duration, noteDelta, velocity}},
+    duration, noteDelta, velocity, 
+    false, // reverse,
+    false, // asDataArray
+    getNewOfflineAudioContext( duration ),
+    getAudioContext(),
+    true, // useOvertoneInharmonicityFactors
+    useGPU, // useGPU
+    antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs
+  );
+  if( !fs.existsSync(evoRenderDirPath) ) fs.mkdirSync(evoRenderDirPath, {recursive: true});
+  // replace commas in classKey with underscores (AudioStellar doesn't like commas in file names)
+  let classKeySansCommas = classKey.replace(/,/g, "_");
+  let filePath = path.join(evoRenderDirPath, `${iteration}_${classKeySansCommas}_${eliteGenomeId}.wav`);
+  console.log("writing wav file to", filePath, "for elite genome", eliteGenomeId);
+  let wav = toWav(audioBuffer);
+  let wavBuffer = Buffer.from(new Uint8Array(wav));
+  fs.writeFileSync( filePath, wavBuffer );
 }
 
 async function getGenomeClassScores(

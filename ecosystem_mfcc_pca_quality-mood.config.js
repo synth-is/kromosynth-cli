@@ -9,7 +9,7 @@ module.exports = {
         exec_mode : "cluster",
         // max_memory_restart: '700M',
         max_memory_restart: '2G',
-        // cron_restart: '*/30 * * * *',
+        cron_restart: '*/10 * * * *',
         increment_var : 'PORT',
         env: {
           "PORT": 50051,
@@ -24,7 +24,7 @@ module.exports = {
         instances : 3,
         exec_mode : "cluster",
         max_memory_restart: '2G',
-        // cron_restart: '*/30 * * * *',
+        cron_restart: '*/10 * * * *',
         increment_var : 'PORT',
         env: {
           "PORT": 30051,
@@ -42,7 +42,7 @@ module.exports = {
         instances : 3,
         exec_mode : "fork",
         max_memory_restart: '700M',
-        // cron_restart: '*/30 * * * *',
+        cron_restart: '*/10 * * * *',
         increment_var : 'PORT',
         env: {
           "PORT": 31051,
@@ -58,7 +58,7 @@ module.exports = {
         instances : 3,
         exec_mode : "fork",
         max_memory_restart: '700M',
-        // cron_restart: '*/30 * * * *',
+        cron_restart: '*/10 * * * *',
         increment_var : 'PORT',
         env: {
           "PORT": 32051,
@@ -74,7 +74,7 @@ module.exports = {
         instances : 3,
         exec_mode : "fork",
         max_memory_restart: '1G',
-        // cron_restart: '*/30 * * * *',
+        cron_restart: '*/10 * * * *',
         increment_var : 'PORT',
         env: {
           "PORT": 33051,
@@ -87,6 +87,7 @@ module.exports = {
         args: "evolution-runs --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_quality-mood.jsonc --max-old-space-size=1024",
         instances : 1,
         max_memory_restart: '4G',
+        cron_restart: '*/10 * * * *',
       }
     ]
   }
