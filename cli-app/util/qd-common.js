@@ -45,7 +45,7 @@ export function deleteAllGenomeRendersNotInEliteMap( eliteMap, evoRenderDirPath 
   const eliteGenomeIds = Object.fromEntries(
     Object.values(eliteMap.cells).filter( oneCell => oneCell.elts.length > 0).map( oneCell => [oneCell.elts[0].g, true] )
   );
-  const wavFiles = fs.readdirSync(evoRenderDirPath);
+  const wavFiles = fs.readdirSync(evoRenderDirPath).filter( file => file.endsWith('.wav') );
   for( let wavFile of wavFiles ) {
     // genome ID from wavFile name like "56_28_<ID>.wav" -> "<ID>"
     const genomeId = wavFile.substring(wavFile.lastIndexOf("_")+1, wavFile.length - 4);

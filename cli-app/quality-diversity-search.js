@@ -869,8 +869,9 @@ async function mapElitesBatch(
             eliteMap.cells[randomClassKey].uBC = 10;
           }
           if( renderElitesToWavFiles ) {
+            const oneClassScore = newGenomeClassScores[eliteClassKeys[0]].score;
             renderEliteGenomeToWavFile(
-              newGenome, genomeId, eliteClassKeys.join("__"), eliteMap.generationNumber, evoRenderDirPath,
+              newGenome, genomeId, eliteClassKeys.join("__"), eliteMap.generationNumber, oneClassScore, evoRenderDirPath,
               classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs
             );
           }
@@ -1264,7 +1265,7 @@ async function renderEliteMapToWavFiles(
 }
 
 async function renderEliteGenomeToWavFile(
-  genome, eliteGenomeId, classKey, iteration, evoRenderDirPath,
+  genome, eliteGenomeId, classKey, iteration, score, evoRenderDirPath,
   duration, noteDelta, velocity, useGPU,
   antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs
 ) {
@@ -1282,7 +1283,7 @@ async function renderEliteGenomeToWavFile(
   if( !fs.existsSync(evoRenderDirPath) ) fs.mkdirSync(evoRenderDirPath, {recursive: true});
   // replace commas in classKey with underscores (AudioStellar doesn't like commas in file names)
   let classKeySansCommas = classKey.replace(/,/g, "_");
-  let filePath = path.join(evoRenderDirPath, `${iteration}_${classKeySansCommas}_${eliteGenomeId}.wav`);
+  let filePath = path.join(evoRenderDirPath, `${Math.round(score*100)}_${iteration}_${classKeySansCommas}_${eliteGenomeId}.wav`);
   console.log("writing wav file to", filePath, "for elite genome", eliteGenomeId);
   let wav = toWav(audioBuffer);
   let wavBuffer = Buffer.from(new Uint8Array(wav));
@@ -1636,7 +1637,7 @@ async function getGenomeScoreAndFeatures(
     geneRenderingServerHost, renderSampleRateForClassifier
   ).catch(
     e => {
-      console.error(`Error rendering gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+      console.error(`Error rendering geneome ${genomeId}`, e);
     }
   );
 

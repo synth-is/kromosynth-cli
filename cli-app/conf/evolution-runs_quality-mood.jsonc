@@ -17,8 +17,18 @@
           "id": "01HPSK3VFQB5SKBK845A405B8K_features-mfcc_pca-quantised_quality-mood_parents-max-10"
         }
       ]
+    },
+    {
+      "label": "features-mfcc_pca-quantised_quality-mood_parents-max-10_noOsc",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_mfcc_pca-quantised_quality-mood_parents-max-10.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01HPW0V4CVCDEJ6VCHCQRJMXWP_features-mfcc_pca-quantised_quality-mood_parents-max-10_noOsc"
+        }
+      ]
     }
   ],
-  "currentEvolutionRunIndex": 0,
-  "currentEvolutionRunIteration": 2
+  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIteration": 0
 }
