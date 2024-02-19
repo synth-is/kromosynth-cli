@@ -82,14 +82,14 @@
   //   "/tmp/grpc1.txt"
   // ],
   "geneVariationServers": [
-    "localhost:50051",
-    "localhost:50052",
-    "localhost:50053"
+    "127.0.0.1:50051",
+    "127.0.0.1:50052",
+    "127.0.0.1:50053"
   ],
   "geneRenderingServers": [
-    "ws://localhost:30051",
-    "ws://localhost:30052",
-    "ws://localhost:30053"
+    "ws://127.0.0.1:30051",
+    "ws://127.0.0.1:30052",
+    "ws://127.0.0.1:30053"
   ],
 
   // it's either geneEvaluationServers or evaluationFeatureServers, evaluationQualityServers and evaluationProjectionServers
@@ -97,27 +97,27 @@
   // - evaluationFeatureServers, evaluationQualityServers and evaluationProjectionServers are for unsupervised measurements: feature extraction, quality evaluation and projection
 
   "geneEvaluationServers": [
-    // "ws://localhost:40051"
-    // "ws://localhost:40052",
-    // "ws://localhost:40053"
+    // "ws://127.0.0.1:40051"
+    // "ws://127.0.0.1:40052",
+    // "ws://127.0.0.1:40053"
   ],
 
   "evaluationFeatureServers": [ // feature extraction
-    "ws://localhost:31051",
-    "ws://localhost:31052",
-    "ws://localhost:31053"
+    "ws://127.0.0.1:31051",
+    "ws://127.0.0.1:31052",
+    "ws://127.0.0.1:31053"
   ],
   "evaluationQualityServers": [ // quality evaluation
-    "ws://localhost:32051",
-    "ws://localhost:32052",
-    "ws://localhost:32053"
+    "ws://127.0.0.1:32051",
+    "ws://127.0.0.1:32052",
+    "ws://127.0.0.1:32053"
   ],
   "evaluationProjectionServers": [ // projection
-    "ws://localhost:33051",
-    "ws://localhost:33052",
-    "ws://localhost:33053"
-    // "ws://localhost:33054",
-    // "ws://localhost:33055"
+    "ws://127.0.0.1:33051",
+    "ws://127.0.0.1:33052",
+    "ws://127.0.0.1:33053"
+    // "ws://127.0.0.1:33054",
+    // "ws://127.0.0.1:33055"
   ]
   // ,
   // "dummyRun": { // generate dummy data without evaluations
