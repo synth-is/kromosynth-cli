@@ -1,0 +1,13 @@
+{
+
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+  "classScoringDurations": [2],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "renderSampleRateForClassifier": 48000
+
+  // "evaluationQualityServers": [ // quality evaluation
+  //   "ws://localhost:32051"
+  // ]
+}

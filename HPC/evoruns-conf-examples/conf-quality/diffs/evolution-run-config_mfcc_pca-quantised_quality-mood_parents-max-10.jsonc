@@ -1,0 +1,8 @@
+{
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+  "classScoringDurations": [4],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "renderSampleRateForClassifier": 16000
+}

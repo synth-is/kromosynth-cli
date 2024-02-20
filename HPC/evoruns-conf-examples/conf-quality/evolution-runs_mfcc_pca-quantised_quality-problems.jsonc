@@ -1,0 +1,18 @@
+{
+  "baseEvolutionRunConfigFile": "/home/bthj/QD/conf-quality/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/home/bthj/QD/conf-quality/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "mfcc_pca-quantised_quality-problems_parents-max-1_noScoreRamp",
+      "diffEvolutionRunConfigFile": "/home/bthj/QD/conf-quality/diffs/evolution-run-config_mfcc_pca-quantised_quality-problems_parents-max-1_noScoreRamp.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": null
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}
