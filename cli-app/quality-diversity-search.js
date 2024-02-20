@@ -618,9 +618,10 @@ async function mapElitesBatch(
               resolve({genomeId, newGenomeString, seedFeaturesAndScores}); // really just used to increment eliteMap.genertionNumber in the Promise.all iterations below
             } else {
 
-              const generationIncrement = eliteMap.generationNumber + batchIteration;
-              const shouldFit = getShouldFit(eliteMap.lastProjectionFitIndex, generationIncrement);
+              const generationIncrement = eliteMap.generationNumber + batchIteration; // TODO: remove
+              // const shouldFit = getShouldFit(eliteMap.lastProjectionFitIndex, generationIncrement);
               // TODO fitting in a batch iteration is not ideal, at least when waiting time me result in in a Promise timeout?
+              const shouldFit = false; // TOODO: need to refactor getGenomeClassScoresByDiversityProjectionWithNewGenomes
               
               if( classScoringVariationsAsContainerDimensions ) {
                 newGenomeClassScores = {};
@@ -912,6 +913,11 @@ async function mapElitesBatch(
     } // for( let oneBatchIterationResult of batchIterationResults ) {
 
   }); // await Promise.all( searchPromises ).then( async (batchIterationResult) => {
+
+  const shouldFit = getShouldFit(eliteMap.lastProjectionFitIndex, eliteMap.generationNumber);
+  if( isUnsupervisedDiversityEvaluation && ! isSeedRound && shouldFit ) {
+    await retrainProjectionModel( cellFeatures, eliteMap, _evaluationProjectionServers, evoRunDirPath );
+  }
 
   if( shouldRenderWaveFiles ) {
     await renderEliteMapToWavFiles(
@@ -1692,7 +1698,7 @@ function getShouldFit( lastProjectionFitIndex, generationNumber ) {
   // T_n = n * k * (n + 1) / 2,
   const nextProjectionFitIndex = lastProjectionFitIndex + 1;
   const nextFitGenerationNumber = nextProjectionFitIndex * projectionRetrainingLinearGapIncrement * (nextProjectionFitIndex + 1) / 2;
-  const shouldFit = generationNumber === nextFitGenerationNumber;
+  const shouldFit = generationNumber >= nextFitGenerationNumber;
   return shouldFit;
 }
 // only called once, after the seed rounds are over:
@@ -1704,6 +1710,27 @@ function getNextFitGenerationIndex( lastProjectionFitGenerationNumber ) {
       return nextFitGenerationIndex;
     }
   } while( ++nextFitGenerationIndex );
+}
+async function retrainProjectionModel( cellFeatures, eliteMap, evaluationDiversityHosts, evoRunDirPath ) {
+  const evaluationDiversityHost = evaluationDiversityHosts[0];
+  const cellKeysWithFeatures = Object.keys(cellFeatures);
+  const allFeaturesToProject = [];
+  for( const cellKeyWithFeatures of cellKeysWithFeatures ) {
+    allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures] );
+  }
+  const diversityProjection = await getDiversityFromWebsocket(
+    allFeaturesToProject,
+    undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
+    evaluationDiversityHost,
+    evoRunDirPath,
+    true // shouldFit
+  ).catch(e => {
+    console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+  });
+  eliteMap.lastProjectionFitIndex++;
+  eliteMap.projectionModelFitGenerations.push( eliteMap.generationNumber );
+  eliteMap.projectionSizes.push( diversityProjection.feature_map.length );
+  return diversityProjection;
 }
 
 function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOneCell, classRestriction ) {
