@@ -1718,6 +1718,7 @@ async function retrainProjectionModel( cellFeatures, eliteMap, evaluationDiversi
   for( const cellKeyWithFeatures of cellKeysWithFeatures ) {
     allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures] );
   }
+  console.log(`Retraining projection with ${allFeaturesToProject.length} features, after generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`)
   const diversityProjection = await getDiversityFromWebsocket(
     allFeaturesToProject,
     undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
