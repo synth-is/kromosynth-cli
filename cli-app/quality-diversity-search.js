@@ -317,7 +317,7 @@ export async function qdSearch(
       await new Promise( resolve => setTimeout(resolve, processingUtilisation * batchDurationMs) );
     }
 
-    if( eliteMap.generationNumber > seedEvals && seedFeaturesAndScores !== undefined ) {
+    if( eliteMap.generationNumber > (seedEvals+searchBatchSize) && seedFeaturesAndScores !== undefined ) {
       seedFeaturesAndScores = undefined; // free up memory
     }
 
