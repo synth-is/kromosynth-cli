@@ -816,20 +816,27 @@ async function mapElitesBatch(
       ///// add to archive
 
       if( newGenomeClassScores !== undefined && Object.keys(newGenomeClassScores).length ) {
+        const getClassKeysWhereScoresAreEliteStartTime = performance.now();
         let eliteClassKeys;
         if( dummyRun && dummyRun.iterations ) {
           eliteClassKeys = getDummyClassKeysWhereScoresAreElite( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
         } else {
           eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap, eliteWinsOnlyOneCell, classRestriction );
         }
+        const getClassKeysWhereScoresAreEliteEndTime = performance.now();
+        console.log("getClassKeysWhereScoresAreElite duration", getClassKeysWhereScoresAreEliteEndTime - getClassKeysWhereScoresAreEliteStartTime);
         if( eliteClassKeys.length > 0 ) {
           // const classScoresSD = getClassScoresStandardDeviation( newGenomeClassScores );
           // console.log("classScoresSD", classScoresSD);
           eliteMap.newEliteCount = eliteClassKeys.length;
+          const getGenomeFromGenomeStringStartTime = performance.now();
           const newGenome = await getGenomeFromGenomeString( newGenomeString );
+          const getGenomeFromGenomeStringEndTime = performance.now();
+          console.log("getGenomeFromGenomeString duration", getGenomeFromGenomeStringEndTime - getGenomeFromGenomeStringStartTime);
           newGenome.tags = [];
           newGenome.parentGenomes = parentGenomes.length ? parentGenomes : undefined;
           newGenome.generationNumber = eliteMap.generationNumber;
+          const eliteMapUpdateStartTime = performance.now();
           for( const classKey of eliteClassKeys ) {
             const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
             const updated = Date.now();
@@ -865,7 +872,12 @@ async function mapElitesBatch(
 
             cellFeatures[classKey] = newGenomeClassScores[classKey].features;
           }
+          const eliteMapUpdateEndTime = performance.now();
+          console.log("eliteMapUpdate duration", eliteMapUpdateEndTime - eliteMapUpdateStartTime);
+          const saveGenomeToDiskStartTime = performance.now();
           saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
+          const saveGenomeToDiskEndTime = performance.now();
+          console.log("saveGenomeToDisk duration", saveGenomeToDiskEndTime - saveGenomeToDiskStartTime);
           if( randomClassKey ) {
             eliteMap.cells[randomClassKey].uBC = 10;
           }
@@ -885,19 +897,29 @@ async function mapElitesBatch(
         eliteMap.eliteCountAtGeneration = eliteClassKeys.length;
         eliteMap.searchBatchSize = searchBatchSize;
         eliteMap.timestamp = Date.now();
-        saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
 
+        const saveEliteMapToDiskStartTime = performance.now();
+        saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
+        const saveEliteMapToDiskEndTime = performance.now();
+        console.log("saveEliteMapToDisk duration", saveEliteMapToDiskToDiskEndTime - saveEliteMapToDiskStartTime);
+
+        const commitEliteMapToGitStartTime = performance.now();
         if( commitEliteMapToGitEveryNIterations && eliteMap.generationNumber % commitEliteMapToGitEveryNIterations === 0 ) {
           // git commit iteration
           runCmd(`git -C ${evoRunDirPath} commit -a -m "Iteration ${eliteMap.generationNumber}"`);
         }
+        const commitEliteMapToGitEndTime = performance.now();
+        console.log("commitEliteMapToGit duration", commitEliteMapToGitEndTime - commitEliteMapToGitStartTime);
 
+        const prunePastElitesStartTime = performance.now();
         if( prunePastEliteGenomesEveryNIterations && eliteMap.generationNumber % prunePastEliteGenomesEveryNIterations === 0 ) {
           deleteAllGenomesNotInEliteMap( eliteMap, evoRunDirPath );
           if( renderElitesToWavFiles ) {
             deleteAllGenomeRendersNotInEliteMap( eliteMap, evoRenderDirPath );
           }
         }
+        const prunePastElitesEndTime = performance.now();
+        console.log("prunePastElites duration", prunePastElitesEndTime - prunePastElitesStartTime);
 
         if( renderEliteMapToWavFilesEveryNIterations && eliteMap.generationNumber % renderEliteMapToWavFilesEveryNIterations === 0 ) {
           shouldRenderWaveFiles = true;
