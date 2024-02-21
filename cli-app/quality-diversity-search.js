@@ -918,8 +918,15 @@ async function mapElitesBatch(
   // let's save and commit the eliteMap
 
   eliteMap.eliteCountAtGeneration = Object.keys(classToBatchEliteCandidates).length;
+  eliteMap.coverageSize = Object.keys(cellFeatures).length;
+  eliteMap.coveragePercentage = (eliteMap.coverageSize / Object.keys(eliteMap.cells).length) * 100;
 
-  console.log("generation", eliteMap.generationNumber,"eliteCountAtGeneration:",eliteMap.eliteCountAtGeneration, "evo run ID:", evolutionRunId);
+  console.log(
+    "generation", eliteMap.generationNumber,
+    "eliteCountAtGeneration:", eliteMap.eliteCountAtGeneration,
+    "coverageSize", eliteMap.coverageSize, "coveragePercentage", eliteMap.coveragePercentage, 
+    "evo run ID:", evolutionRunId
+  );
 
   eliteMap.searchBatchSize = searchBatchSize;
   eliteMap.timestamp = Date.now();
