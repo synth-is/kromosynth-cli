@@ -901,7 +901,7 @@ async function mapElitesBatch(
         const saveEliteMapToDiskStartTime = performance.now();
         saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
         const saveEliteMapToDiskEndTime = performance.now();
-        console.log("saveEliteMapToDisk duration", saveEliteMapToDiskToDiskEndTime - saveEliteMapToDiskStartTime);
+        console.log("saveEliteMapToDisk duration", saveEliteMapToDiskEndTime - saveEliteMapToDiskStartTime);
 
         const commitEliteMapToGitStartTime = performance.now();
         if( commitEliteMapToGitEveryNIterations && eliteMap.generationNumber % commitEliteMapToGitEveryNIterations === 0 ) {
