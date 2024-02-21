@@ -312,7 +312,7 @@ export async function qdSearch(
 
     const batchEndTimeMs = performance.now();
     const batchDurationMs = batchEndTimeMs - batchStartTimeMs;
-    console.log("batchDurationMs", batchDurationMs);
+    console.log("batchDurationMs", batchDurationMs, terminationCondition.numberOfEvals ? `, % completed: ${(eliteMap.generationNumber*searchBatchSize)/terminationCondition.numberOfEvals*100}` : "");
     eliteMap.batchDurationMs = batchDurationMs;
     if( processingUtilisation ) {
       console.log("waiting for", processingUtilisation * batchDurationMs, "ms, to utilise", processingUtilisation, "of the available processing time");
