@@ -3,6 +3,7 @@ import grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
 import { struct } from 'pb-util';
 import parseArgs from 'minimist';
+import crypto from 'crypto';
 import {
   getNewAudioSynthesisGenome,
   getNewAudioSynthesisGenomeByMutation,
@@ -136,10 +137,22 @@ async function evaluateGenome( call, callback ) {
   } );
 }
 
-
 function getAudioContext() {
 	if( ! audioCtx ) audioCtx = new AudioContext({sampleRate: SAMPLE_RATE});
 	return audioCtx;
+}
+
+function filepathToPort( filepath ) {
+  // Using the crypto module to generate a hash of the filepath
+  let hash = crypto.createHash('md5').update(filepath).digest("hex");
+
+  // Converting the first 8 charachters of the hashed string into a number
+  let shortHash = parseInt(hash.substring(0, 8), 16);
+
+  // Ensuring the port number falls within the dynamic or private port range
+  let port = 1024 + shortHash % (65535 - 1024);
+
+  return port;
 }
 
 async function main() {
@@ -151,8 +164,7 @@ async function main() {
     // const freePort = await findFreePorts(1, {startPort: 50051});
     // port = freePort[0];
     console.log("--- argv.hostInfoFilePath:", argv.hostInfoFilePath);
-    port = 50051;
-    argv.hostInfoFilePath.substring(argv.hostInfoFilePath.lastIndexOf("host-")+5).split("-").reverse().forEach( (i, idx) => port += parseInt(i) * (idx+1*10) );
+    port = filepathToPort( argv.hostInfoFilePath );
     hostname = `${os.hostname()}:${port}`;
     console.log("--- hostname:", hostname);
     fs.writeFile(argv.hostInfoFilePath, hostname, () => console.log(`Wrote hostname to ${argv.hostInfoFilePath}`));
