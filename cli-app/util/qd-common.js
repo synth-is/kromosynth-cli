@@ -1,6 +1,7 @@
 import { execSync, exec, spawn } from 'child_process';
 // import fs from 'fs';
 import fs from 'fs-extra';
+import nthline from 'nthline';
 import { renderAudio } from 'kromosynth';
 
 export function getEvoRunDirPath( evoRunConfig, evoRunId ) {
@@ -13,7 +14,8 @@ export async function readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRu
   let genomeJSONString;
   try {
     const genomeKey = getGenomeKey(evolutionRunId, genomeId);
-    const genomeFilePath = `${evoRunDirPath}${genomeKey}.json`;
+    const evoRunDirPathSeparator = evoRunDirPath.endsWith('/') ? '' : '/';
+    const genomeFilePath = `${evoRunDirPath}${evoRunDirPathSeparator}${genomeKey}.json`;
     if( fs.existsSync(genomeFilePath) ) {
       genomeJSONString = fs.readFileSync(genomeFilePath, 'utf8');
     }
@@ -55,6 +57,55 @@ export function deleteAllGenomeRendersNotInEliteMap( eliteMap, evoRenderDirPath 
       fs.unlinkSync(wavFilePath);
     }
   }
+}
+
+///// functions corresponding to logic in endpoints in the kromosynth-evoruns project
+
+export async function getEliteMap( evoRunDirPath, iterationIndex, forceCreateCommitIdsList ) {
+  const commitId = await getCommitID( evoRunDirPath, iterationIndex, forceCreateCommitIdsList );
+  const evoRunId = evoRunDirPath.split('/').pop();
+  const eliteMapString = await spawnCmd(`git -C ${evoRunDirPath} show ${commitId}:elites_${evoRunId}.json`, {}, true);
+  const eliteMap = JSON.parse(eliteMapString);
+  return eliteMap;
+}
+
+export function getCommitCount( evoRunDirPath, forceCreateCommitIdsList ) {
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunDirPath, forceCreateCommitIdsList );
+  const commitCount = parseInt(runCmd(`wc -l < ${commitIdsFilePath}`));
+  return commitCount;
+}
+
+export async function getClassLabelsWithElites( evoRunDirPath ) {
+  const lastCommitIndex = getCommitCount( evoRunDirPath ) - 1;
+  console.log('lastCommitIndex:', lastCommitIndex);
+  const eliteMap = await getEliteMap( evoRunDirPath, lastCommitIndex );
+  const classes = Object.keys(eliteMap.cells).filter( (className) => eliteMap.cells[className].elts.length > 0 ).sort();
+  return classes;
+}
+
+function getCommitIdsFilePath( evoRunDirPath, forceCreateCommitIdsList ) {
+  const commitIdsFileName = "commit-ids.txt";
+  const evoRunDirPathSeparator = evoRunDirPath.endsWith('/') ? '' : '/';
+  const commitIdsFilePath = `${evoRunDirPath}${evoRunDirPathSeparator}${commitIdsFileName}`;
+  if( forceCreateCommitIdsList || ! fs.existsSync(`${evoRunDirPath}/commit-ids.txt`) ) {
+    runCmd(`git -C ${evoRunDirPath} rev-list HEAD --first-parent --reverse > ${commitIdsFilePath}`);
+  }
+  return commitIdsFilePath;
+}
+
+async function getCommitID( evoRunDirPath, iterationIndex, forceCreateCommitIdsList ) {
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunDirPath, forceCreateCommitIdsList );
+  let commitId;
+  if( iterationIndex === undefined ) {
+    // get last index
+    const commitCount = getCommitCount( evoRunDirPath, forceCreateCommitIdsList );
+    console.log('commitCount:', commitCount);
+    const lastCommitIndex = commitCount - 1;
+    commitId = await nthline(lastCommitIndex, commitIdsFilePath);
+  } else {
+    commitId = await nthline(iterationIndex, commitIdsFilePath);
+  }
+  return commitId;
 }
 
 

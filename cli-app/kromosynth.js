@@ -49,9 +49,11 @@ import {
 	// median, 
 	calcStandardDeviation, calcVariance, calcMean,
 	runCmd,
-	averageAttributes, standardDeviationAttributes
+	averageAttributes, standardDeviationAttributes, 
+	getCommitCount, getClassLabelsWithElites, readGenomeAndMetaFromDisk, getEliteMap
 } from './util/qd-common.js';
 import { mean, median, variance, std } from 'mathjs'
+import { sample } from 'lodash-es';
 
 
 const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";
@@ -218,6 +220,16 @@ const cli = meow(`
 		Command: <render-evoruns>
 		--evoruns-rest-server-url	URL of the REST server to query for evolution runs; https://evoruns.synth.is by default
 
+		Command <render-evorun>
+		--evo-run-dir-path Path to the evolution run directory
+		--write-to-folder Folder to write the rendered audio files to; current folder by default
+		--every-nth-iteration Only render every nth iteration; 10000 by default
+		Other optional parameters:
+		--duration, --note-delta, --velocity, --reverse, --anti-aliasing, 
+		--frequency-updates-apply-to-all-pathc-network-outputs, --use-overtone-inharmonicity-factors,
+		--use-gpu, --sample-rate, 
+		--gene-metadata-override
+
 	Examples
 		$ kromosynth new-genome [--write-to-file]
 		$ kromosynth mutate-genome [--read-from-file | --read-from-input] [--write-to-file | --write-to-output]
@@ -260,6 +272,8 @@ const cli = meow(`
 
 		$ kromosynth render-evoruns --evoruns-rest-server-url http://localhost:3003 --write-to-folder ./
 
+		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-iteration 100
+
 		TODO see saveRenderedSoundsToFilesWorker onwards
 
 		$ kromosynth render-virtual-instrument [--read-from-file | --read-from-input] \
@@ -271,6 +285,9 @@ const cli = meow(`
 `, {
 	importMeta: import.meta,
 	flags: {
+		evoRunDirPath: {
+			type: 'string'
+		},
 		readFromFile: {
 			type: 'string',
 			alias: 'r'
@@ -318,10 +335,27 @@ const cli = meow(`
 			alias: 'r',
 			default: false
 		},
+		antiAliasing: {
+			type: 'boolean',
+			default: false
+		},
+		useOvertoneInharmonicityFactors: {
+			type: 'boolean',
+			default: true
+		},
+		frequencyUpdatesApplyToAllPathcNetworkOutputs: {
+			type: 'boolean',
+			default: false
+		},
 		geneMetadataOverride: {
 			type: 'boolean',
 			default: false
 		},
+		everyNthIteration: {
+			type: 'number',
+			default: 10000
+		},
+
 		mutationCount: {
 			type: 'number',
 			default: 1
@@ -339,10 +373,6 @@ const cli = meow(`
 		},
 		evoParamsJsonString: {
 			type: 'string'
-		},
-		useOvertoneInharmonicityFactors: {
-			type: 'boolean',
-			default: true
 		},
 
 		classScoringDurations: {
@@ -567,6 +597,9 @@ async function executeEvolutionTask() {
 		case "render-evoruns":
 			renderEvoruns();
 			break;
+		case "render-evorun":
+			renderEvorun();
+			break;
     default:
       cli.showHelp();
   }
@@ -790,6 +823,68 @@ async function renderEvoruns() {
 		} else {
 			const errorFilename = `_ERROR.txt`;
 			writeToFile( classes.error, `${writeToFolder}errors/`, evorunId, ``, errorFilename, false );	
+		}
+	}
+}
+
+async function renderEvorun() {
+	let { 
+		evoRunDirPath,
+		duration: durationParam, noteDelta: noteDeltaParam, velocity: velocityParam, reverse,
+		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+		geneMetadataOverride, useGpu, sampleRate,
+		everyNthIteration,
+		writeToFolder
+	} = cli.flags;
+	if( ! evoRunDirPath ) {
+		console.error("No evoRunDirPath provided");
+		process.exit();
+	}
+	const evoRunId = evoRunDirPath.substring(0,evoRunDirPath.length).split('/').pop();
+	const iterationCount = getCommitCount( evoRunDirPath );
+	if( everyNthIteration >= iterationCount ) {
+		everyNthIteration = iterationCount - 1;
+	}
+	const classes = await getClassLabelsWithElites( evoRunDirPath );
+	for( let oneClass of classes ) {
+		for( let iteration = everyNthIteration; iteration < iterationCount; iteration += everyNthIteration ) {
+			const eliteMap = await getEliteMap( evoRunDirPath, iteration );
+			const classElites = eliteMap.cells[oneClass].elts;
+			if( classElites && classElites.length ) {
+				const genomeId = classElites[0].g;
+				const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+				// await getGenomeString( evoRunDirPath, oneClass, iteration );
+				const genomeAndMeta = JSON.parse( genomeString );
+				const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === oneClass);
+				const { duration, noteDelta, velocity } = tagForCell;
+				let _duration = durationParam || duration;
+				let _noteDelta = noteDeltaParam || noteDelta;
+				let _velocity = velocityParam || velocity;
+				if( geneMetadataOverride ) {
+					_duration = durationParam;
+					_noteDelta = noteDeltaParam;
+					_velocity = velocityParam;
+				} else {
+					_duration = duration;
+					_noteDelta = noteDelta;
+					_velocity = velocity;
+				}
+				console.log("Rendering evoRun", evoRunId, ", iteration ", iteration, ", class", oneClass, "from genomeId", genomeId);
+				const audioBuffer = await getAudioBufferFromGenomeAndMeta(
+					genomeAndMeta,
+					_duration, _noteDelta, _velocity, reverse,
+					false, // asDataArray
+					getNewOfflineAudioContext( _duration, sampleRate ),
+					getAudioContext( sampleRate ),
+					useOvertoneInharmonicityFactors,
+					useGpu,
+					antiAliasing,
+					frequencyUpdatesApplyToAllPathcNetworkOutputs
+				);
+				const wav = toWav(audioBuffer);
+				const subFolder = writeToFolder + "/" + evoRunId + "/" + iteration + "_" + _duration  + "/";
+				writeToFile( Buffer.from(new Uint8Array(wav)), subFolder, genomeAndMeta._id, `${oneClass}_`, `${iteration}.wav`, false );
+			}
 		}
 	}
 }

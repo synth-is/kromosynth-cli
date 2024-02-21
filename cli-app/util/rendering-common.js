@@ -10,11 +10,11 @@ export function getAudioContext( sampleRate = SAMPLE_RATE) {
 	return audioCtx;
 }
 
-export function getNewOfflineAudioContext( duration ) {
+export function getNewOfflineAudioContext( duration, sampleRate = SAMPLE_RATE) {
 	const offlineAudioContext = new OfflineAudioContext({
 		numberOfChannels: 2,
-		length: SAMPLE_RATE * duration,
-		sampleRate: SAMPLE_RATE,
+		length: sampleRate * duration,
+		sampleRate: sampleRate,
 	});
 	return offlineAudioContext;
 }
