@@ -50,7 +50,7 @@
 
   "commitEliteMapToGitEveryNIterations": 1000,
   "addGenomesToGit": false,
-  "prunePastEliteGenomesEveryNIterations": 20,
+  "prunePastEliteGenomesEveryNGenerations": 20,
   "renderEliteMapToWavFilesEveryNIterations": null, // 50000,
   "renderElitesToWavFiles": true,
   "evoRendersDirPath": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/evorenders/",
