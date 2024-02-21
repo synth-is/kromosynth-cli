@@ -91,7 +91,7 @@ export async function qdSearch(
     renderSampleRateForClassifier,
     commitEliteMapToGitEveryNIterations, 
     addGenomesToGit, prunePastEliteGenomesEveryNGenerations,
-    renderEliteMapToWavFilesEveryNIterations, renderElitesToWavFiles,
+    renderEliteMapToWavFilesEveryNGenerations, renderElitesToWavFiles,
     processingUtilisation,
     batchDurationMs,
     gRpcHostFilePathPrefix, gRpcServerCount,
@@ -272,7 +272,7 @@ export async function qdSearch(
         eliteMap, cellFeatures, seedFeaturesAndScores,
         algorithmKey, evolutionRunId,
         commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNGenerations,
-        renderEliteMapToWavFilesEveryNIterations, renderElitesToWavFiles,
+        renderEliteMapToWavFilesEveryNGenerations, renderElitesToWavFiles,
         searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
         maxNumberOfParents,
         probabilityMutatingWaveNetwork, probabilityMutatingPatch,
@@ -338,7 +338,7 @@ async function mapElitesBatch(
   eliteMap, cellFeatures, seedFeaturesAndScores,
   algorithmKey, evolutionRunId,
   commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNGenerations,
-  renderEliteMapToWavFilesEveryNIterations, renderElitesToWavFiles,
+  renderEliteMapToWavFilesEveryNGenerations, renderElitesToWavFiles,
   searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
   maxNumberOfParents,
   probabilityMutatingWaveNetwork, probabilityMutatingPatch,
@@ -949,13 +949,13 @@ async function mapElitesBatch(
   const prunePastElitesEndTime = performance.now();
   console.log("prunePastElites duration", prunePastElitesEndTime - prunePastElitesStartTime);
 
-  if( renderEliteMapToWavFilesEveryNIterations && eliteMap.generationNumber % renderEliteMapToWavFilesEveryNIterations === 0 ) {
+  if( renderEliteMapToWavFilesEveryNGenerations && eliteMap.generationNumber % renderEliteMapToWavFilesEveryNGenerations === 0 ) {
     shouldRenderWaveFiles = true;
   }
 
   eliteMap.generationNumber++;
 
-  const shouldFit = getShouldFit(eliteMap.lastProjectionFitIndex, eliteMap.generationNumber);
+  const shouldFit = getShouldFit(eliteMap.lastProjectionFitIndex, eliteMap.generationNumber*searchBatchSize); // eliteMap.generationNumber*searchBatchSize === iterationNumber
   if( isUnsupervisedDiversityEvaluation && ! isSeedRound && shouldFit ) {
     await retrainProjectionModel( cellFeatures, eliteMap, _evaluationProjectionServers, evoRunDirPath );
   }
@@ -1735,11 +1735,11 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
 }
 
 const projectionRetrainingLinearGapIncrement = 10;
-function getShouldFit( lastProjectionFitIndex, generationNumber ) {
+function getShouldFit( lastProjectionFitIndex, iterationNumber ) {
   // T_n = n * k * (n + 1) / 2,
   const nextProjectionFitIndex = lastProjectionFitIndex + 1;
-  const nextFitGenerationNumber = nextProjectionFitIndex * projectionRetrainingLinearGapIncrement * (nextProjectionFitIndex + 1) / 2;
-  const shouldFit = generationNumber >= nextFitGenerationNumber;
+  const nextFitIterationNumber = nextProjectionFitIndex * projectionRetrainingLinearGapIncrement * (nextProjectionFitIndex + 1) / 2;
+  const shouldFit = iterationNumber >= nextFitIterationNumber;
   return shouldFit;
 }
 // only called once, after the seed rounds are over:
@@ -2011,7 +2011,7 @@ function shouldTerminate( terminationCondition, eliteMap, dummyRun ) {
   if( dummyRun && dummyRun.iterations ) {
     shouldTerminate = dummyRun.iterations <= eliteMap.generationNumber;
   } else if( condition = terminationCondition["numberOfEvals"] ) {
-    shouldTerminate = condition <= eliteMap.generationNumber;
+    shouldTerminate = condition <= eliteMap.generationNumber * eliteMap.searchBatchSize;
   } else if( condition = terminationCondition["averageFitnessInMap"] ) {
     const cellsKeysWithChampions = getCellKeysWithChampions(eliteMap.cells);
     if( cellsKeysWithChampions.length ) {
