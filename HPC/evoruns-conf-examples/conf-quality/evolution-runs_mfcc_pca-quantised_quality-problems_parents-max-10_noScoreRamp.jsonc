@@ -3,12 +3,12 @@
   "baseEvolutionaryHyperparametersFile": "/home/bthj/QD/conf-quality/evolutionary-hyperparameters.jsonc",
   "evoRuns": [
     {
-      "label": "mfcc_pca-quantised_quality-problems_parents-max-1_noScoreRamp",
-      "diffEvolutionRunConfigFile": "/home/bthj/QD/conf-quality/diffs/evolution-run-config_mfcc_pca-quantised_quality-problems_parents-max-1_noScoreRamp.jsonc",
+      "label": "mfcc_pca-quantised_quality-problems_parents-max-10_noScoreRamp",
+      "diffEvolutionRunConfigFile": "/home/bthj/QD/conf-quality/diffs/evolution-run-config_mfcc_pca-quantised_quality-problems_parents-max-10_noScoreRamp.jsonc",
       "diffEvolutionaryHyperparametersFile": null,
       "iterations": [
         {
-          "id": "01HQ3PJR1KJGGA2VQ6RFG9XDX8_mfcc_pca-quantised_quality-problems_parents-max-1_noScoreRamp"
+          "id": null
         }
       ]
     }

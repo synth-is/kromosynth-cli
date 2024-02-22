@@ -12,14 +12,14 @@
   "antiAliasing": true,
 
   "gRpcHostFilePathPrefix": "/home/bthj/gRPC-hosts/grpc-evolution-runs_mfcc_pca-quantised_quality-problems.jsonc-host-",
-  "gRpcServerCount": 6,
+  "gRpcServerCount": 4,
   "renderingSocketHostFilePathPrefix": "/home/bthj/gRPC-hosts/rendering-socket-evolution-runs_mfcc_pca-quantised_quality-problems.jsonc-host-",
-  "renderingSocketServerCount": 6,
+  "renderingSocketServerCount": 4,
 
   "evaluationFeatureSocketHostFilePathPrefix": "/home/bthj/gRPC-hosts/evaluation-feature-socket-evolution-runs_mfcc_pca-quantised_quality-problems.jsonc-host-",
-  "evaluationFeatureSocketServerCount": 6,
+  "evaluationFeatureSocketServerCount": 4,
   "evaluationQualitySocketHostFilePathPrefix": "/home/bthj/gRPC-hosts/evaluation-quality-socket-evolution-runs_mfcc_pca-quantised_quality-problems.jsonc-host-",
-  "evaluationQualitySocketServerCount": 6,
+  "evaluationQualitySocketServerCount": 4,
   "evaluationProjectionSocketHostFilePathPrefix": "/home/bthj/gRPC-hosts/evaluation-projection-socket-evolution-runs_mfcc_pca-quantised_quality-problems.jsonc-host-",
-  "evaluationProjectionSocketServerCount": 6
+  "evaluationProjectionSocketServerCount": 4
 }

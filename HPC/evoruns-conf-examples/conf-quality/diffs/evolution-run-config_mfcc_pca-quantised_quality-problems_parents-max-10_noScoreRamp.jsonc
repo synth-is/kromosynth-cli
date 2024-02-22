@@ -1,0 +1,25 @@
+{
+  "seedEvals": 250,
+  "batchSize": 128,
+  "maxNumberOfParents": 10,
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+  "classScoringDurations": [4],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "renderSampleRateForClassifier": 16000,
+
+  "antiAliasing": true,
+
+  "gRpcHostFilePathPrefix": "/home/bthj/gRPC-hosts/grpc-evolution-runs_mfcc_pca-quantised_quality-problems_parents-max-10_noScoreRamp.jsonc-host-",
+  "gRpcServerCount": 6,
+  "renderingSocketHostFilePathPrefix": "/home/bthj/gRPC-hosts/rendering-socket-evolution-runs_mfcc_pca-quantised_quality-problems_parents-max-10_noScoreRamp.jsonc-host-",
+  "renderingSocketServerCount": 6,
+
+  "evaluationFeatureSocketHostFilePathPrefix": "/home/bthj/gRPC-hosts/evaluation-feature-socket-evolution-runs_mfcc_pca-quantised_quality-problems_parents-max-10_noScoreRamp.jsonc-host-",
+  "evaluationFeatureSocketServerCount": 6,
+  "evaluationQualitySocketHostFilePathPrefix": "/home/bthj/gRPC-hosts/evaluation-quality-socket-evolution-runs_mfcc_pca-quantised_quality-problems_parents-max-10_noScoreRamp.jsonc-host-",
+  "evaluationQualitySocketServerCount": 6,
+  "evaluationProjectionSocketHostFilePathPrefix": "/home/bthj/gRPC-hosts/evaluation-projection-socket-evolution-runs_mfcc_pca-quantised_quality-problems_parents-max-10_noScoreRamp.jsonc-host-",
+  "evaluationProjectionSocketServerCount": 6
+}

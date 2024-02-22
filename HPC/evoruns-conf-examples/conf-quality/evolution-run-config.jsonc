@@ -47,9 +47,9 @@
 
   "commitEliteMapToGitEveryNIterations": 1,
   "addGenomesToGit": false,
-  "prunePastEliteGenomesEveryNIterations": null, // 20,
-  "renderEliteMapToWavFilesEveryNIterations": null, // 50000,
-  "renderElitesToWavFiles": false, // prunePastEliteGenomesEveryNIterations affects those
+  "prunePastEliteGenomesEveryNGenerations": null, // 20,
+  "renderEliteMapToWavFilesEveryNGenerations": null, // 50000,
+  "renderElitesToWavFiles": false, // prunePastEliteGenomesEveryNGenerations affects those
   "evoRendersDirPath": "/home/bthj/QD/evorenders/",
 
   "processingUtilisation": null, // 0.9,
