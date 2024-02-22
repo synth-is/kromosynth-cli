@@ -272,7 +272,7 @@ const cli = meow(`
 
 		$ kromosynth render-evoruns --evoruns-rest-server-url http://localhost:3003 --write-to-folder ./
 
-		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-iteration 100
+		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-generation 100
 
 		TODO see saveRenderedSoundsToFilesWorker onwards
 
@@ -351,7 +351,7 @@ const cli = meow(`
 			type: 'boolean',
 			default: false
 		},
-		everyNthIteration: {
+		everyNthGeneration: {
 			type: 'number',
 			default: 10000
 		},
@@ -833,7 +833,7 @@ async function renderEvorun() {
 		duration: durationParam, noteDelta: noteDeltaParam, velocity: velocityParam, reverse,
 		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
 		geneMetadataOverride, useGpu, sampleRate,
-		everyNthIteration,
+		everyNthGeneration,
 		writeToFolder
 	} = cli.flags;
 	if( ! evoRunDirPath ) {
@@ -841,13 +841,13 @@ async function renderEvorun() {
 		process.exit();
 	}
 	const evoRunId = evoRunDirPath.substring(0,evoRunDirPath.length).split('/').pop();
-	const iterationCount = getCommitCount( evoRunDirPath );
-	if( everyNthIteration >= iterationCount ) {
-		everyNthIteration = iterationCount - 1;
+	const generationCount = getCommitCount( evoRunDirPath );
+	if( everyNthGeneration >= generationCount ) {
+		everyNthGeneration = generationCount - 1;
 	}
 	const classes = await getClassLabelsWithElites( evoRunDirPath );
 	for( let oneClass of classes ) {
-		for( let iteration = everyNthIteration; iteration < iterationCount; iteration += everyNthIteration ) {
+		for( let iteration = everyNthGeneration; iteration < generationCount; iteration += everyNthGeneration ) {
 			const eliteMap = await getEliteMap( evoRunDirPath, iteration );
 			const classElites = eliteMap.cells[oneClass].elts;
 			if( classElites && classElites.length ) {
