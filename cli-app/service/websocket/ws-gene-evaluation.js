@@ -143,6 +143,7 @@ export function getFeaturesFromWebsocket(
   audioBufferChannelData,
   evaluationFeatureHost
 ) {
+  console.log('getFeaturesFromWebsocket', evaluationFeatureHost);
   const ws = getClient( evaluationFeatureHost );
   ws.binaryType = "arraybuffer"; // Set binary type for receiving array buffers
   return new Promise((resolve, reject) => {
@@ -165,6 +166,7 @@ export function getQualityFromWebsocket(
   audioBufferChannelData,
   evaluationQualityHost
 ) {
+  console.log('getQualityFromWebsocket', evaluationQualityHost);
   const ws = getClient( evaluationQualityHost );
   ws.binaryType = "arraybuffer"; // Set binary type for receiving array buffers
   return new Promise((resolve, reject) => {
@@ -190,6 +192,7 @@ export function getDiversityFromWebsocket(
   evoRunDirPath,
   shouldFit
 ) {
+  console.log('getDiversityFromWebsocket', evaluationDiversityHost);
   const ws = getClient( evaluationDiversityHost );
   return new Promise((resolve, reject) => {
     ws.on('open', () => {
