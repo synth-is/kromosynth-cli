@@ -149,8 +149,10 @@ function filepathToPort( filepath ) {
   // Converting the first 8 charachters of the hashed string into a number
   let shortHash = parseInt(hash.substring(0, 8), 16);
 
+  let portLowerBound = 8192; // 1024;
+  let portUpperBound = 65535;
   // Ensuring the port number falls within the dynamic or private port range
-  let port = 1024 + shortHash % (65535 - 1024);
+  let port = portLowerBound + shortHash % (portUpperBound - portLowerBound);
 
   return port;
 }
