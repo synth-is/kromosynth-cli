@@ -272,7 +272,7 @@ const cli = meow(`
 
 		$ kromosynth render-evoruns --evoruns-rest-server-url http://localhost:3003 --write-to-folder ./
 
-		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-generation 100
+		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-generation 100 --owerwrite-existing-files true
 
 		TODO see saveRenderedSoundsToFilesWorker onwards
 
@@ -299,6 +299,10 @@ const cli = meow(`
 		writeToFolder: {
 			type: 'string',
 			default: './'
+		},
+		overwriteExistingFiles: {
+			type: 'boolean',
+			default: false
 		},
 		writeToOutput: {
 			type: 'boolean',
@@ -834,7 +838,7 @@ async function renderEvorun() {
 		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
 		geneMetadataOverride, useGpu, sampleRate,
 		everyNthGeneration,
-		writeToFolder
+		writeToFolder, overwriteExistingFiles
 	} = cli.flags;
 	if( ! evoRunDirPath ) {
 		console.error("No evoRunDirPath provided");
@@ -869,7 +873,17 @@ async function renderEvorun() {
 					_noteDelta = noteDelta;
 					_velocity = velocity;
 				}
-				console.log("Rendering evoRun", evoRunId, ", iteration ", iteration, ", class", oneClass, "from genomeId", genomeId);
+
+				const oneClassFileNameFriendly = oneClass.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+				const subFolder = writeToFolder + "/" + evoRunId + "/" + iteration + "_" + _duration  + "/";
+				const wavFileName = `${oneClassFileNameFriendly}_${genomeId}_${iteration}.wav`;
+				if( fs.existsSync( subFolder + wavFileName ) && ! overwriteExistingFiles) {
+					console.log("File exists, not rendering:", subFolder + wavFileName);
+					continue;
+				}
+
+				console.log("Rendering evoRun", evoRunId, ", iteration ", iteration, ", class", oneClassFileNameFriendly, "from genomeId", genomeId);
 				const audioBuffer = await getAudioBufferFromGenomeAndMeta(
 					genomeAndMeta,
 					_duration, _noteDelta, _velocity, reverse,
@@ -882,8 +896,8 @@ async function renderEvorun() {
 					frequencyUpdatesApplyToAllPathcNetworkOutputs
 				);
 				const wav = toWav(audioBuffer);
-				const subFolder = writeToFolder + "/" + evoRunId + "/" + iteration + "_" + _duration  + "/";
-				writeToFile( Buffer.from(new Uint8Array(wav)), subFolder, genomeAndMeta._id, `${oneClass}_`, `${iteration}.wav`, false );
+				
+				writeToFile( Buffer.from(new Uint8Array(wav)), subFolder, genomeId, `${oneClassFileNameFriendly}_`, `_${iteration}.wav`, false );
 			}
 		}
 	}
