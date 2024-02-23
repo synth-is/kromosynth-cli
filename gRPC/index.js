@@ -4,6 +4,7 @@ import protoLoader from '@grpc/proto-loader';
 import { struct } from 'pb-util';
 import parseArgs from 'minimist';
 import crypto from 'crypto';
+import net from 'net';
 import {
   getNewAudioSynthesisGenome,
   getNewAudioSynthesisGenomeByMutation,
@@ -142,19 +143,29 @@ function getAudioContext() {
 	return audioCtx;
 }
 
-function filepathToPort( filepath ) {
-  // Using the crypto module to generate a hash of the filepath
-  let hash = crypto.createHash('md5').update(filepath).digest("hex");
+function isPortTaken(port) {
+  return new Promise((resolve) => {
+      const server = net.createServer()
+          .once('error', () => resolve(true))
+          .once('listening', () => server.once('close', () => resolve(false)).close())
+          .listen(port);
+  });
+}
 
-  // Converting the first 8 charachters of the hashed string into a number
+async function filepathToPort(filepath, variation = 0) {
+  let filepathVariation = filepath + variation.toString();
+  let hash = crypto.createHash('md5').update(filepathVariation).digest("hex");
   let shortHash = parseInt(hash.substring(0, 8), 16);
+  let port = 1024 + shortHash % (65535 - 1024);
+  let isTaken = await isPortTaken(port);
 
-  let portLowerBound = 8192; // 1024;
-  let portUpperBound = 65535;
-  // Ensuring the port number falls within the dynamic or private port range
-  let port = portLowerBound + shortHash % (portUpperBound - portLowerBound);
-
-  return port;
+  if(isTaken) {
+      console.log(`--- filepathToPort(${filepath}): port ${port} taken`)
+      return await filepathToPort(filepath, variation + 1);
+  } else {
+      console.log(`--- filepathToPort(${filepath}): port ${port} available`);
+      return port;
+  }
 }
 
 async function main() {
@@ -166,7 +177,7 @@ async function main() {
     // const freePort = await findFreePorts(1, {startPort: 50051});
     // port = freePort[0];
     console.log("--- argv.hostInfoFilePath:", argv.hostInfoFilePath);
-    port = filepathToPort( argv.hostInfoFilePath );
+    port = await filepathToPort( argv.hostInfoFilePath );
     hostname = `${os.hostname()}:${port}`;
     console.log("--- hostname:", hostname);
     fs.writeFile(argv.hostInfoFilePath, hostname, () => console.log(`Wrote hostname to ${argv.hostInfoFilePath}`));

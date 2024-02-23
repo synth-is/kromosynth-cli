@@ -15,6 +15,7 @@ let clients = {};
 export function callRandomGeneService(
   evolutionRunId, generationNumber, evolutionaryHyperparameters, gRPCHost
 ) {
+  console.log("callRandomGeneService gRPC:", gRPCHost);
   return new Promise((resolve, reject) => {
     const payload = {
       evolution_run_id: evolutionRunId,
@@ -42,6 +43,7 @@ export function callGeneVariationService(
   patchFitnessTestDuration,
   gRPCHost
 ) {
+  console.log("callGeneVariationService gRPC:", gRPCHost);
   return new Promise((resolve, reject) => {
     const payload = {
       genomeStrings: struct.encode( {genomeStrings} ),

@@ -198,11 +198,12 @@ export async function qdSearch(
     eliteMap = initializeGrid( 
       evolutionRunId, algorithmKey, evolutionRunConfig, evolutionaryHyperparameters
     );
-    
-    runCmd(`git init ${evoRunDirPath}`);
 
     createEvoRunDir( evoRunDirPath );
     createEvoRunDir( evoRunFailedGenesDirPath );
+
+    runCmd(`git init ${evoRunDirPath}`);
+
     await saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
     await saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, 0 ); // generation specific map
 
@@ -441,7 +442,7 @@ async function mapElitesBatch(
       searchPromises[batchIteration] = new Promise( async (resolve, reject) => {
   
         let randomClassKey;
-        const parentGenomes = [];
+        let parentGenomes = [];
   
         ///// gene initialisation
   
@@ -907,12 +908,14 @@ async function mapElitesBatch(
 
     } // for( let oneBatchIterationResult of batchIterationResults ) {
 
-    for( const oneNewEliteClass in classToBatchEliteCandidates ) {
-      const { genome, genomeId } = classToBatchEliteCandidates[oneNewEliteClass];
+    for( let oneNewEliteClass in classToBatchEliteCandidates ) {
+      let { genome, genomeId } = classToBatchEliteCandidates[oneNewEliteClass];
       const saveGenomeToDiskStartTime = performance.now();
       await saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
       const saveGenomeToDiskEndTime = performance.now();
       console.log("saveGenomeToDisk duration", saveGenomeToDiskEndTime - saveGenomeToDiskStartTime);
+      genome = undefined;
+      genomeId = undefined;
     }
     eliteMap.eliteCountAtGeneration = Object.keys(classToBatchEliteCandidates).length;
     classToBatchEliteCandidates = undefined; // attempt to free up memory
