@@ -1223,7 +1223,7 @@ async function qdAnalysis_percentCompletion() {
 					const eliteMap = JSON.parse(fs.readFileSync( eliteMapFileName, "utf8" ));
 					const generationNumber = eliteMap.generationNumber;
 					sumNumberOfGenerations += generationNumber;
-					const percentCompleted = generationNumber / evoRunConfig.terminationCondition.numberOfEvals;
+					const percentCompleted = (generationNumber * evoRunConfig.searchBatchSize) / evoRunConfig.terminationCondition.numberOfEvals;
 					evoRunsPercentCompleted.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].percentCompleted = percentCompleted;
 				}
 			}
