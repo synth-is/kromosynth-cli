@@ -1,11 +1,11 @@
 import WebSocket from "ws";
 
 const featureExtractionServerHost = 'ws://localhost:31051';
-const qualityEvaluationServerHost = 'ws://localhost:8080';
+const qualityEvaluationServerHost = 'ws://localhost:32051';
 const diversityEvaluationServerHost = 'ws://localhost:33051';
 
-// const SAMPLE_RATE = 16000;
-const SAMPLE_RATE = 48000;
+const SAMPLE_RATE = 16000;
+// const SAMPLE_RATE = 48000;
 
 // Function to generate a random audio buffer (mock data)
 function generateRandomSoundBuffer(length) {
@@ -64,6 +64,18 @@ function generateSoundBufferWithSawtoothWave(length) {
   for (let i = 0; i < view.length; i++) {
     // Fill the buffer with a sawtooth wave
     view[i] = Math.atan(Math.tan(i / 1000));
+  }
+  return buffer;
+}
+
+function generateSoundBufferWithSilence(length) {
+  // each Float32Array element is 4 bytes
+  const arrayBufferLength = length * 4;
+  const buffer = new ArrayBuffer(arrayBufferLength);
+  const view = new Float32Array(buffer);
+  for (let i = 0; i < view.length; i++) {
+    // Fill the buffer with silence
+    view[i] = 0;
   }
   return buffer;
 }
@@ -176,6 +188,8 @@ function getDiversityFromWebsocket(
       const diversityMessage = {
         "feature_vectors": featureVectors,
         "fitness_values": fitnessValues,
+        "should_fit": true,
+        "evorun_dir": "/tmp/"
       };
       webSocket.send(JSON.stringify(diversityMessage));
     });
@@ -213,16 +227,18 @@ async function callDiversityEvaluationServiceWithFeatureVectorsAndFitnessValues(
     // const audioBuffer = generateRandomSoundBuffer(SAMPLE_RATE*5);
     // const audioBuffer = generateSoundBufferWithSpikesAndGaps(SAMPLE_RATE*5);
     // const audioBuffer = generateSoundBufferWithSineWave(SAMPLE_RATE*5);
-    const audioBuffer = generateSoundBufferWithSquareWave(SAMPLE_RATE*5);
+    // const audioBuffer = generateSoundBufferWithSquareWave(SAMPLE_RATE*5);
     // const audioBuffer = generateSoundBufferWithTriangleWave(SAMPLE_RATE*5);
     // const audioBuffer = generateSoundBufferWithSawtoothWave(SAMPLE_RATE*5);
+    const audioBuffer = generateSoundBufferWithSilence(SAMPLE_RATE*2.0);
+    
     const featureVector = await callFeatureExtractionService( audioBuffer );
     const fitnessValue = await callQualityEvaluationService( audioBuffer );
     featureVectors.push(featureVector);
     fitnessValues.push(fitnessValue);
   }
-  // console.log('feature vectors:', featureVectors);
-  // console.log('fitness values:', fitnessValues);
+  console.log('feature vectors:', featureVectors);
+  console.log('fitness values:', fitnessValues);
   const diversity = await getDiversityFromWebsocket(
     featureVectors,
     fitnessValues,

@@ -382,8 +382,15 @@ async function mapElitesBatch(
         const seedFeatureAndScore = seedFeaturesAndScores[i];
         const { 
           genomeId, genomeString,
-          score, duration, noteDelta, velocity
+          fitness, duration, noteDelta, velocity
         } = seedFeatureAndScore;
+        let score;
+        if( getIsTopScoreFitnessWithAssociatedClass(fitness) ) {
+          score = fitness.top_score;
+          seedFeatureClassKeys[i].push(fitness.top_score_class);
+        } else {
+          score = fitness;
+        }
         const classKey = seedFeatureClassKeys[i];
         const newGenomeClassScores = { [classKey]: {
           score, duration, noteDelta, velocity
@@ -600,26 +607,32 @@ async function mapElitesBatch(
           if( isUnsupervisedDiversityEvaluation ) {
             if( isSeedRound ) {
   
-              // TODO call getGenomeClassScoresByDiversityProjectionWithSeedGenomes and populate seedFeaturesAndScores
-              // - then use seedFeaturesAndScores to populate cellFeatures
-  
-              const seedGenomeScoreAndFeatures = await getGenomeScoreAndFeatures(
-                genomeId,
-                newGenomeString,
-                classScoringDurations,
-                classScoringNoteDeltas,
-                classScoringVelocities,
-                useGpuForTensorflow,
-                antiAliasing,
-                frequencyUpdatesApplyToAllPathcNetworkOutputs,
-                geneRenderingServerHost, renderSampleRateForClassifier,
-                geneEvaluationServerHost.feature,
-                geneEvaluationServerHost.quality,
-                scoreProportion
-              );
-              seedFeaturesAndScores.push(seedGenomeScoreAndFeatures);
-              await saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
+              // call getGenomeScoreAndFeatures and populate seedFeaturesAndScores
+              // - then use seedFeaturesAndScores to populate cellFeatures later on
+              for( const oneDuration of classScoringDurations ) {
+                for( const oneNoteDelta of classScoringNoteDeltas ) {
+                  for( const oneVelocity of classScoringVelocities ) {
+                    const seedGenomeScoreAndFeatures = await getGenomeScoreAndFeatures(
+                      genomeId,
+                      newGenomeString,
+                      oneDuration,
+                      oneNoteDelta,
+                      oneVelocity,
+                      useGpuForTensorflow,
+                      antiAliasing,
+                      frequencyUpdatesApplyToAllPathcNetworkOutputs,
+                      geneRenderingServerHost, renderSampleRateForClassifier,
+                      geneEvaluationServerHost.feature,
+                      geneEvaluationServerHost.quality,
+                      scoreProportion
+                    );
+                    seedFeaturesAndScores.push(seedGenomeScoreAndFeatures);
+                    await saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
+                  }
+                }
+              }
               resolve({genomeId, newGenomeString, seedFeaturesAndScores}); // really just used to increment eliteMap.genertionNumber in the Promise.all iterations below
+
             } else {
 
               const generationIncrement = eliteMap.generationNumber + batchIteration; // TODO: remove
@@ -1219,6 +1232,10 @@ async function getCellFitnessValues( eliteMap ) {
   return cellFitnessValues;
 }
 
+function getIsTopScoreFitnessWithAssociatedClass( genomeQuality ) {
+  return genomeQuality && typeof genomeQuality === 'object';
+}
+
 async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
   genomeStrings,
   durations, 
@@ -1239,9 +1256,9 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
   shouldFit, modelFitGeneration
 ) {
   // not supporting arrays of durations, noteDeltas and velocities for now, as is done in getGenomeClassScores
-  const duration = durations[0];
-  const noteDelta = noteDeltas[0];
-  const velocity = velocities[0];
+  const duration = Array.isArray(durations) ? durations[0] : durations;
+  const noteDelta = Array.isArray(noteDeltas) ? noteDeltas[0] : noteDeltas;
+  const velocity = Array.isArray(velocities) ? velocities[0] : velocities;
 
   const cellFitnessValues = await getCellFitnessValues( eliteMap );
 
@@ -1286,7 +1303,13 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
         console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
       });
       // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes newGenomeQuality", newGenomeQuality);
-      newGenomesFitnessValues.push( newGenomeQuality.fitness * scoreProportion );
+      const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass( newGenomeQuality.fitness );
+      if( isTopScoreFitnessWithAssociatedClass ) {
+        newGenomeQuality.fitness.top_score = newGenomeQuality.fitness.top_score * scoreProportion;
+        newGenomesFitnessValues.push( newGenomeQuality.fitness );
+      } else {
+        newGenomesFitnessValues.push( newGenomeQuality.fitness * scoreProportion );
+      }
     }
   }
 
@@ -1359,15 +1382,21 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
         // TODO: start the iteration after cellKeysWithFeatures.length, as we're not using fitness values for unique cell projection for now
   
         for( let i = cellFitnessValues.length; i < allFitnessValues.length; i++ ) {
-          // if( i in indices_to_keep ) {
+
           const newGenomeFitnessValue = allFitnessValues[i];
+          let score;
+          if( getIsTopScoreFitnessWithAssociatedClass( newGenomeFitnessValue ) ) {
+            score = newGenomeFitnessValue.top_score;
+            featureMap[i].push( newGenomeFitnessValue.top_score_class );
+          } else {
+            score = newGenomeFitnessValue;
+          }
           const newGenomeFeatureVector = allFeaturesToProject[i];
+
           const diversityMapKey = featureMap[i].join(",");
-          
-          // if( newGenomeFeatureVector) cellFeatures[ diversityMapKey ] = newGenomeFeatureVector;
-  
+
           newGenomeClassScores[ diversityMapKey ] = {
-            score: newGenomeFitnessValue,
+            score,
             duration,
             noteDelta,
             velocity,
@@ -1395,10 +1424,21 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
     });
     for( let i = 0; i < newGenomesFeatures.length; i++ ) {
       const newGenomeFitnessValue = newGenomesFitnessValues[i];
+
+      let score;
+      if( getIsTopScoreFitnessWithAssociatedClass( newGenomeFitnessValue ) ) {
+        score = newGenomeFitnessValue.top_score;
+        // let's add the class to the diversityMapKey as another dimension
+        diversityProjection.feature_map[i].push( newGenomeFitnessValue.top_score_class );
+      } else {
+        score = newGenomeFitnessValue;
+      }
       const newGenomeFeatureVector = newGenomesFeatures[i];
+
       const diversityMapKey = diversityProjection.feature_map[i].join(",");
+      
       newGenomeClassScores[ diversityMapKey ] = {
-        score: newGenomeFitnessValue,
+        score,
         duration,
         noteDelta,
         velocity,
@@ -1406,7 +1446,6 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       };
     }
   }
-
   // TODO: this is dependent on only one genome being evaluated at a time (so the for loop above is pointless atm):
   // - might want to return an array of newGenomeClassScores, one for each genomeString
   // - then the search promise in each batchIteration would need to resolve with an array of newGenomeClassScores
@@ -1445,6 +1484,7 @@ async function getGenomeScoreAndFeatures(
 
   let newGenomeFeatureVector;
   let newGenomeQuality;
+  let fitness;
   if( audioBuffer && audioBuffer.length && ! audioBuffer.some( value => isNaN(value) ) ) {
     // get features from audio buffer
     const featuresResponse = await getFeaturesFromWebsocket(
@@ -1460,14 +1500,21 @@ async function getGenomeScoreAndFeatures(
       audioBuffer,
       evaluationQualityHost
     ).catch(e => {
-      console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+      console.error(`getGenomeScoreAndFeatures: Error getting quality  for genome ID ${genomeId}`, e);
     });
+    const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass( newGenomeQuality.fitness );
+    if( isTopScoreFitnessWithAssociatedClass ) {
+      newGenomeQuality.fitness.top_score *= scoreProportion;
+      fitness = newGenomeQuality.fitness;
+    } else {
+      fitness = newGenomeQuality.fitness * scoreProportion;
+    }
   }
 
   return {
     genomeId,
     genomeString,
-    score: newGenomeQuality.fitness * scoreProportion,
+    fitness,
     duration,
     noteDelta,
     velocity,
@@ -1685,28 +1732,27 @@ function getEliteMapKey( evolutionRunId, generationNumber ) {
 
 ///// methods to obtain a list of n-dimensional coordinates for a grid of cells
 function createNDimensionalKeys(dims) {
-  const length = dims.reduce((prev, current) => prev * current, 1);
   const keys = [];
 
-  for (let i = 0; i < length; i++) {
-    const indices = getIndices(dims, i);
-    const key = indices.join(",");
-    keys.push(key);
+  function generateKeys(indices, dimsIndex) {
+    if (dimsIndex === dims.length) {
+      keys.push(indices.join(","));
+    } else {
+      if (Array.isArray(dims[dimsIndex])) {
+        for (let i = 0; i < dims[dimsIndex].length; i++) {
+          generateKeys([...indices, dims[dimsIndex][i]], dimsIndex + 1);
+        }
+      } else {
+        for (let i = 0; i < dims[dimsIndex]; i++) {
+          generateKeys([...indices, i], dimsIndex + 1);
+        }
+      }
+    }
   }
+
+  generateKeys([], 0);
 
   return keys;
-}
-
-function getIndices(dims, index) {
-  const indices = [];
-
-  for (let i = dims.length - 1; i >= 0; i--) {
-    const size = dims[i];
-    indices[i] = index % size;
-    index = Math.floor(index / size);
-  }
-
-  return indices.reverse();
 }
 ///// end methods to obtain a list of n-dimensional coordinates for a grid of cells
 

@@ -18,7 +18,7 @@
   //  or
   //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
   },
-  "scoreProportionalToNumberOfEvalsTerminationCondition": true,
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
   // Deep-Grid MAP-Elites specific:
   "populationSize": 20,
   "gridDepth": 50,
@@ -30,9 +30,10 @@
   "probabilityMutatingWaveNetwork": 0.5,
   "probabilityMutatingPatch": 0.5,
   // "classScoringDurations": [0.5, 1, 2, 5],
+  "classScoringDurations": [3, 5, 10],
   // "classScoringNoteDeltas": [-36, -24, -12, 0, 12, 24, 36],
   // "classScoringVelocities": [0.25, 0.5, 0.75, 1],
-  "classScoringDurations": [4],
+  // "classScoringDurations": [4],
   "classScoringNoteDeltas": [0],
   "classScoringVelocities": [1],
   "antiAliasing": true,
@@ -40,9 +41,12 @@
   "classScoringVariationsAsContainerDimensions": false,
   "classifiers": [
     "yamnet",
-    [100, 100] // feature map to project the bahaviour space to, e.g. with dimensionality reduction
+    [50, 50], // feature map to project the bahaviour space to, e.g. with dimensionality reduction
+    [100, 100],
+    // classes as a third dimension:
+    [50, 50, ["mallet", "string", "reed", "guitar", "synth_lead", "vocal", "bass", "flute", "keyboard", "brass", "organ"]]
   ],
-  "classifierIndex" : 1,
+  "classifierIndex" : 3,
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
   "useGpuForTensorflow": true,
   "renderSampleRateForClassifier": 16000,
@@ -109,8 +113,8 @@
   ],
   "evaluationQualityServers": [ // quality evaluation
     "ws://127.0.0.1:32051",
-    "ws://127.0.0.1:32052",
-    "ws://127.0.0.1:32053"
+    // "ws://127.0.0.1:32052",
+    // "ws://127.0.0.1:32053"
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
