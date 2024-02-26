@@ -375,7 +375,7 @@ async function mapElitesBatch(
     // - so far the have been collected: let's project the whole collection
     searchPromises = new Array( seedFeaturesAndScores.length );
     const seedFeatureClassKeys = await getClassKeysFromSeedFeatures(
-      seedFeaturesAndScores, _evaluationProjectionServers[0], evoRunDirPath
+      seedFeaturesAndScores, _evaluationProjectionServers[0], evoRunDirPath, classScoringVariationsAsContainerDimensions
     );
     for( let i=0; i < seedFeaturesAndScores.length; i++ ) {
       searchPromises[i] = new Promise( async (resolve, reject) => {
@@ -397,7 +397,7 @@ async function mapElitesBatch(
         } };
         resolve({
           genomeId, 
-          randomClassKey: classKey.join(","),
+          randomClassKey: classKey,
           newGenomeString: genomeString,
           newGenomeClassScores,
           parentGenomes: []
@@ -1393,7 +1393,7 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
           }
           const newGenomeFeatureVector = allFeaturesToProject[i];
 
-          const diversityMapKey = featureMap[i].join(",");
+          const diversityMapKey = featureMap[i].join("_");
 
           newGenomeClassScores[ diversityMapKey ] = {
             score,
@@ -1435,7 +1435,7 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       }
       const newGenomeFeatureVector = newGenomesFeatures[i];
 
-      const diversityMapKey = diversityProjection.feature_map[i].join(",");
+      const diversityMapKey = diversityProjection.feature_map[i].join("_");
       
       newGenomeClassScores[ diversityMapKey ] = {
         score,
@@ -1522,7 +1522,7 @@ async function getGenomeScoreAndFeatures(
   };
 }
 
-async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDiversityHost, evoRunDirPath ) {
+async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDiversityHost, evoRunDirPath, classScoringVariationsAsContainerDimensions ) {
   const featuresArray = seedFeaturesAndScores.map( f => f.features );
   const diversityProjection = await getDiversityFromWebsocket(
     featuresArray,
@@ -1533,7 +1533,15 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
   });
-  return diversityProjection.feature_map;
+  if( classScoringVariationsAsContainerDimensions ) {
+    return diversityProjection.feature_map.map( (oneClassKey, i) => {
+      const {duration, noteDelta, velocity} = seedFeaturesAndScores[i];
+      const classScoringVariationsKey =  `_${duration}_${noteDelta}_${velocity}`;
+      return oneClassKey.join('_') + classScoringVariationsKey;
+    });
+  } else {
+    return diversityProjection.feature_map.join('_');
+  }
 }
 
 const projectionRetrainingLinearGapIncrement = 10;
@@ -1736,7 +1744,7 @@ function createNDimensionalKeys(dims) {
 
   function generateKeys(indices, dimsIndex) {
     if (dimsIndex === dims.length) {
-      keys.push(indices.join(","));
+      keys.push(indices.join("_"));
     } else {
       if (Array.isArray(dims[dimsIndex])) {
         for (let i = 0; i < dims[dimsIndex].length; i++) {
