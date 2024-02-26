@@ -851,7 +851,7 @@ async function renderEvorun() {
 	}
 	const classes = await getClassLabelsWithElites( evoRunDirPath );
 	for( let oneClass of classes ) {
-		for( let iteration = everyNthGeneration; iteration < generationCount; iteration += everyNthGeneration ) {
+		for( let iteration = everyNthGeneration; iteration < generationCount; iteration = (iteration + everyNthGeneration) > generationCount && iteration !== generationCount-1 ? generationCount-1 : iteration + everyNthGeneration ) {
 			const eliteMap = await getEliteMap( evoRunDirPath, iteration );
 			const classElites = eliteMap.cells[oneClass].elts;
 			if( classElites && classElites.length ) {
@@ -901,6 +901,7 @@ async function renderEvorun() {
 			}
 		}
 	}
+	process.exit();
 }
 
 async function getEvoruns( evorunsRestServerUrl ) {
@@ -1222,8 +1223,8 @@ async function qdAnalysis_percentCompletion() {
 					const eliteMapFileName = `${evoRunDirPath}elites_${evoRunsConfig.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].id}.json`;
 					const eliteMap = JSON.parse(fs.readFileSync( eliteMapFileName, "utf8" ));
 					const generationNumber = eliteMap.generationNumber;
-					sumNumberOfGenerations += generationNumber;
-					const percentCompleted = generationNumber / evoRunConfig.terminationCondition.numberOfEvals;
+					sumNumberOfGenerations += generationNumber * eliteMap.searchBatchSize;
+					const percentCompleted = (generationNumber * eliteMap.searchBatchSize) / evoRunConfig.terminationCondition.numberOfEvals;
 					evoRunsPercentCompleted.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].percentCompleted = percentCompleted;
 				}
 			}
