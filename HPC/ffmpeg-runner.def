@@ -1,0 +1,3 @@
+Bootstrap: docker
+From: lscr.io/linuxserver/ffmpeg:latest
+
