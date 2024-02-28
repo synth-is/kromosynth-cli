@@ -1,0 +1,28 @@
+{
+  "evoRunsDirPath": "/fp/projects01/ec29/bthj/QD/evoruns/quality/instrumentation/",
+  
+  "maxNumberOfParents": 1,
+
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+
+  "classScoringDurations": [3, 5, 10],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+  "classScoringVariationsAsContainerDimensions": true,
+
+  "renderSampleRateForClassifier": 16000,
+
+  "antiAliasing": false,
+
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_durDims.jsonc-host-",
+  "gRpcServerCount": 4,
+  "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_durDims.jsonc-host-",
+  "renderingSocketServerCount": 16,
+
+  "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_durDims.jsonc-host-",
+  "evaluationFeatureSocketServerCount": 16,
+  "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-quality-socket-evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_durDims.jsonc-host-",
+  "evaluationQualitySocketServerCount": 16,
+  "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-projection-socket-evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_durDims.jsonc-host-",
+  "evaluationProjectionSocketServerCount": 16
+}

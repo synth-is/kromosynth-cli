@@ -1,0 +1,80 @@
+{
+  "waveNetwork": {
+    "neatParameters": { // see kromosynth > cppn-neat > network-evolution.js
+      "pMutateAddConnection": 0.10,
+      "pMutateAddNode": 0.10,
+      "pMutateDeleteSimpleNeuron": 0.06,
+      "pMutateDeleteConnection": 0.06,
+      "pMutateConnectionWeights": 0.72,
+      "pMutateChangeActivations": 0.02,
+
+      "pNodeMutateActivationRate": 0.2,
+      "connectionWeightRange": 3.0,
+      "disallowRecurrence": true
+    },
+    "iecOptions": {
+      "initialMutationCount": 5,
+      "postMutationCount": 5  // AKA mutationsOnCreation
+    },
+    "activationFunctionProbabilities": { // probabilities are normalised to 1.0: https://archive.softwareheritage.org/browse/content/sha1_git:aa46ba9789d125971b7ecde2560df83b98e34afe/?origin_url=https://github.com/OptimusLime/cppnjs&path=utility/utilities.js&revision=368c15abd8378984bd5dfcfa521f282dd1376168&snapshot=eaf0107dd49b867989e974e3069ab6bb4d5d45e9#L86
+      "triangle": 0.2,
+      "sawtooth": 0.2,
+      "StepFunction": 0.2,
+      "Sine": 0.2,
+      "Sine2": 0.05, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=sin(2*x)&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1.1&yGrid=1&gwidth=290&gheight=130
+
+      "cos": 0.01,
+      "arctan": 0.01,
+      "spike": 0.01,
+
+      "BipolarSigmoid": 0.01, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=(2.0+%2F+(1.0+%2B+exp(-4.9+*+x)))+-+1.0&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+      "PlainSigmoid": 0.01, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=1.0%2F(1.0%2B(exp(-x)))&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+      "Gaussian": 0.01, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=2+*+exp(-(x*2.5)%5E2)+-+1&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+      "Linear": 0.01, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=abs(x)&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+      "NullFn": 0.01 // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=0&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+    }
+  },
+  "audioGraph": { // aka asNEAT
+    "mutationParams": {
+      "mutationDistance": 0.5,
+
+      // Chances must add up to 1.0
+      "splitMutationChance": 0.2,
+      "addOscillatorChance": 0.1,
+      "addAudioBufferSourceChance": 0.1,
+      "addPartialAndEnvelopeChance": 0.1,
+      "addConnectionChance": 0.1,
+      "mutateConnectionWeightsChance": 0.2, // 0.25,
+      "mutateNodeParametersChance": 0.2 // 0.25
+    },
+    "defaultParameters": {
+      "connectionMutationRate": [0.05, 0.8],
+
+      "nodeMutationRate": [0.05, 0.8],
+
+      // percentage of addOscillatorMutations will
+      // generate a node for fm, as opposed to strict audio output
+      "addOscillatorFMMutationRate": 0.1,
+
+      // Percentage of addConnectionMutation will generate a connection
+      // for fm, as opposed to a strict audio connection
+      "addConnectionFMMutationRate": 0.5,
+
+      // Chance between an Oscillator node or a (CPPN) network output node, when "addOscillator"
+      "addOscillatorNetworkOutputVsOscillatorNodeRate": 0.5,
+      
+      // Rate between audio buffer source node, a wavetable node or additive synthesis node
+      // addAudioBufferSource?Chances must add up to 1
+      "addAudioBufferSourceProperChance": 0.3,
+      "addAudioBufferSourceWavetableChance": 0.3,
+      "addAudioBufferSourceAdditiveChance": 0.4,
+
+      // "includeNoise": true,
+      "includeNoise": true,
+      
+      // initial node chances must add up to 1
+      "initialOscillatorChance": 0.5,
+      "initialAudioBufferSourceChance": 0.5
+    }
+  }
+}

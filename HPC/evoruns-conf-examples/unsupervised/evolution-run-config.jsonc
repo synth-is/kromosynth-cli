@@ -1,0 +1,99 @@
+{
+  "algorithm": "mapElites_with_uBC", // uBC = unproductive bias count
+  // "algorithm": "Deep-Grid-MAP-Elites",
+  "seedEvals": 50,
+  // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution, 
+  // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
+  "eliteWinsOnlyOneCell": false,
+  "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
+  // "batchSize": 200,
+  "batchSize": 128,
+  "maxNumberOfParents": 1,
+  "terminationCondition": {
+    "numberOfEvals": 300000
+  //  or
+  //  "averageFitnessInMap": 0.1
+  // or
+  // "medianFitnessInMap": 0.1
+  //  or
+  //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
+  },
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+  // Deep-Grid MAP-Elites specific:
+  // "populationSize": 20,
+  // "gridDepth": 50,
+  "evoRunsDirPath": "/cluster/work/projects/ec29/bthj/kromosynth/evoruns/",
+  // "favoritesDirPath": "/Users/bjornpjo/iCloud/Documents/synth.is/favoriteGenomes",
+  "geneEvaluationProtocol": "websocket", // grpc, websocket or worker
+  // "childProcessBatchSize": 1,
+  // "evaluationCandidateWavFilesDirPath": null, // "/Users/bjornpjo/Documents/synth.is/evaluationCandidates",
+  "probabilityMutatingWaveNetwork": 0.5,
+  "probabilityMutatingPatch": 0.5,
+  "classScoringDurations": [4],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+  "antiAliasing": true,
+  "frequencyUpdatesApplyToAllPathcNetworkOutputs": false,
+  "classScoringVariationsAsContainerDimensions": false,
+  "classifiers": [
+    "yamnet",
+    [50, 50], // feature map to project the bahaviour space to, e.g. with dimensionality reduction
+    [100, 100]
+  ],
+  "classifierIndex" : 1,
+  "useGpuForTensorflow": true,
+  "renderSampleRateForClassifier": 16000,
+  // "batchDurationMs": 60000,
+
+  "commitEliteMapToGitEveryNIterations": 1,
+  "addGenomesToGit": false,
+  "prunePastEliteGenomesEveryNGenerations": null, // 20,
+  "renderEliteMapToWavFilesEveryNGenerations": null, // 50000,
+  "renderElitesToWavFiles": false, // prunePastEliteGenomesEveryNGenerations affects those
+  "evoRendersDirPath": "/home/bthj/QD/evorenders/",
+
+  "processingUtilisation": null, // 0.9,
+
+  "gRpcHostFilePathPrefix": "/home/bthj/gRPC-hosts/grpc-test-host-",
+  "gRpcServerCount": 1,
+  "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-test-host-",
+  "renderingSocketServerCount": 1,
+
+  // it's either evaluationSocketHostFilePathPrefix and evaluationSocketServerCount
+  // or evaluationFeatureSocketHostFilePathPrefix, evaluationFeatureSocketServerCount, evaluationQualitySocketHostFilePathPrefix, evaluationQualitySocketServerCount and evaluationProjectionSocketHostFilePathPrefix, evaluationProjectionSocketServerCount
+  
+  // "evaluationSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/evaluation-socket-test-host-",
+  // "evaluationSocketServerCount": 1,
+
+  "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-test-host-",
+  "evaluationFeatureSocketServerCount": 1,
+  "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-quality-socket-test-host-",
+  "evaluationQualitySocketServerCount": 1,
+  "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-projection-socket-test-host-",
+  "evaluationProjectionSocketServerCount": 1,
+  
+  // "geneVariationServerPaths": [
+  //   "/tmp/grpc1.txt"
+  // ],
+  // "geneEvaluationServerPaths": [
+  //   "/tmp/grpc1.txt"
+  // ],
+  "geneVariationServers": [
+  ],
+  "geneRenderingServers": [
+  ],
+
+  // it's either geneEvaluationServers or evaluationFeatureServers, evaluationQualityServers and evaluationProjectionServers
+  // - geneEvaluationServers are for pre-trained classification models
+  // - evaluationFeatureServers, evaluationQualityServers and evaluationProjectionServers are for unsupervised measurements: feature extraction, quality evaluation and projection
+
+  "geneEvaluationServers": [
+  ],
+
+  "evaluationFeatureServers": [ // feature extraction
+  ],
+  "evaluationQualityServers": [ // quality evaluation
+  ],
+  "evaluationProjectionServers": [ // projection
+  ]
+}

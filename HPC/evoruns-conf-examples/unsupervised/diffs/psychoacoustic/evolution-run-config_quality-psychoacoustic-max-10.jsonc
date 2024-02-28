@@ -1,0 +1,26 @@
+{
+  "evoRunsDirPath": "/cluster/work/projects/ec29/bthj/kromosynth/evoruns/quality/psychoacoustic/",
+
+  "maxNumberOfParents": 10,
+
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+  "classScoringDurations": [2],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "renderSampleRateForClassifier": 48000,
+
+  "antiAliasing": false,
+
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-evolution-runs_mfcc_pca-quantised_quality-psychoacoustic_parents-max-10.jsonc-host-",
+  "gRpcServerCount": 4,
+  "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-evolution-runs_mfcc_pca-quantised_quality-psychoacoustic_parents-max-10.jsonc-host-",
+  "renderingSocketServerCount": 8,
+
+  "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-evolution-runs_mfcc_pca-quantised_quality-psychoacoustic_parents-max-10.jsonc-host-",
+  "evaluationFeatureSocketServerCount": 4,
+  "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-quality-socket-evolution-runs_mfcc_pca-quantised_quality-psychoacoustic_parents-max-10.jsonc-host-",
+  "evaluationQualitySocketServerCount": 4,
+  "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-projection-socket-evolution-runs_mfcc_pca-quantised_quality-psychoacoustic_parents-max-10.jsonc-host-",
+  "evaluationProjectionSocketServerCount": 16
+}

@@ -1,0 +1,24 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/unsupervised/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_classDims",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/diffs/instrumentation/evolution-run-config_quality-instrumentation-max-1_classDims.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HQKMBKA816ATT2EQWAAG3QTA_evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_classDims"
+        },
+        {
+          "id": "01HQNAY0MCN80D2VAX3M0KWN48_evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_classDims"
+        },
+        {
+          "id": "01HQQ0WAT4Z5J9P8F4R8PTBMZV_evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_classDims"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 2
+}

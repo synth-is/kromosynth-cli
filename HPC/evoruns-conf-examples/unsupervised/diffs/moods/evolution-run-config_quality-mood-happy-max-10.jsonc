@@ -1,0 +1,26 @@
+{
+  "evoRunsDirPath": "/fp/projects01/ec29/bthj/QD/evoruns/quality/mood/",
+
+  "maxNumberOfParents": 10,
+
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+  "classScoringDurations": [4],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "renderSampleRateForClassifier": 16000,
+
+  "antiAliasing": false,
+
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-evolution-runs_mfcc_pca-quantised_quality-mood-happy_parents-max-10.jsonc-host-",
+  "gRpcServerCount": 8,
+  "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-evolution-runs_mfcc_pca-quantised_quality-mood-happy_parents-max-10.jsonc-host-",
+  "renderingSocketServerCount": 8,
+
+  "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-evolution-runs_mfcc_pca-quantised_quality-mood-happy_parents-max-10.jsonc-host-",
+  "evaluationFeatureSocketServerCount": 8,
+  "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-quality-socket-evolution-runs_mfcc_pca-quantised_quality-mood-happy_parents-max-10.jsonc-host-",
+  "evaluationQualitySocketServerCount": 8,
+  "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-projection-socket-evolution-runs_mfcc_pca-quantised_quality-mood-happy_parents-max-10.jsonc-host-",
+  "evaluationProjectionSocketServerCount": 8
+}
