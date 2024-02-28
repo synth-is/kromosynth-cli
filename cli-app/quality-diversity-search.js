@@ -387,7 +387,7 @@ async function mapElitesBatch(
         let score;
         if( getIsTopScoreFitnessWithAssociatedClass(fitness) ) {
           score = fitness.top_score;
-          seedFeatureClassKeys[i].push(fitness.top_score_class);
+          seedFeatureClassKeys[i] = seedFeatureClassKeys[i] + `_${fitness.top_score_class}`;
         } else {
           score = fitness;
         }
@@ -1302,6 +1302,7 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       ).catch(e => {
         console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
       });
+console.log("----------- newGenomeQuality",newGenomeQuality)
       // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes newGenomeQuality", newGenomeQuality);
       const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass( newGenomeQuality.fitness );
       if( isTopScoreFitnessWithAssociatedClass ) {
@@ -1540,7 +1541,9 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
       return oneClassKey.join('_') + classScoringVariationsKey;
     });
   } else {
-    return diversityProjection.feature_map.join('_');
+    return diversityProjection.feature_map.map( (oneClassKey, i) => {
+      return oneClassKey.join('_');
+    });
   }
 }
 
