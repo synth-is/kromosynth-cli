@@ -878,14 +878,15 @@ async function renderEvorun() {
 					_velocity = velocity;
 				}
 
-				const oneClassFileNameFriendly = oneClass.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-
-				const subFolder = writeToFolder + "/" + evoRunId + "/" + iteration + "_" + _duration  + "/";
 				let fileNamePrefix = "";
 				if( scoreInFileName ) {
 					const scorePercentRoundedAndPadded = Math.round(score*100).toString().padStart(3, '0');
 					fileNamePrefix = `${scorePercentRoundedAndPadded}_`;
 				}
+
+				const oneClassFileNameFriendly = fileNamePrefix + oneClass.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+				const subFolder = writeToFolder + "/" + evoRunId + "/" + iteration + "_" + _duration  + "/";
+
 				const wavFileName = `${fileNamePrefix}${oneClassFileNameFriendly}_${genomeId}_${iteration}.wav`;
 				if( fs.existsSync( subFolder + wavFileName ) && ! overwriteExistingFiles) {
 					console.log("File exists, not rendering:", subFolder + wavFileName);
