@@ -272,7 +272,7 @@ const cli = meow(`
 
 		$ kromosynth render-evoruns --evoruns-rest-server-url http://localhost:3003 --write-to-folder ./
 
-		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-generation 100 --owerwrite-existing-files true
+		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-generation 100 --owerwrite-existing-files true --score-in-file-name true
 
 		TODO see saveRenderedSoundsToFilesWorker onwards
 
@@ -299,6 +299,10 @@ const cli = meow(`
 		writeToFolder: {
 			type: 'string',
 			default: './'
+		},
+		scoreInFileName: {
+			type: 'boolean',
+			default: false
 		},
 		overwriteExistingFiles: {
 			type: 'boolean',
@@ -838,7 +842,7 @@ async function renderEvorun() {
 		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
 		geneMetadataOverride, useGpu, sampleRate,
 		everyNthGeneration,
-		writeToFolder, overwriteExistingFiles
+		writeToFolder, overwriteExistingFiles, scoreInFileName
 	} = cli.flags;
 	if( ! evoRunDirPath ) {
 		console.error("No evoRunDirPath provided");
@@ -860,7 +864,7 @@ async function renderEvorun() {
 				// await getGenomeString( evoRunDirPath, oneClass, iteration );
 				const genomeAndMeta = JSON.parse( genomeString );
 				const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === oneClass);
-				const { duration, noteDelta, velocity } = tagForCell;
+				const { duration, noteDelta, velocity, score } = tagForCell;
 				let _duration = durationParam || duration;
 				let _noteDelta = noteDeltaParam || noteDelta;
 				let _velocity = velocityParam || velocity;
@@ -877,7 +881,12 @@ async function renderEvorun() {
 				const oneClassFileNameFriendly = oneClass.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
 				const subFolder = writeToFolder + "/" + evoRunId + "/" + iteration + "_" + _duration  + "/";
-				const wavFileName = `${oneClassFileNameFriendly}_${genomeId}_${iteration}.wav`;
+				let fileNamePrefix = "";
+				if( scoreInFileName ) {
+					const scorePercentRoundedAndPadded = Math.round(score*100).toString().padStart(3, '0');
+					fileNamePrefix = `${scorePercentRoundedAndPadded}_`;
+				}
+				const wavFileName = `${fileNamePrefix}${oneClassFileNameFriendly}_${genomeId}_${iteration}.wav`;
 				if( fs.existsSync( subFolder + wavFileName ) && ! overwriteExistingFiles) {
 					console.log("File exists, not rendering:", subFolder + wavFileName);
 					continue;
