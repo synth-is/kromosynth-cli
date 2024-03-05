@@ -4,8 +4,8 @@ const featureExtractionServerHost = 'ws://localhost:31051';
 const qualityEvaluationServerHost = 'ws://localhost:32051';
 const diversityEvaluationServerHost = 'ws://localhost:33051';
 
-const SAMPLE_RATE = 16000;
-// const SAMPLE_RATE = 48000;
+// const SAMPLE_RATE = 16000;
+const SAMPLE_RATE = 48000;
 
 // Function to generate a random audio buffer (mock data)
 function generateRandomSoundBuffer(length) {
@@ -141,7 +141,12 @@ function generateSoundBufferWithSpikesAndGaps(length) {
 function getFeaturesFromWebsocket(
   audioBufferChannelData,
 ) {
-  const webSocket = new WebSocket(featureExtractionServerHost);
+  // const webSocket = new WebSocket(featureExtractionServerHost);
+  // const webSocket = new WebSocket(featureExtractionServerHost + "/mfcc");
+  // const webSocket = new WebSocket(featureExtractionServerHost + "/vggish?ckpt_dir=/Users/bjornpjo/.cache/torch/hub/checkpoints&sample_rate=16000");
+  // const webSocket = new WebSocket(featureExtractionServerHost + "/pann?ckpt_dir=/Users/bjornpjo/.cache/torch/hub/checkpoints&sample_rate=16000");
+  // const webSocket = new WebSocket(featureExtractionServerHost + "/clap?ckpt_dir=/Users/bjornpjo/.cache/torch/hub/checkpoints&sample_rate=48000");
+  const webSocket = new WebSocket(featureExtractionServerHost + "/encodec?ckpt_dir=/Users/bjornpjo/.cache/torch/hub/checkpoints&sample_rate=24000");
   webSocket.binaryType = "arraybuffer"; // Set binary type for receiving array buffers
   return new Promise((resolve, reject) => {
     webSocket.on("open", () => {
@@ -224,13 +229,13 @@ async function callDiversityEvaluationServiceWithFeatureVectorsAndFitnessValues(
   const featureVectors = [];
   const fitnessValues = [];
   for (let i = 0; i < numberOfEvaluationCandidates; i++) {
-    // const audioBuffer = generateRandomSoundBuffer(SAMPLE_RATE*5);
+    const audioBuffer = generateRandomSoundBuffer(SAMPLE_RATE*10);
     // const audioBuffer = generateSoundBufferWithSpikesAndGaps(SAMPLE_RATE*5);
     // const audioBuffer = generateSoundBufferWithSineWave(SAMPLE_RATE*5);
     // const audioBuffer = generateSoundBufferWithSquareWave(SAMPLE_RATE*5);
     // const audioBuffer = generateSoundBufferWithTriangleWave(SAMPLE_RATE*5);
     // const audioBuffer = generateSoundBufferWithSawtoothWave(SAMPLE_RATE*5);
-    const audioBuffer = generateSoundBufferWithSilence(SAMPLE_RATE*2.0);
+    // const audioBuffer = generateSoundBufferWithSilence(SAMPLE_RATE*5.0);
     
     const featureVector = await callFeatureExtractionService( audioBuffer );
     const fitnessValue = await callQualityEvaluationService( audioBuffer );

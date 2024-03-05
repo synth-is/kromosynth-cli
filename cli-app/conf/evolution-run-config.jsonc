@@ -43,11 +43,121 @@
     "yamnet",
     [50, 50], // feature map to project the bahaviour space to, e.g. with dimensionality reduction
     [100, 100],
-    // classes as a third dimension:
-    [50, 50, ["mallet", "string", "reed", "guitar", "synth_lead", "vocal", "bass", "flute", "keyboard", "brass", "organ"]]
+    // classes as a third dimension, depends on classifier returning the top class and its score, like { 'top_score': 0.9, 'top_score_class': 'mallet' }
+    [50, 50, ["mallet", "string", "reed", "guitar", "synth_lead", "vocal", "bass", "flute", "keyboard", "brass", "organ"]],
+    // classes still as a third dimension, but with different endpoints for feature extraction and classification for each class:
+    {
+      "classConfigurations": [
+        {
+          "className": "mallet",
+          "refSetEmbedsPath": "/Users/bthj/embeds/malletRef.npy",
+          "querySetEmbedsPath": "/Users/bthj/embeds/malletQuery.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "projectionEndpoint": "/pca",
+          "sampleRate": 16000
+        },
+        {
+          "className": "string",
+          "refSetEmbedsPath": "/Users/bthj/embeds/stringRef.npy",
+          "querySetEmbedsPath": "/Users/bthj/embeds/stringQuery.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "projectionEndpoint": "/pca",
+          "sampleRate": 16000
+        },
+        {
+          "className": "reed",
+          "refSetEmbedsPath": "/Users/bthj/embeds/reedRef.npy",
+          "querySetEmbedsPath": "/Users/bthj/embeds/reedQuery.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "projectionEndpoint": "/pca",
+          "sampleRate": 16000
+        }
+      ],
+      "classificationDimensions": [50, 50, ["mallet", "string", "reed"]]
+    },
+    // if classesAsMaps is true, a "classConfiguration is used for one map each:
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "myFavs0",
+          "featureExtractionEndpoint": "/mfcc",
+          "projectionEndpoint": "/pca",
+          "sampleRate": 16000
+        },
+        {
+          "refSetName": "myFavs1",
+          "refSetEmbedsPath": "/Users/bthj/Sounds/favSet1Ref.npy",
+          "querySetEmbedsPath": "/Users/bthj/Sounds/favSet1Query.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "projectionEndpoint": "/pca",
+          "sampleRate": 16000
+        },
+        {
+          "refSetName": "myFavs2",
+          "refSetEmbedsPath": "/Users/bthj/Sounds/favSet2Ref.npy",
+          "querySetEmbedsPath": "/Users/bthj/Sounds/favSet2Query.npy",
+          "featureExtractionEndpoint": "/pann",
+          "projectionEndpoint": "/pca",
+          "sampleRate": 16000
+        },
+        {
+          "refSetName": "myFavs3",
+          "refSetEmbedsPath": "/Users/bthj/Sounds/favSet3Ref.npy",
+          "querySetEmbedsPath": "/Users/bthj/Sounds/favSet3Query.npy",
+          "featureExtractionEndpoint": "/clap",
+          "projectionEndpoint": "/pca",
+          "sampleRate": 48000
+        },
+        {
+          "refSetName": "myFavs4",
+          "refSetEmbedsPath": "/Users/bthj/Sounds/favSet4Ref.npy",
+          "querySetEmbedsPath": "/Users/bthj/Sounds/favSet4Query.npy",
+          "featureExtractionEndpoint": "/encodec",
+          "projectionEndpoint": "/pca",
+          "sampleRate": 24000
+        }
+      ],
+      "classificationDimensions": [50, 50]
+    }
+    // ,
+    // [50, 50, [
+    //   {
+    //     "refSetName": "myFavs1",
+    //     "refSetEmbedsPath": "/Users/bthj/Sounds/favSet1.npy",
+    //     "featureExtractionEndpoint": "/vggish",
+    //     "sampleRate": 16000
+    //   },
+    //   {
+    //     "refSetName": "myFavs2",
+    //     "refSetEmbedsPath": "/Users/bthj/Sounds/favSet2.npy",
+    //     "featureExtractionEndpoint": "/pann",
+    //     "sampleRate": 16000
+    //   },
+    //   {
+    //     "refSetName": "myFavs3",
+    //     "refSetEmbedsPath": "/Users/bthj/Sounds/favSet3.npy",
+    //     "featureExtractionEndpoint": "/clap",
+    //     "sampleRate": 48000
+    //   },
+    //   {
+    //     "refSetName": "myFavs4",
+    //     "refSetEmbedsPath": "/Users/bthj/Sounds/favSet4.npy",
+    //     "featureExtractionEndpoint": "/encodec",
+    //     "sampleRate": 24000
+    //   }
+    // ]]
   ],
-  "classifierIndex" : 3,
+  "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
+  "mapSwitchingCondition": {
+    "coverageWithoutIncreaseGenerations": 10,
+    "qdScoreWithoutIncreaseGenerations": 10
+  }, 
+  "classifierIndex" : 5,
+  "ckptDir": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/ckpt",
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
+
+  "measureCollectivePerformance": true, // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
+
   "useGpuForTensorflow": true,
   "renderSampleRateForClassifier": 16000,
   // "batchDurationMs": 60000,

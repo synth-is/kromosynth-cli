@@ -22,7 +22,8 @@ import {
 import { 
   renderAndEvaluateGenomesViaWebsockets,
   getAudioBufferChannelDataForGenomeAndMetaFromWebsocet,
-  getFeaturesFromWebsocket, getQualityFromWebsocket, getDiversityFromWebsocket
+  getFeaturesFromWebsocket, getDiversityFromWebsocket, 
+  getQualityFromWebsocket, getQualityFromWebsocketForEmbedding, addToQualityQueryEmbeddigs
 } from './service/websocket/ws-gene-evaluation.js';
 import {
   runCmd, runCmdAsync, readGenomeAndMetaFromDisk, getGenomeKey, calcStandardDeviation,
@@ -36,6 +37,7 @@ import { get } from 'http';
 import { add, e, i } from 'mathjs';
 import { log } from 'console';
 import { getAudioContext, getNewOfflineAudioContext } from './util/rendering-common.js';
+import { calculateQDScoreForEliteMap, getCoverageForEliteMap } from './qd-run-analysis.js';
 
 const chance = new Chance();
 
@@ -86,7 +88,8 @@ export async function qdSearch(
     antiAliasing,
     frequencyUpdatesApplyToAllPathcNetworkOutputs,
     classScoringVariationsAsContainerDimensions,
-    classifiers, classifierIndex, yamnetModelUrl,
+    classifiers, classifierIndex, ckptDir, yamnetModelUrl, measureCollectivePerformance,
+    classesAsMaps, mapSwitchingCondition,
     useGpuForTensorflow,
     renderSampleRateForClassifier,
     commitEliteMapToGitEveryNIterations, 
@@ -193,9 +196,18 @@ export async function qdSearch(
   const evoRunDirPath = `${evoRunsDirPath}${evolutionRunId}/`;
   const evoRenderDirPath = `${evoRendersDirPath}${evolutionRunId}/`;
   const evoRunFailedGenesDirPath = `${evoRunsDirPath}${evolutionRunId}_failed-genes/`;
-  let eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath );
-  if( ! eliteMap ) {
-    eliteMap = initializeGrid( 
+
+  // TODO if multiple maps, save them to individual files
+
+  let eliteMap;
+  let eliteMapIndex = 0;
+  let terrainName = undefined;
+  if( typeof classificationGraphModel === "object" && classificationGraphModel.hasOwnProperty("classConfigurations") ) {
+    terrainName = classificationGraphModel.classConfigurations[0].terrainName;
+  }
+  let eliteMapContainer = readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName );
+  if( ! eliteMapContainer ) {
+    eliteMapContainer = initializeGrid( 
       evolutionRunId, algorithmKey, evolutionRunConfig, evolutionaryHyperparameters
     );
 
@@ -204,12 +216,22 @@ export async function qdSearch(
 
     runCmd(`git init ${evoRunDirPath}`);
 
-    await saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
-    await saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, 0 ); // generation specific map
+    await saveEliteMapToDisk( eliteMapContainer, evoRunDirPath, evolutionRunId );
 
     // add file to git
     const eliteMapFileName = `${getEliteMapKey(evolutionRunId)}.json`;
     runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
+
+    if( Array.isArray(eliteMapContainer) ) {
+      // we have multiple maps
+      eliteMapIndex = Math.floor(Math.random() * eliteMapContainer.length);
+      eliteMap = eliteMapContainer[eliteMapIndex];
+    } else {
+      // we have one object with a single map
+      eliteMap = eliteMapContainer;
+    }
+
+
   } else {
     // delete all git lock files at evoRunDirPath if they exist
     const gitLockFilePaths = [...glob.sync(`${evoRunDirPath}.git/objects/pack/*.lock`), ...glob.sync(`${evoRunDirPath}.git/*.lock`), ...glob.sync(`${evoRunDirPath}.git/refs/heads/*.lock`)];
@@ -251,6 +273,10 @@ export async function qdSearch(
 
   let seedFeaturesAndScores = [];
 
+  // TODO: in map
+  // let coverageWithoutIncreaseCount = 0;
+  // let qdScoreWithoutIncreaseCount = 0;
+
   while( 
       ! shouldTerminate(terminationCondition, eliteMap, dummyRun)
       &&
@@ -265,12 +291,34 @@ export async function qdSearch(
       scoreProportion = 1.0;
     }
 
+    // check if we should switch maps
+    if( classesAsMaps && shouldSwitchMap(eliteMap, mapSwitchingCondition) ) {
+      // randomly select next elite map index, which is not the current one
+      if( eliteMapContainer.length > 1 ) {
+        let nextEliteMapIndex;
+        do {
+          nextEliteMapIndex = Math.floor(Math.random() * eliteMapContainer.length);
+        } while( nextEliteMapIndex === eliteMapIndex );
+        eliteMapIndex = nextEliteMapIndex;
+        eliteMap = eliteMapContainer[eliteMapIndex];
+        eliteMap.isBeingSwitchedToFromAnotherMap = true;
+        seedFeaturesAndScores = getFeaturesAndScoresFromEliteMap( 
+          eliteMap, cellFeatures,
+          _evaluationQualityServers, evoRunDirPath,
+          scoreProportion,
+          ckptDir, measureCollectivePerformance
+        );
+      } else {
+        console.log("only one map, not switching");
+      }
+    }
+
     const batchStartTimeMs = performance.now();
 
     console.log("algorithmKey",algorithmKey);
     if( algorithmKey === "mapElites_with_uBC" ) {
       await mapElitesBatch(
-        eliteMap, cellFeatures, seedFeaturesAndScores,
+        eliteMap, cellFeatures, seedFeaturesAndScores, terrainName,
         algorithmKey, evolutionRunId,
         commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNGenerations,
         renderEliteMapToWavFilesEveryNGenerations, renderElitesToWavFiles,
@@ -280,7 +328,7 @@ export async function qdSearch(
         audioGraphMutationParams, evolutionaryHyperparameters,
         classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
         classScoringVariationsAsContainerDimensions,
-        classificationGraphModel, yamnetModelUrl,
+        classificationGraphModel, yamnetModelUrl, ckptDir, measureCollectivePerformance,
         renderSampleRateForClassifier,
         geneEvaluationProtocol,
         _geneVariationServers, _geneRenderingServers, _geneEvaluationServers,
@@ -294,7 +342,9 @@ export async function qdSearch(
         scoreProportion,
         dummyRun
       );
-    } else if( algorithmKey === "Deep-Grid-MAP-Elites" ) {
+    }
+    /* TODO: not in use for now (see file quality-diversity-search_deep-grid.js)
+    else if( algorithmKey === "Deep-Grid-MAP-Elites" ) {
       await deepGridMapElitesBatch(
         eliteMap, algorithmKey, evolutionRunId,
         populationSize, gridDepth,
@@ -307,7 +357,9 @@ export async function qdSearch(
         evoRunDirPath, evoRunFailedGenesDirPath,
         patchFitnessTestDuration
       );
-    } else {
+    }
+    */
+    else {
       throw new Error(`algorithmKey ${algorithmKey} not recognised`);
     }
 
@@ -324,11 +376,13 @@ export async function qdSearch(
       seedFeaturesAndScores = undefined; // free up memory
     }
 
+    if( eliteMap.isBeingSwitchedToFromAnotherMap ) eliteMap.isBeingSwitchedToFromAnotherMap = false;
+
   } // while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
   if( ! (batchDurationMs && batchDurationMs < Date.now() - startTimeMs) ) {
-    // process not stopped due to time limit, but should now have reached a general termination contidtion
+    // process not stopped due to time limit, but should now have reached a general termination condition
     eliteMap.terminated = true;
-    await saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId );
+    await saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, terrainName );
     console.log("eliteMap",eliteMap);
     // collect git garbage - UPDATE: this should be run separately, as part of one of the qd-run-analysis routines:
     // runCmdAsync(`git -C ${evoRunDirPath} gc`);
@@ -337,7 +391,7 @@ export async function qdSearch(
 }
 
 async function mapElitesBatch(
-  eliteMap, cellFeatures, seedFeaturesAndScores,
+  eliteMap, cellFeatures, seedFeaturesAndScores, terrainName,
   algorithmKey, evolutionRunId,
   commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNGenerations,
   renderEliteMapToWavFilesEveryNGenerations, renderElitesToWavFiles,
@@ -347,7 +401,7 @@ async function mapElitesBatch(
   audioGraphMutationParams, evolutionaryHyperparameters,
   classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
   classScoringVariationsAsContainerDimensions,
-  classificationGraphModel, yamnetModelUrl,
+  classificationGraphModel, yamnetModelUrl, ckptDir, measureCollectivePerformance,
   renderSampleRateForClassifier,
   geneEvaluationProtocol,
   _geneVariationServers, _geneRenderingServers, _geneEvaluationServers,
@@ -368,7 +422,8 @@ async function mapElitesBatch(
 
   const isSeedRound = (eliteMap.generationNumber*searchBatchSize) < seedEvals;
   
-  const shouldPopulateCellFeatures = ! isSeedRound && isUnsupervisedDiversityEvaluation && ! Object.keys(cellFeatures).length && seedFeaturesAndScores.length;
+  const shouldPopulateCellFeatures = eliteMap.isBeingSwitchedToFromAnotherMap || 
+    (! isSeedRound && isUnsupervisedDiversityEvaluation && ! Object.keys(cellFeatures).length && seedFeaturesAndScores.length);
 
   if( shouldPopulateCellFeatures ) {
     // seed rounds are over, we're doing unsupervised diversity evaluation, but we haven't yet projected the features:
@@ -624,7 +679,9 @@ async function mapElitesBatch(
                       geneRenderingServerHost, renderSampleRateForClassifier,
                       geneEvaluationServerHost.feature,
                       geneEvaluationServerHost.quality,
-                      scoreProportion
+                      scoreProportion,
+                      eliteMap.classConfigurations,
+                      measureCollectivePerformance, ckptDir
                     );
                     seedFeaturesAndScores.push(seedGenomeScoreAndFeatures);
                     await saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
@@ -675,7 +732,8 @@ async function mapElitesBatch(
                         evolutionRunId, evoRunDirPath,
                         classificationGraphModel,
                         scoreProportion,
-                        shouldFit, generationIncrement
+                        shouldFit, generationIncrement,
+                        measureCollectivePerformance, ckptDir
                       ).catch( e => {
                         console.error("Error getting genome class scores by diversity projection with new genomes", e);
                         reject(e);
@@ -713,7 +771,8 @@ async function mapElitesBatch(
                   evolutionRunId, evoRunDirPath,
                   classificationGraphModel,
                   scoreProportion,
-                  shouldFit, generationIncrement
+                  shouldFit, generationIncrement,
+                  measureCollectivePerformance, ckptDir
                 ).catch( e => {
                   console.error("Error getting genome class scores by diversity projection with new genomes", e);
                   reject(e);
@@ -888,7 +947,8 @@ async function mapElitesBatch(
             // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
             eliteMap.cells[classKey].uBC = 10;
 
-            cellFeatures[classKey] = newGenomeClassScores[classKey].features;
+            const { features, embedding } = newGenomeClassScores[classKey];
+            cellFeatures[classKey] = { features, embedding };
 
             classToBatchEliteCandidates[classKey] = {
               genomeId,
@@ -921,6 +981,7 @@ async function mapElitesBatch(
 
     } // for( let oneBatchIterationResult of batchIterationResults ) {
 
+    let batchEliteIndex = 0;
     for( let oneNewEliteClass in classToBatchEliteCandidates ) {
       let { genome, genomeId } = classToBatchEliteCandidates[oneNewEliteClass];
       const saveGenomeToDiskStartTime = performance.now();
@@ -929,6 +990,20 @@ async function mapElitesBatch(
       console.log("saveGenomeToDisk duration", saveGenomeToDiskEndTime - saveGenomeToDiskStartTime);
       genome = undefined;
       genomeId = undefined;
+
+      // add this genome's features to the quality query embeddings, if using classConfigurations, by calling /add-to-query-embeddings websocket endpoint
+      if( eliteMap.classConfigurations && eliteMap.classConfigurations.length ) {
+        const existingGenomeIdAtClass = eliteMap.cells[oneNewEliteClass].elts[0].g;
+        querySetEmbedsPath = classConfigurations[0].querySetEmbedsPath;
+        const evaluationQualityHost = _evaluationQualityServers[ batchEliteIndex % _evaluationQualityServers.length ];
+        addToQualityQueryEmbeddigs(
+          cellFeatures[oneNewEliteClass].embedding, // added to cellFeatures in the iteration above
+          genomeId, existingGenomeIdAtClass,
+          eliteMap.classConfigurations[0].querySetEmbedsPath,
+          evaluationQualityHost
+        );
+      }
+      batchEliteIndex++;
     }
     eliteMap.eliteCountAtGeneration = Object.keys(classToBatchEliteCandidates).length;
     classToBatchEliteCandidates = undefined; // attempt to free up memory
@@ -947,6 +1022,19 @@ async function mapElitesBatch(
   eliteMap.coverageSize = Object.keys(cellFeatures).length;
   eliteMap.coveragePercentage = (eliteMap.coverageSize / Object.keys(eliteMap.cells).length) * 100;
 
+  // coverageSize is dependent on cellFeatures being maintained - let's also do the calculation on the map:
+  const coverage = getCoverageForEliteMap( eliteMap );
+  if( coverage === eliteMap.coverage ) { // coverage hasn't increased (it should never decrease)
+    eliteMap.coverageWithoutIncreaseCount++;
+  }
+  eliteMap.coverage = coverage;
+  // and the qd score:
+  const qdScore = calculateQDScoreForEliteMap( eliteMap );
+  if( qdScore === eliteMap.qdScore ) { // qdScore hasn't increased (it should never decrease)
+    eliteMap.qdScoreWithoutIncreaseCount++;
+  }
+  eliteMap.qdScore = qdScore;
+
   console.log(
     "generation", eliteMap.generationNumber,
     "eliteCountAtGeneration:", eliteMap.eliteCountAtGeneration,
@@ -958,7 +1046,7 @@ async function mapElitesBatch(
   eliteMap.timestamp = Date.now();
 
   const saveEliteMapToDiskStartTime = performance.now();
-  await saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId ); // the main / latest map
+  await saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, terrainName ); // the main / latest map
   const saveEliteMapToDiskEndTime = performance.now();
   console.log("saveEliteMapToDisk duration", saveEliteMapToDiskEndTime - saveEliteMapToDiskStartTime);
 
@@ -1192,31 +1280,29 @@ async function populateAndSaveCellFeatures(
   let cellKeyIndex = 0;
   for( const cellKey in eliteMap.cells ) {
     const cell = eliteMap.cells[cellKey];
-    if( cell.elts && cell.elts.length ) {
-      if( ! cellFeatures[cellKey] ) {
-        const cellGenomeId = cell.elts[0].g;
-        const cellGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, cellGenomeId, evoRunDirPath );
-        const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
-          cellGenomeString,
-          duration,
-          noteDelta,
-          velocity,
-          useGPU,
-          antiAliasing,
-          frequencyUpdatesApplyToAllPathcNetworkOutputs,
-          geneRenderingServerHosts[cellKeyIndex % geneRenderingServerHosts.length], renderSampleRateForClassifier
-        );
-        const featuresResponse = await getFeaturesFromWebsocket(
-          audioBuffer,
-          evaluationFeatureExtractionHosts[cellKeyIndex % evaluationFeatureExtractionHosts.length]
-        );
-        const cellGenomeFeatures = featuresResponse.features;
-        cellFeatures[cellKey] = cellGenomeFeatures;
+    if( cell.elts && cell.elts.length && ! cellFeatures[cellKey] ) {
+      const cellGenomeId = cell.elts[0].g;
+      const cellGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, cellGenomeId, evoRunDirPath );
+      const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
+        cellGenomeString,
+        duration,
+        noteDelta,
+        velocity,
+        useGPU,
+        antiAliasing,
+        frequencyUpdatesApplyToAllPathcNetworkOutputs,
+        geneRenderingServerHosts[cellKeyIndex % geneRenderingServerHosts.length], renderSampleRateForClassifier
+      );
+      const featuresResponse = await getFeaturesFromWebsocket(
+        audioBuffer,
+        evaluationFeatureExtractionHosts[cellKeyIndex % evaluationFeatureExtractionHosts.length]
+      );
+      const { features, embedding } = featuresResponse;
+      const cellGenomeFeatures = { features, embedding };
+      cellFeatures[cellKey] = cellGenomeFeatures;
 
-        cellKeyIndex++;
-      }
+      cellKeyIndex++;
     }
-
   }
   saveCellFeaturesToDisk( cellFeatures, eliteMap.generationNumber, evoRunDirPath, evolutionRunId );
 }
@@ -1253,7 +1339,8 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
   evolutionRunId, evoRunDirPath,
   classificationGraphModel,
   scoreProportion,
-  shouldFit, modelFitGeneration
+  shouldFit, modelFitGeneration,
+  measureCollectivePerformance, ckptDir
 ) {
   // not supporting arrays of durations, noteDeltas and velocities for now, as is done in getGenomeClassScores
   const duration = Array.isArray(durations) ? durations[0] : durations;
@@ -1262,7 +1349,10 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
 
   const cellFitnessValues = await getCellFitnessValues( eliteMap );
 
+  const { classConfigurations } = eliteMap;
+
   const newGenomesFeatures = [];
+  const newGenomesEmbedding = [];
   const newGenomesFitnessValues = [];
   // get the feature vector for the new genomes
   for( const genomeString of genomeStrings ) {
@@ -1284,24 +1374,71 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
     // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes audioBuffer", audioBuffer);
 
     if( audioBuffer && audioBuffer.length && ! audioBuffer.some( value => isNaN(value) ) ) {
-    // get features from audio buffer
-      const featuresResponse = await getFeaturesFromWebsocket(
-        audioBuffer,
-        evaluationFeatureExtractionHost
-      ).catch(e => {
-        console.error(`Error getting features at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
-      });
-      // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes featuresResponse", featuresResponse);
-      const newGenomeFeatureVector = featuresResponse.features;
-      newGenomesFeatures.push( newGenomeFeatureVector );
 
-      // get quality from audio buffer
-      let newGenomeQuality = await getQualityFromWebsocket(
+      // TODO combine some of this with getGenomeScoreAndFeatures
+
+      // let qualityFromEmbeds = false;
+      // let refSetName, refSetEmbedsPath, querySetEmbedsPath, featureExtractionEndpoint, sampleRate;
+      // if( classConfigurations && classConfigurations.length ) {
+      //   // TODO: handle multiple class configurations here?
+      //  // for now, assume we have just one entry in classConfigurations
+      //   refSetName = classConfigurations[0].refSetName;
+      //   refSetEmbedsPath = classConfigurations[0].refSetEmbedsPath;
+      //   querySetEmbedsPath = classConfigurations[0].querySetEmbedsPath;
+      //   featureExtractionEndpoint = classConfigurations[0].featureExtractionEndpoint;
+      //   sampleRate = classConfigurations[0].sampleRate;
+      //   qualityFromEmbeds = true;
+      // }
+
+      // // get features from audio buffer
+      // const featuresResponse = await getFeaturesFromWebsocket(
+      //   audioBuffer,
+      //   evaluationFeatureExtractionHost,
+      //   // optional:
+      //   ckptDir,
+      //   sampleRate,
+      //   featureExtractionEndpoint
+      // ).catch(e => {
+      //   console.error(`Error getting features at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+      // });
+      // // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes featuresResponse", featuresResponse);
+      // const newGenomeFeatureVector = featuresResponse.features;
+      // newGenomesFeatures.push( newGenomeFeatureVector );
+      // const newGenomeEmbedding = featuresResponse.embedding;
+      // newGenomesEmbedding.push( newGenomeEmbedding );
+
+      // let newGenomeQuality;
+      // if( qualityFromEmbeds ) {
+      //   const newGenomeEmbed = featuresResponse.embedding;
+      //   newGenomeQuality = await getQualityFromWebsocketForEmbedding(
+      //     newGenomeEmbed,
+      //     refSetEmbedsPath,
+      //     querySetEmbedsPath,
+      //     measureCollectivePerformance,
+      //     evaluationQualityHost,
+      //     ckptDir
+      //   ).catch(e => {
+      //     console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+      //   });
+      // } else {
+      //   // get quality from audio buffer
+      //   newGenomeQuality = await getQualityFromWebsocket(
+      //     audioBuffer,
+      //     evaluationQualityHost
+      //   ).catch(e => {
+      //     console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+      //   });
+      // }
+
+      const { features, embedding, quality } = await getFeaturesAndScoreForAudioBuffer(
         audioBuffer,
-        evaluationQualityHost
-      ).catch(e => {
-        console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
-      });
+        evaluationFeatureExtractionHost, evaluationQualityHost,
+        classConfigurations, measureCollectivePerformance, ckptDir
+      );
+      newGenomesFeatures.push( features );
+      newGenomesEmbedding.push( embedding );
+      let newGenomeQuality = quality;
+      
 console.log("----------- newGenomeQuality",newGenomeQuality)
       // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes newGenomeQuality", newGenomeQuality);
       const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass( newGenomeQuality.fitness );
@@ -1435,15 +1572,23 @@ console.log("----------- newGenomeQuality",newGenomeQuality)
         score = newGenomeFitnessValue;
       }
       const newGenomeFeatureVector = newGenomesFeatures[i];
+      const newGenomeEmbedding = newGenomesEmbedding[i];
 
       const diversityMapKey = diversityProjection.feature_map[i].join("_");
+
+      // TODO: this is premature, as this individual genome is not yet in the elite map; is handled in the batchIterationResults round
+      // cellFeatures[diversityMapKey] = {
+      //   features: newGenomeFeatureVector,
+      //   embedding: newGenomeEmbedding
+      // };
       
       newGenomeClassScores[ diversityMapKey ] = {
         score,
         duration,
         noteDelta,
         velocity,
-        features: newGenomeFeatureVector
+        features: newGenomeFeatureVector,
+        embedding: newGenomeEmbedding
       };
     }
   }
@@ -1454,6 +1599,7 @@ console.log("----------- newGenomeQuality",newGenomeQuality)
 }
 
 // similar to getGenomeClassScoresByDiversityProjectionWithNewGenomes, but specialised for the seed rounds
+// TODO: update quality handling to be similar to getGenomeClassScoresByDiversityProjectionWithNewGenomes
 async function getGenomeScoreAndFeatures(
   genomeId,
   genomeString,
@@ -1466,7 +1612,9 @@ async function getGenomeScoreAndFeatures(
   geneRenderingServerHost, renderSampleRateForClassifier,
   evaluationFeatureExtractionHost,
   evaluationQualityHost,
-  scoreProportion
+  scoreProportion,
+  classConfigurations,
+  measureCollectivePerformance, ckptDir
 ) {
   const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
     genomeString,
@@ -1477,32 +1625,39 @@ async function getGenomeScoreAndFeatures(
     antiAliasing,
     frequencyUpdatesApplyToAllPathcNetworkOutputs,
     geneRenderingServerHost, renderSampleRateForClassifier
-  ).catch(
-    e => {
-      console.error(`Error rendering geneome ${genomeId}`, e);
-    }
-  );
+  ).catch(e => {
+    console.error(`Error rendering geneome ${genomeId}`, e);
+  });
 
   let newGenomeFeatureVector;
   let newGenomeQuality;
   let fitness;
   if( audioBuffer && audioBuffer.length && ! audioBuffer.some( value => isNaN(value) ) ) {
     // get features from audio buffer
-    const featuresResponse = await getFeaturesFromWebsocket(
-      audioBuffer,
-      evaluationFeatureExtractionHost
-    ).catch(e => {
-      console.error(`getGenomeScoreAndFeatures: Error getting features for genomeId ${genomeId}`, e);
-    });
-    newGenomeFeatureVector = featuresResponse.features;
+    // const featuresResponse = await getFeaturesFromWebsocket(
+    //   audioBuffer,
+    //   evaluationFeatureExtractionHost
+    // ).catch(e => {
+    //   console.error(`getGenomeScoreAndFeatures: Error getting features for genomeId ${genomeId}`, e);
+    // });
+    // newGenomeFeatureVector = featuresResponse.features;
 
-    // get quality from audio buffer
-    newGenomeQuality = await getQualityFromWebsocket(
+    // // get quality from audio buffer
+    // newGenomeQuality = await getQualityFromWebsocket(
+    //   audioBuffer,
+    //   evaluationQualityHost
+    // ).catch(e => {
+    //   console.error(`getGenomeScoreAndFeatures: Error getting quality  for genome ID ${genomeId}`, e);
+    // });
+
+    const { features, embedding, quality } = await getFeaturesAndScoreForAudioBuffer(
       audioBuffer,
-      evaluationQualityHost
-    ).catch(e => {
-      console.error(`getGenomeScoreAndFeatures: Error getting quality  for genome ID ${genomeId}`, e);
-    });
+      evaluationFeatureExtractionHost, evaluationQualityHost,
+      classConfigurations, measureCollectivePerformance, ckptDir
+    );
+    newGenomeFeatureVector = features;
+    newGenomeQuality = quality;
+
     const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass( newGenomeQuality.fitness );
     if( isTopScoreFitnessWithAssociatedClass ) {
       newGenomeQuality.fitness.top_score *= scoreProportion;
@@ -1520,6 +1675,70 @@ async function getGenomeScoreAndFeatures(
     noteDelta,
     velocity,
     features: newGenomeFeatureVector
+  };
+}
+
+async function getFeaturesAndScoreForAudioBuffer(
+  audioBuffer,
+  evaluationFeatureExtractionHost, evaluationQualityHost,
+  classConfigurations, measureCollectivePerformance, ckptDir
+) {
+  let qualityFromEmbeds = false;
+  let refSetName, refSetEmbedsPath, querySetEmbedsPath, featureExtractionEndpoint, sampleRate;
+  if( classConfigurations && classConfigurations.length ) {
+    // TODO: handle multiple class configurations here?
+    // for now, assume we have just one entry in classConfigurations
+    refSetName = classConfigurations[0].refSetName;
+    refSetEmbedsPath = classConfigurations[0].refSetEmbedsPath;
+    querySetEmbedsPath = classConfigurations[0].querySetEmbedsPath;
+    featureExtractionEndpoint = classConfigurations[0].featureExtractionEndpoint;
+    sampleRate = classConfigurations[0].sampleRate;
+    qualityFromEmbeds = true;
+  }
+
+  // get features from audio buffer
+  const featuresResponse = await getFeaturesFromWebsocket(
+    audioBuffer,
+    evaluationFeatureExtractionHost,
+    // optional:
+    ckptDir,
+    sampleRate,
+    featureExtractionEndpoint
+  ).catch(e => {
+    console.error("Error getting features", e);
+  });
+  // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes featuresResponse", featuresResponse);
+  const newGenomeFeatureVector = featuresResponse.features;
+  // newGenomesFeatures.push( newGenomeFeatureVector );
+  const newGenomeEmbedding = featuresResponse.embedding;
+  // newGenomesEmbedding.push( newGenomeEmbedding );
+
+  let newGenomeQuality;
+  if( qualityFromEmbeds ) {
+    const newGenomeEmbed = featuresResponse.embedding;
+    newGenomeQuality = await getQualityFromWebsocketForEmbedding(
+      newGenomeEmbed,
+      refSetEmbedsPath,
+      querySetEmbedsPath,
+      measureCollectivePerformance,
+      evaluationQualityHost,
+      ckptDir
+    ).catch(e => {
+      console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+    });
+  } else {
+    // get quality from audio buffer
+    newGenomeQuality = await getQualityFromWebsocket(
+      audioBuffer,
+      evaluationQualityHost
+    ).catch(e => {
+      console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+    });
+  }
+  return {
+    features: newGenomeFeatureVector,
+    embedding: newGenomeEmbedding,
+    quality: newGenomeQuality
   };
 }
 
@@ -1545,6 +1764,55 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
       return oneClassKey.join('_');
     });
   }
+}
+
+async function getFeaturesAndScoresFromEliteMap(
+  eliteMap, cellFeatures,
+  _evaluationQualityServers, evoRunDirPath,
+  scoreProportion,
+  ckptDir, measureCollectivePerformance
+) {
+  const seedFeaturesAndScores = [];
+  // const featuresArray = Object.valnues(cellFeatures);
+  // const diversityProjection = await getDiversityFromWebsocket(
+  //   featuresArray,
+  //   undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
+  //   _evaluationProjectionServers[0],
+  //   evoRunDirPath,
+  //   true // shouldFit
+  // ).catch(e => {
+  //   console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+  // });
+
+  let i = 0;
+  for( let cellKey in cellFeatures ) {
+    const features = cellFeatures[cellKey];
+    const genomeId = eliteMap.cells[cellKey].elts[0].g;
+    const genomeString = await readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
+    const genomeAndMeta = JSON.parse( genomeString );
+    const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === cellKey );
+    const { duration, noteDelta, velocity } = tagForCell;
+    const genomeQuality = getQualityFromWebsocketForEmbedding(
+      features.embedding,
+      refSetEmbedsPath,
+      querySetEmbedsPath,
+      measureCollectivePerformance,
+      _evaluationQualityServers[ i % _evaluationQualityServers.length ],
+      ckptDir
+    );
+    const fitness = genomeQuality.fitness * scoreProportion;
+    seedFeaturesAndScores.push({
+      genomeId,
+      genomeString,
+      fitness,
+      duration,
+      noteDelta,
+      velocity,
+      features: features.features
+    });
+    i++;
+  }
+  return seedFeaturesAndScores;
 }
 
 const projectionRetrainingLinearGapIncrement = 10;
@@ -1618,15 +1886,11 @@ function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOn
   }
 }
 
-function initializeGrid( 
-    evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters
+function initializeEliteMap(
+  evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationGraphModel, dummyRun,
+  classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
+  classConfigurations
 ) {
-  const { 
-    classifiers, classifierIndex, dummyRun,
-    classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
-    classScoringVariationsAsContainerDimensions
-  } = evolutionRunConfig;
-  const classificationGraphModel = classifiers[classifierIndex];
   let eliteMap = {
     _id: getEliteMapKey(evolutionRunId),
     algorithm,
@@ -1638,7 +1902,11 @@ function initializeGrid(
     timestamp: Date.now(),
     eliteCountAtGeneration: 0,
     terminated: false,
-    cells: {} // aka classes or niches
+    cells: {}, // aka classes or niches
+    classConfigurations,
+    qdScore: 0, qdScoreWithoutIncreaseCount: 0,
+    coverage: 0, coverageWithoutIncreaseCount: 0,
+    isBeingSwitchedToFromAnotherMap: false
   };
   const classifierTags = getClassifierTags(classificationGraphModel, dummyRun);
   if( classScoringVariationsAsContainerDimensions ) {
@@ -1664,23 +1932,106 @@ function initializeGrid(
   return eliteMap;
 }
 
+function initializeGrid( 
+    evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters
+) {
+  const { 
+    classifiers, classifierIndex, classesAsMaps, dummyRun,
+    classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
+    classScoringVariationsAsContainerDimensions
+  } = evolutionRunConfig;
+  const classificationGraphModel = classifiers[classifierIndex];
+  let eliteMap;
+  if( typeof classificationGraphModel === 'object' && classificationGraphModel.hasOwnProperty('classConfigurations') && classificationGraphModel.hasOwnProperty('classificationDimensions') ) {
+    const { classConfigurations, classificationDimensions } = classificationGraphModel;
+    if( classesAsMaps ) {
+      // an array of eliteMaps, with each map representing a classConfiguration
+      eliteMap = [];
+      for( const oneClassConfiguration of classConfigurations ) {
+        const oneEliteMap = initializeEliteMap(
+          evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationDimensions, dummyRun,
+          classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
+          [oneClassConfiguration]
+        );
+        eliteMap.push( oneEliteMap );
+      }
+    } else {
+      // only one map, but still using classConfigurations and classificationDimensions as the classificationGraphModel
+      const oneEliteMap = initializeEliteMap(
+        evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationDimensions, dummyRun,
+        classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
+        classConfigurations
+      );
+      eliteMap = oneEliteMap
+    }
+  } else {
+    const oneEliteMap = initializeEliteMap(
+      evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationGraphModel, dummyRun,
+      classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
+      undefined // classConfigurations
+    );
+    eliteMap = oneEliteMap;
+  }
+  // let eliteMap = {
+  //   _id: getEliteMapKey(evolutionRunId),
+  //   algorithm,
+  //   evolutionRunConfig, evolutionaryHyperparameters,
+  //   generationNumber: 0,
+  //   lastProjectionFitIndex: 0, // or re-training of the projection model
+  //   projectionModelFitGenerations: [],
+  //   projectionSizes: [], // aka coverage
+  //   timestamp: Date.now(),
+  //   eliteCountAtGeneration: 0,
+  //   terminated: false,
+  //   cells: {} // aka classes or niches
+  // };
+  // const classifierTags = getClassifierTags(classificationGraphModel, dummyRun);
+  // if( classScoringVariationsAsContainerDimensions ) {
+  //   for( const oneDuration of classScoringDurations ) {
+  //     for( const oneNoteDelta of classScoringNoteDeltas ) {
+  //       for( const oneVelocity of classScoringVelocities ) {
+  //         classifierTags.forEach((oneTag, i) => {
+  //           const oneClassKey = `${oneTag}_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
+  //           eliteMap.cells[oneClassKey] = {
+  //             elts: []
+  //           };
+  //         });
+  //       }
+  //     }
+  //   }
+  // } else {
+  //   classifierTags.forEach((oneTag, i) => {
+  //     eliteMap.cells[oneTag] = {
+  //       elts: []
+  //     };
+  //   });
+  // }
+  return eliteMap;
+}
+
 function createEvoRunDir( evoRunDirPath ) {
   if( ! fs.existsSync(evoRunDirPath) ) fs.mkdirSync( evoRunDirPath, { recursive: true } );
 }
 
-async function saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, generationNumber ) {
-  const eliteMapFileName = `${getEliteMapKey(evolutionRunId, generationNumber)}.json`;
-  const eliteMapFilePath = `${evoRunDirPath}${eliteMapFileName}`;
-  const eliteMapStringified = JSON.stringify(eliteMap, null, 2); // prettified to obtain the benefits (compression of git diffs)
-  await fsPromise.writeFile( eliteMapFilePath, eliteMapStringified );
-
+async function saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, terrainName ) {
+  if( Array.isArray(eliteMap) ) {
+    for( const oneEliteMap of eliteMap ) {
+      const refSetName = oneEliteMap.classConfigurations[0].refSetName;
+      await saveEliteMapToDisk( oneEliteMap, evoRunDirPath, evolutionRunId, refSetName );
+    }
+  } else {
+    const eliteMapFileName = `${getEliteMapKey(evolutionRunId, terrainName)}.json`;
+    const eliteMapFilePath = `${evoRunDirPath}${eliteMapFileName}`;
+    const eliteMapStringified = JSON.stringify(eliteMap, null, 2); // prettified to obtain the benefits (compression of git diffs)
+    await fsPromise.writeFile( eliteMapFilePath, eliteMapStringified );
+  }
   // add file to git (possibly redundantly)
   // runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
 }
-function readEliteMapFromDisk( evolutionRunId, evoRunDirPath ) {
+function readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName ) {
   let eliteMap;
   try {
-    const eliteMapFilePath = `${evoRunDirPath}${getEliteMapKey(evolutionRunId)}.json`;
+    const eliteMapFilePath = `${evoRunDirPath}${getEliteMapKey(evolutionRunId, terrainName)}.json`;
     if( fs.existsSync(eliteMapFilePath) ) {
       const eliteMapJSONString = fs.readFileSync(eliteMapFilePath, 'utf8');
       eliteMap = JSON.parse( eliteMapJSONString );
@@ -1733,11 +2084,11 @@ async function saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath
   }
 }
 
-function getEliteMapKey( evolutionRunId, generationNumber ) {
-  if( undefined === generationNumber ) {
+function getEliteMapKey( evolutionRunId, terrainName ) {
+  if( undefined === terrainName ) {
     return `elites_${evolutionRunId}`;
   } else {
-    return `elites_${evolutionRunId}_${generationNumber}`;
+    return `elites_${evolutionRunId}_${terrainName}`;
   }
 }
 
@@ -1858,6 +2209,20 @@ function shouldTerminate( terminationCondition, eliteMap, dummyRun ) {
     shouldTerminate = ( percentage <= cellsWithFitnessOverThresholdPercentage );
   }
   return shouldTerminate;
+}
+
+function shouldSwitchMap( eliteMap, mapSwitchingCondition ) {
+  if( 
+    mapSwitchingCondition.coverageWithoutIncreaseGenerations && 
+    mapSwitchingCondition.coverageWithoutIncreaseGenerations > eliteMap.coverageWithoutIncreaseCount 
+    ||
+    mapSwitchingCondition.qdScoreWithoutIncreaseGenerations &&
+    mapSwitchingCondition.qdScoreWithoutIncreaseGenerations > eliteMap.qdScoreWithoutIncreaseCount
+  ) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 const getCellKeysWithChampions = cells => Object.keys(cells).filter(oneClassKey => cells[oneClassKey].elts.length);

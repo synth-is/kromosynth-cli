@@ -141,10 +141,13 @@ export function getAudioClassPredictionsFromWebsocket(
 // send websocket message to server, with audio buffer an receive features
 export function getFeaturesFromWebsocket( 
   audioBufferChannelData,
-  evaluationFeatureHost
+  evaluationFeatureHost,
+  ckptDir = "",
+  sampleRate = "",
+  featureExtractionEndpoint = ""
 ) {
   console.log('getFeaturesFromWebsocket', evaluationFeatureHost);
-  const ws = getClient( evaluationFeatureHost );
+  const ws = getClient( `${evaluationFeatureHost}/${featureExtractionEndpoint}?ckpt_dir=${ckptDir}&sample_rate=${sampleRate}` );
   ws.binaryType = "arraybuffer"; // Set binary type for receiving array buffers
   return new Promise((resolve, reject) => {
     ws.on('open', () => {
@@ -162,7 +165,7 @@ export function getFeaturesFromWebsocket(
 }
 
 // send websocket message to server, with audio buffer an receive quality
-export function getQualityFromWebsocket( 
+export function getQualityFromWebsocket(  // TODO: rename to getQualityFromWebsocketForAudioBuffer
   audioBufferChannelData,
   evaluationQualityHost
 ) {
@@ -184,13 +187,69 @@ export function getQualityFromWebsocket(
   });
 }
 
+// send websocket message to server, with embedding and receive quality
+export function getQualityFromWebsocketForEmbedding(
+  embedding,
+  refSetEmbedsPath,
+  querySetEmbedsPath,
+  measureCollectivePerformance, // score incoming embedding and all embeddings in the query set against the ref set
+  evaluationQualityHost,
+  ckptDir
+) {
+  console.log('getQualityFromWebsocketForEmbedding', evaluationQualityHost);
+  const ws = getClient( `${evaluationQualityHost}/score?background_embds_path=${refSetEmbedsPath}&eval_embds_path=${querySetEmbedsPath}&measure_collective_performance${measureCollectivePerformance}&ckpt_dir=${ckptDir}` );
+  return new Promise((resolve, reject) => {
+    ws.on('open', () => {
+      ws.send( embedding );
+    });
+    ws.on('message', (message) => {
+      const quality = JSON.parse( message );
+      resolve( quality );
+    });
+    ws.on('error', (error) => {
+      delete clients[evaluationQualityHost];
+      reject( error );
+    });
+  });
+}
+
+export function addToQualityQueryEmbeddigs(
+  embedding,
+  candidateId, replacementId, // genome ids
+  querySetEmbedsPath,
+  evaluationQualityHost
+) {
+  console.log('addToQualityQueryEmbeddigs', evaluationQualityHost);
+  const ws = getClient( `${evaluationQualityHost}/add-to-query-embeddings` );
+  return new Promise((resolve, reject) => {
+    ws.on('open', () => {
+      const querySetAdditionMessage = {
+        "embedding": embedding,
+        "candidate_id": candidateId,
+        "replacement_id": replacementId,
+        "eval_embds_path": querySetEmbedsPath
+      };
+      ws.send( embedding );
+    });
+    ws.on('message', (message) => {
+      const quality = JSON.parse( message );
+      resolve( quality );
+    });
+    ws.on('error', (error) => {
+      delete clients[evaluationQualityHost];
+      reject( error );
+    });
+  });
+}
+
 // send websocket message to server, with feature vectors and fitness values and receive diversity
 export function getDiversityFromWebsocket( 
   featureVectors,
   fitnessValues,
   evaluationDiversityHost,
   evoRunDirPath,
-  shouldFit
+  shouldFit,
+  projectionEndpoint = ""
 ) {
   console.log('getDiversityFromWebsocket', evaluationDiversityHost);
   const ws = getClient( evaluationDiversityHost );

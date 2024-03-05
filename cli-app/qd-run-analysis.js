@@ -54,6 +54,12 @@ export async function calculateQDScoreForOneIteration(
     evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction 
 ) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  return calculateQDScoreForEliteMap( eliteMap, excludeEmptyCells, classRestriction ); 
+}
+
+export function calculateQDScoreForEliteMap(
+  eliteMap, excludeEmptyCells, classRestriction
+) {
   const cellKeys = getCellKeys( eliteMap, excludeEmptyCells, classRestriction );
   const cellCount = getCellCount( eliteMap, excludeEmptyCells, classRestriction );
   let cumulativeScore = 0;
@@ -68,7 +74,7 @@ export async function calculateQDScoreForOneIteration(
   // (https://btjanaka.net/static/qd-auc/qd-auc-paper.pdf)
   // while dividing by cellCount (including empty or not (covered) would be performance or precision)
   let qdScore;
-  // when we have a classRestriction, assume that we are comaring against single-class-runs
+  // when we have a classRestriction, assume that we are comparing against single-class-runs
   // and that the qdScore is the performance against individual classes, rather than a sum over all
   if( classRestriction && classRestriction.length ) {
     console.log("dividing qd score, from", cellScoreCounts, "cellScoreCounts by", cellCount)
@@ -115,8 +121,7 @@ export async function getCellScoresForOneIteration( evoRunConfig, evoRunId, iter
 
 ///// map coverage
 
-export async function getCoverageForOneIteration( evoRunConfig, evoRunId, iterationIndex, scoreThreshold = 0 ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+export function getCoverageForEliteMap( eliteMap, scoreThreshold = 0 ) {
   const cellKeys = Object.keys(eliteMap.cells);
   const cellCount = cellKeys.length;
   let coveredCellCount = 0;
@@ -129,6 +134,11 @@ export async function getCoverageForOneIteration( evoRunConfig, evoRunId, iterat
   }
   const coverage = coveredCellCount / cellCount;
   return coverage;
+}
+
+export async function getCoverageForOneIteration( evoRunConfig, evoRunId, iterationIndex, scoreThreshold = 0 ) {
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  return getCoverageForEliteMap( eliteMap, scoreThreshold );
 }
 
 export async function getCoverageForAllIterations( evoRunConfig, evoRunId, stepSize = 1, scoreThreshold = 0 ) {
