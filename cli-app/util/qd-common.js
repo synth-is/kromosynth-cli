@@ -18,6 +18,9 @@ export async function readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRu
     const genomeFilePath = `${evoRunDirPath}${evoRunDirPathSeparator}${genomeKey}.json`;
     if( fs.existsSync(genomeFilePath) ) {
       genomeJSONString = fs.readFileSync(genomeFilePath, 'utf8');
+      console.log(`Genome file found: ${genomeFilePath}`);
+    } else {
+      console.error(`Genome file NOT found: ${genomeFilePath}`);
     }
   } catch( err ) {
     console.error("readGenomeFromDisk: ", err);

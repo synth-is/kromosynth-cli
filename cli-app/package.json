@@ -38,6 +38,7 @@
     "pb-util": "^1.0.3",
     "ulid": "^2.3.0",
     "virtual-audio-graph": "github:synth-is/virtual-audio-graph",
+    "wavefile": "^11.0.0",
     "ws": "^8.14.1"
   },
   "bin": {

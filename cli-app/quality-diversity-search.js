@@ -202,12 +202,16 @@ export async function qdSearch(
   let eliteMap;
   let eliteMapIndex = 0;
   let terrainName = undefined;
+  let sampleRate;
   if( typeof classificationGraphModel === "object" && classificationGraphModel.hasOwnProperty("classConfigurations") ) {
-    terrainName = classificationGraphModel.classConfigurations[0].terrainName;
+    terrainName = classificationGraphModel.classConfigurations[0].refSetName;
+    sampleRate = classificationGraphModel.classConfigurations[0].sampleRate;
+  } else {
+    sampleRate = renderSampleRateForClassifier;
   }
-  let eliteMapContainer = readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName );
-  if( ! eliteMapContainer ) {
-    eliteMapContainer = initializeGrid( 
+  eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName );
+  if( ! eliteMap ) {
+    let eliteMapContainer = initializeGrid( 
       evolutionRunId, algorithmKey, evolutionRunConfig, evolutionaryHyperparameters
     );
 
@@ -216,16 +220,19 @@ export async function qdSearch(
 
     runCmd(`git init ${evoRunDirPath}`);
 
-    await saveEliteMapToDisk( eliteMapContainer, evoRunDirPath, evolutionRunId );
+    await saveEliteMapToDisk( eliteMapContainer, evoRunDirPath, evolutionRunId, undefined /* terrainName */, true /* addToGit */);
 
     // add file to git
-    const eliteMapFileName = `${getEliteMapKey(evolutionRunId)}.json`;
-    runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
+    // TODO: now again done in saveEliteMapToDisk
+    // const eliteMapFileName = `${getEliteMapKey(evolutionRunId)}.json`;
+    // runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
 
     if( Array.isArray(eliteMapContainer) ) {
       // we have multiple maps
-      eliteMapIndex = Math.floor(Math.random() * eliteMapContainer.length);
-      eliteMap = eliteMapContainer[eliteMapIndex];
+      // eliteMapIndex = Math.floor(Math.random() * eliteMapContainer.length);
+      // eliteMap = eliteMapContainer[eliteMapIndex];
+      // let's for now start with the first one:
+      eliteMap = eliteMapContainer[0];
     } else {
       // we have one object with a single map
       eliteMap = eliteMapContainer;
@@ -293,24 +300,63 @@ export async function qdSearch(
 
     // check if we should switch maps
     if( classesAsMaps && shouldSwitchMap(eliteMap, mapSwitchingCondition) ) {
+
+      // TODO reset map switching conditions in map and save it
+
       // randomly select next elite map index, which is not the current one
-      if( eliteMapContainer.length > 1 ) {
+      const eliteMapCount = classificationGraphModel.classConfigurations.length;
+      if( eliteMapCount > 1 ) {
         let nextEliteMapIndex;
-        do {
-          nextEliteMapIndex = Math.floor(Math.random() * eliteMapContainer.length);
-        } while( nextEliteMapIndex === eliteMapIndex );
+        // do {
+        //   nextEliteMapIndex = Math.floor(Math.random() * eliteMapCount);
+        // } while( nextEliteMapIndex === eliteMapIndex );
+
+        // if( nextEliteMapIndex === eliteMapIndex ) {
+        //   console.error("nextEliteMapIndex === eliteMapIndex");
+        // }
+
+        nextEliteMapIndex = (eliteMapIndex + 1) % eliteMapCount;
+
+        const currentMapGeneration = eliteMap.generationNumber - 1; // -1 as the generation number was incremented at the end of the last batch
+        const currentMapId = eliteMap._id;
+
         eliteMapIndex = nextEliteMapIndex;
-        eliteMap = eliteMapContainer[eliteMapIndex];
-        eliteMap.isBeingSwitchedToFromAnotherMap = true;
-        seedFeaturesAndScores = getFeaturesAndScoresFromEliteMap( 
+
+        // let's get the features and scores from the current map, before switching
+        // - using nextElite's refSetEmbedsPath to get the quality / fitness according to that one, before projecting individuals to the new map
+        const refSetEmbedsPath = classificationGraphModel.classConfigurations[eliteMapIndex].refSetEmbedsPath;
+        seedFeaturesAndScores = await getFeaturesAndScoresFromEliteMap( 
           eliteMap, cellFeatures,
-          _evaluationQualityServers, evoRunDirPath,
+          _evaluationQualityServers, evolutionRunId, evoRunDirPath,
           scoreProportion,
-          ckptDir, measureCollectivePerformance
+          ckptDir, measureCollectivePerformance,
+          refSetEmbedsPath
         );
+
+        // eliteMap = eliteMapContainer[eliteMapIndex];
+        terrainName = classificationGraphModel.classConfigurations[eliteMapIndex].refSetName;
+        sampleRate = classificationGraphModel.classConfigurations[eliteMapIndex].sampleRate;
+        eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName );
+        // eliteMap.generationNumber++; // increment the generation number, as the increment at the end of last batch iteration happened after last save
+        eliteMap.mapSwitchLog.push({
+          previousMapGeneration: currentMapGeneration,
+          previousMapId: currentMapId,
+          nextMapGeneration: eliteMap.generationNumber,
+          nextMapId: eliteMap._id
+        });
+        eliteMap.isBeingSwitchedToFromAnotherMap = true;
       } else {
         console.log("only one map, not switching");
       }
+    } else if( eliteMap.isBeingSwitchedToFromAnotherMap ) {
+      const refSetEmbedsPath = classificationGraphModel.classConfigurations[eliteMapIndex].refSetEmbedsPath;
+      seedFeaturesAndScores = await getFeaturesAndScoresFromEliteMap( 
+        eliteMap, cellFeatures,
+        _evaluationQualityServers, evolutionRunId, evoRunDirPath,
+        scoreProportion,
+        ckptDir, measureCollectivePerformance,
+        refSetEmbedsPath
+      );
     }
 
     const batchStartTimeMs = performance.now();
@@ -318,7 +364,7 @@ export async function qdSearch(
     console.log("algorithmKey",algorithmKey);
     if( algorithmKey === "mapElites_with_uBC" ) {
       await mapElitesBatch(
-        eliteMap, cellFeatures, seedFeaturesAndScores, terrainName,
+        eliteMap, eliteMapIndex, cellFeatures, seedFeaturesAndScores, terrainName,
         algorithmKey, evolutionRunId,
         commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNGenerations,
         renderEliteMapToWavFilesEveryNGenerations, renderElitesToWavFiles,
@@ -329,7 +375,7 @@ export async function qdSearch(
         classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
         classScoringVariationsAsContainerDimensions,
         classificationGraphModel, yamnetModelUrl, ckptDir, measureCollectivePerformance,
-        renderSampleRateForClassifier,
+        sampleRate,
         geneEvaluationProtocol,
         _geneVariationServers, _geneRenderingServers, _geneEvaluationServers,
         _evaluationFeatureServers, _evaluationQualityServers, _evaluationProjectionServers,
@@ -391,7 +437,7 @@ export async function qdSearch(
 }
 
 async function mapElitesBatch(
-  eliteMap, cellFeatures, seedFeaturesAndScores, terrainName,
+  eliteMap, eliteMapIndex, cellFeatures, seedFeaturesAndScores, terrainName,
   algorithmKey, evolutionRunId,
   commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNGenerations,
   renderEliteMapToWavFilesEveryNGenerations, renderElitesToWavFiles,
@@ -430,7 +476,7 @@ async function mapElitesBatch(
     // - so far the have been collected: let's project the whole collection
     searchPromises = new Array( seedFeaturesAndScores.length );
     const seedFeatureClassKeys = await getClassKeysFromSeedFeatures(
-      seedFeaturesAndScores, _evaluationProjectionServers[0], evoRunDirPath, classScoringVariationsAsContainerDimensions
+      seedFeaturesAndScores, _evaluationProjectionServers[0], evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap
     );
     for( let i=0; i < seedFeaturesAndScores.length; i++ ) {
       searchPromises[i] = new Promise( async (resolve, reject) => {
@@ -448,7 +494,9 @@ async function mapElitesBatch(
         }
         const classKey = seedFeatureClassKeys[i];
         const newGenomeClassScores = { [classKey]: {
-          score, duration, noteDelta, velocity
+          score, duration, noteDelta, velocity,
+          features: seedFeatureAndScore.features,
+          embedding: seedFeatureAndScore.embedding
         } };
         resolve({
           genomeId, 
@@ -459,12 +507,25 @@ async function mapElitesBatch(
         });
       });
     }
-    // getClassKeysFromSeedFeatures trains the projection: let's set the projection fit index according to the number of seed features, from the current generation number
+  // getClassKeysFromSeedFeatures trains the projection: let's set the projection fit index according to the number of seed features, from the current generation number
     eliteMap.lastProjectionFitIndex = getNextFitGenerationIndex( (eliteMap.generationNumber*searchBatchSize) + seedFeaturesAndScores.length );
 
   } else {
 
     searchPromises = new Array(searchBatchSize);
+
+    let featureExtractionEndpoint;
+    let qualityEvaluationEndpoint;
+    let projectionEndpoint;
+    if( classificationGraphModel.classConfigurations && classificationGraphModel.classConfigurations.length ) {
+      featureExtractionEndpoint = classificationGraphModel.classConfigurations[eliteMapIndex].featureExtractionEndpoint;
+      qualityEvaluationEndpoint = ""; // TODO: not using for now: classificationGraphModel.classConfigurations[eliteMapIndex].qualityEvaluationEndpoint;
+      projectionEndpoint = ""; // TODO: not using for now: classificationGraphModel.classConfigurations[eliteMapIndex].projectionEndpoint;
+    } else {
+      featureExtractionEndpoint = "";
+      qualityEvaluationEndpoint = "";
+      projectionEndpoint = "";
+    }
 
     if( isUnsupervisedDiversityEvaluation && _evaluationFeatureServers && _evaluationFeatureServers.length ) {
       await populateAndSaveCellFeatures( 
@@ -472,7 +533,9 @@ async function mapElitesBatch(
         classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
         _geneRenderingServers, renderSampleRateForClassifier,
         _evaluationFeatureServers,
-        evoRunDirPath, evolutionRunId 
+        evoRunDirPath, evolutionRunId,
+        ckptDir,
+        featureExtractionEndpoint
       );
     }
     for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
@@ -494,9 +557,9 @@ async function mapElitesBatch(
         } else if( isUnsupervisedDiversityEvaluation ) {
           // using feature extraction and dimensionality reduction for diversity projection and a separate quality evaluation service
           geneEvaluationServerHost = {
-            feature: _evaluationFeatureServers[ batchIteration % _evaluationFeatureServers.length ],
-            projection: _evaluationProjectionServers[ batchIteration % _evaluationProjectionServers.length ],
-            quality: _evaluationQualityServers[ batchIteration % _evaluationQualityServers.length ]
+            feature: _evaluationFeatureServers[ batchIteration % _evaluationFeatureServers.length ] + featureExtractionEndpoint,
+            projection: _evaluationProjectionServers[ batchIteration % _evaluationProjectionServers.length ] + projectionEndpoint,
+            quality: _evaluationQualityServers[ batchIteration % _evaluationQualityServers.length ] + qualityEvaluationEndpoint
           };
         }
       }
@@ -680,8 +743,8 @@ async function mapElitesBatch(
                       geneEvaluationServerHost.feature,
                       geneEvaluationServerHost.quality,
                       scoreProportion,
-                      eliteMap.classConfigurations,
-                      measureCollectivePerformance, ckptDir
+                      eliteMap.classConfigurations, eliteMapIndex,
+                      measureCollectivePerformance, ckptDir, evoRunDirPath
                     );
                     seedFeaturesAndScores.push(seedGenomeScoreAndFeatures);
                     await saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
@@ -728,9 +791,9 @@ async function mapElitesBatch(
                         geneEvaluationServerHost.feature,
                         geneEvaluationServerHost.quality,
                         geneEvaluationServerHost.projection,
-                        eliteMap, cellFeatures,
+                        eliteMap, eliteMapIndex,
+                        cellFeatures,
                         evolutionRunId, evoRunDirPath,
-                        classificationGraphModel,
                         scoreProportion,
                         shouldFit, generationIncrement,
                         measureCollectivePerformance, ckptDir
@@ -767,9 +830,9 @@ async function mapElitesBatch(
                   geneEvaluationServerHost.feature,
                   geneEvaluationServerHost.quality,
                   geneEvaluationServerHost.projection,
-                  eliteMap, cellFeatures,
+                  eliteMap, eliteMapIndex,
+                  cellFeatures,
                   evolutionRunId, evoRunDirPath,
-                  classificationGraphModel,
                   scoreProportion,
                   shouldFit, generationIncrement,
                   measureCollectivePerformance, ckptDir
@@ -882,7 +945,13 @@ async function mapElitesBatch(
     }
     */
 
+
+    // use this to ensure we're only handling and saving one copy of the same genome
+    let genomeIdToGenome = {};
+
     let classToBatchEliteCandidates = {};
+    let cellKeyToExistingEliteGenomeId = {};
+    // let eliteCountAtGeneration = 0;
     for( let batchResultIdx = 0; batchResultIdx < batchIterationResults.length; batchResultIdx++ ) {
 
       const {
@@ -892,6 +961,7 @@ async function mapElitesBatch(
 
       ///// add to archive
 
+      // newGenomeClassScores !== undefined will be undefined during seed rounds
       if( newGenomeClassScores !== undefined && Object.keys(newGenomeClassScores).length ) {
         const getClassKeysWhereScoresAreEliteStartTime = performance.now();
         let eliteClassKeys;
@@ -903,57 +973,59 @@ async function mapElitesBatch(
         const getClassKeysWhereScoresAreEliteEndTime = performance.now();
         console.log("getClassKeysWhereScoresAreElite duration", getClassKeysWhereScoresAreEliteEndTime - getClassKeysWhereScoresAreEliteStartTime);
         if( eliteClassKeys.length > 0 ) {
+          if( eliteClassKeys.length > 1 ) {
+            console.log("eliteClassKeys", eliteClassKeys);
+          }
           // const classScoresSD = getClassScoresStandardDeviation( newGenomeClassScores );
           // console.log("classScoresSD", classScoresSD);
           eliteMap.newEliteCount = eliteClassKeys.length;
-          const getGenomeFromGenomeStringStartTime = performance.now();
-          const newGenome = await getGenomeFromGenomeString( newGenomeString );
-          const getGenomeFromGenomeStringEndTime = performance.now();
-          console.log("getGenomeFromGenomeString duration", getGenomeFromGenomeStringEndTime - getGenomeFromGenomeStringStartTime);
-          newGenome.tags = [];
+
+          let newGenome;
+          if( genomeIdToGenome[genomeId] === undefined ) {
+            const getGenomeFromGenomeStringStartTime = performance.now();
+            newGenome = await getGenomeFromGenomeString( newGenomeString );
+            genomeIdToGenome[genomeId] = newGenome;
+            const getGenomeFromGenomeStringEndTime = performance.now();
+            console.log("getGenomeFromGenomeString duration", getGenomeFromGenomeStringEndTime - getGenomeFromGenomeStringStartTime);
+          } else {
+            newGenome = genomeIdToGenome[genomeId];
+          }
+
+          if( ! newGenome.tags ) newGenome.tags = [];
           newGenome.parentGenomes = parentGenomes.length ? parentGenomes : undefined;
           newGenome.generationNumber = eliteMap.generationNumber;
           const eliteMapUpdateStartTime = performance.now();
           for( const classKey of eliteClassKeys ) {
+            cellKeyToExistingEliteGenomeId[classKey] = eliteMap.cells[classKey].elts.length ? eliteMap.cells[classKey].elts[0].g : undefined;
             const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
             const updated = Date.now();
-            eliteMap.cells[classKey].elts = [
-              // genomeId
-            // .push(
-            {
-              g: genomeId, //genome: genomeId,
-              // duration,
-              // noteDelta,
-              // velocity,
+
+            eliteMap.cells[classKey].elts = [{
+              g: genomeId,
               s: score, // score: score.toFixed(4),
               gN: eliteMap.generationNumber, // generationNumber: eliteMap.generationNumber,
-              // parentGenomes: newGenome.parentGenomes
-            }
-            ];
-            // );
+            }];
+
             newGenome.tags.push({
               tag: classKey,
               score, duration, noteDelta, velocity,
-              updated
+              updated,
+              mapId: eliteMap._id,
+              generationNumber: eliteMap.generationNumber,
             });
-            // delete the last top elite (if any) from genomeMap
-            /*
-            if( eliteMap[classKey].elts.length > 2 ) {
-              // const lastTopEliteGenomeId = eliteMap[classKey].elts[ eliteMap[classKey].elts.length-2 ].genome;
-              // delete genomeMap[lastTopEliteGenomeId];
-              eliteMap[classKey].elts = eliteMap[classKey].elts.slice( - 1 );
-            }
-            */
-            // if( !eliteMapExtra[classKey] ) eliteMapExtra[classKey] = {};
+
             eliteMap.cells[classKey].uBC = 10;
+
+            eliteMap.cells[classKey].eltAddCnt = eliteMap.cells[classKey].eltAddCnt ? eliteMap.cells[classKey].eltAddCnt + 1 : 1;
 
             const { features, embedding } = newGenomeClassScores[classKey];
             cellFeatures[classKey] = { features, embedding };
 
             classToBatchEliteCandidates[classKey] = {
               genomeId,
-              genome: newGenome
+              // genome: newGenome
             };
+            // eliteCountAtGeneration++;
           }
           const eliteMapUpdateEndTime = performance.now();
           console.log("eliteMapUpdate duration", eliteMapUpdateEndTime - eliteMapUpdateStartTime);
@@ -968,7 +1040,7 @@ async function mapElitesBatch(
               classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs
             );
           }
-        } else if( randomClassKey ) { // if( eliteClassKeys.length > 0 ) {
+        } else if( randomClassKey && ! shouldPopulateCellFeatures /* defined way up there ^ 🤣 */ ) { // if( eliteClassKeys.length > 0 ) {
 
           // bias search away from exploring niches that produce fewer innovations
           eliteMap.cells[randomClassKey].uBC -= 1; // TODO should stop at zero?
@@ -981,25 +1053,29 @@ async function mapElitesBatch(
 
     } // for( let oneBatchIterationResult of batchIterationResults ) {
 
-    let batchEliteIndex = 0;
-    for( let oneNewEliteClass in classToBatchEliteCandidates ) {
-      let { genome, genomeId } = classToBatchEliteCandidates[oneNewEliteClass];
+    for( let oneGenomeId in genomeIdToGenome ) {
       const saveGenomeToDiskStartTime = performance.now();
-      await saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
+      await saveGenomeToDisk( genomeIdToGenome[oneGenomeId], evolutionRunId, oneGenomeId, evoRunDirPath, addGenomesToGit );
       const saveGenomeToDiskEndTime = performance.now();
       console.log("saveGenomeToDisk duration", saveGenomeToDiskEndTime - saveGenomeToDiskStartTime);
-      genome = undefined;
-      genomeId = undefined;
+    }
+    genomeIdToGenome = undefined; // attempt to free up memory
 
+    let batchEliteIndex = 0;
+    for( let oneNewEliteClass in classToBatchEliteCandidates ) {
+      let { 
+        // genome, 
+        genomeId 
+      } = classToBatchEliteCandidates[oneNewEliteClass];
       // add this genome's features to the quality query embeddings, if using classConfigurations, by calling /add-to-query-embeddings websocket endpoint
       if( eliteMap.classConfigurations && eliteMap.classConfigurations.length ) {
-        const existingGenomeIdAtClass = eliteMap.cells[oneNewEliteClass].elts[0].g;
-        querySetEmbedsPath = classConfigurations[0].querySetEmbedsPath;
+        const existingGenomeIdAtClass = cellKeyToExistingEliteGenomeId[oneNewEliteClass];
+        const querySetEmbedsPath = getQuerySetEmbedsPath( evoRunDirPath );
         const evaluationQualityHost = _evaluationQualityServers[ batchEliteIndex % _evaluationQualityServers.length ];
         addToQualityQueryEmbeddigs(
           cellFeatures[oneNewEliteClass].embedding, // added to cellFeatures in the iteration above
           genomeId, existingGenomeIdAtClass,
-          eliteMap.classConfigurations[0].querySetEmbedsPath,
+          querySetEmbedsPath,
           evaluationQualityHost
         );
       }
@@ -1042,22 +1118,6 @@ async function mapElitesBatch(
     "evo run ID:", evolutionRunId
   );
 
-  eliteMap.searchBatchSize = searchBatchSize;
-  eliteMap.timestamp = Date.now();
-
-  const saveEliteMapToDiskStartTime = performance.now();
-  await saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, terrainName ); // the main / latest map
-  const saveEliteMapToDiskEndTime = performance.now();
-  console.log("saveEliteMapToDisk duration", saveEliteMapToDiskEndTime - saveEliteMapToDiskStartTime);
-
-  const commitEliteMapToGitStartTime = performance.now();
-  if( commitEliteMapToGitEveryNIterations && eliteMap.generationNumber % commitEliteMapToGitEveryNIterations === 0 ) {
-    // git commit iteration
-    runCmd(`git -C ${evoRunDirPath} commit -a -m "Iteration ${eliteMap.generationNumber}"`);
-  }
-  const commitEliteMapToGitEndTime = performance.now();
-  console.log("commitEliteMapToGit duration", commitEliteMapToGitEndTime - commitEliteMapToGitStartTime);
-
   const prunePastElitesStartTime = performance.now();
   if( prunePastEliteGenomesEveryNGenerations && eliteMap.generationNumber % prunePastEliteGenomesEveryNGenerations === 0 ) {
     deleteAllGenomesNotInEliteMap( eliteMap, evoRunDirPath );
@@ -1086,6 +1146,22 @@ async function mapElitesBatch(
       _geneRenderingServers, renderSampleRateForClassifier
     );
   }
+
+  eliteMap.searchBatchSize = searchBatchSize;
+  eliteMap.timestamp = Date.now();
+
+  const saveEliteMapToDiskStartTime = performance.now();
+  await saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, terrainName ); // the main / latest map
+  const saveEliteMapToDiskEndTime = performance.now();
+  console.log("saveEliteMapToDisk duration", saveEliteMapToDiskEndTime - saveEliteMapToDiskStartTime);
+
+  const commitEliteMapToGitStartTime = performance.now();
+  if( commitEliteMapToGitEveryNIterations && eliteMap.generationNumber % commitEliteMapToGitEveryNIterations === 0 ) {
+    // git commit iteration
+    runCmd(`git -C ${evoRunDirPath} commit -a -m "Iteration ${eliteMap.generationNumber}"`);
+  }
+  const commitEliteMapToGitEndTime = performance.now();
+  console.log("commitEliteMapToGit duration", commitEliteMapToGitEndTime - commitEliteMapToGitStartTime);
 
 } // async function mapElitesBatch( ...
 
@@ -1275,7 +1351,9 @@ async function populateAndSaveCellFeatures(
   duration, noteDelta, velocity, useGPU, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
   geneRenderingServerHosts, renderSampleRateForClassifier,
   evaluationFeatureExtractionHosts,
-  evoRunDirPath, evolutionRunId
+  evoRunDirPath, evolutionRunId,
+  ckptDir,
+  featureExtractionEndpoint
 ) {
   let cellKeyIndex = 0;
   for( const cellKey in eliteMap.cells ) {
@@ -1295,7 +1373,9 @@ async function populateAndSaveCellFeatures(
       );
       const featuresResponse = await getFeaturesFromWebsocket(
         audioBuffer,
-        evaluationFeatureExtractionHosts[cellKeyIndex % evaluationFeatureExtractionHosts.length]
+        evaluationFeatureExtractionHosts[cellKeyIndex % evaluationFeatureExtractionHosts.length] + featureExtractionEndpoint,
+        ckptDir,
+        renderSampleRateForClassifier
       );
       const { features, embedding } = featuresResponse;
       const cellGenomeFeatures = { features, embedding };
@@ -1334,10 +1414,9 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
   evaluationFeatureExtractionHost,
   evaluationQualityHost,
   evaluationDiversityHost,
-  eliteMap,
+  eliteMap, eliteMapIndex,
   cellFeatures,
   evolutionRunId, evoRunDirPath,
-  classificationGraphModel,
   scoreProportion,
   shouldFit, modelFitGeneration,
   measureCollectivePerformance, ckptDir
@@ -1433,7 +1512,8 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       const { features, embedding, quality } = await getFeaturesAndScoreForAudioBuffer(
         audioBuffer,
         evaluationFeatureExtractionHost, evaluationQualityHost,
-        classConfigurations, measureCollectivePerformance, ckptDir
+        classConfigurations, eliteMapIndex,
+        measureCollectivePerformance, ckptDir, evoRunDirPath
       );
       newGenomesFeatures.push( features );
       newGenomesEmbedding.push( embedding );
@@ -1613,8 +1693,8 @@ async function getGenomeScoreAndFeatures(
   evaluationFeatureExtractionHost,
   evaluationQualityHost,
   scoreProportion,
-  classConfigurations,
-  measureCollectivePerformance, ckptDir
+  classConfigurations, eliteMapIndex,
+  measureCollectivePerformance, ckptDir, evoRunDirPath
 ) {
   const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
     genomeString,
@@ -1630,6 +1710,7 @@ async function getGenomeScoreAndFeatures(
   });
 
   let newGenomeFeatureVector;
+  let newGenomeEmbedding;
   let newGenomeQuality;
   let fitness;
   if( audioBuffer && audioBuffer.length && ! audioBuffer.some( value => isNaN(value) ) ) {
@@ -1653,9 +1734,11 @@ async function getGenomeScoreAndFeatures(
     const { features, embedding, quality } = await getFeaturesAndScoreForAudioBuffer(
       audioBuffer,
       evaluationFeatureExtractionHost, evaluationQualityHost,
-      classConfigurations, measureCollectivePerformance, ckptDir
+      classConfigurations, eliteMapIndex,
+      measureCollectivePerformance, ckptDir, evoRunDirPath
     );
     newGenomeFeatureVector = features;
+    newGenomeEmbedding = embedding;
     newGenomeQuality = quality;
 
     const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass( newGenomeQuality.fitness );
@@ -1674,24 +1757,33 @@ async function getGenomeScoreAndFeatures(
     duration,
     noteDelta,
     velocity,
-    features: newGenomeFeatureVector
+    features: newGenomeFeatureVector,
+    embedding: newGenomeEmbedding
   };
+}
+
+function getQuerySetEmbedsPath( evoRunDirPath ) {
+  return evoRunDirPath + "query_set_embeds.npy";
 }
 
 async function getFeaturesAndScoreForAudioBuffer(
   audioBuffer,
   evaluationFeatureExtractionHost, evaluationQualityHost,
-  classConfigurations, measureCollectivePerformance, ckptDir
+  classConfigurations, eliteMapIndex, 
+  measureCollectivePerformance, ckptDir, evoRunDirPath
 ) {
   let qualityFromEmbeds = false;
   let refSetName, refSetEmbedsPath, querySetEmbedsPath, featureExtractionEndpoint, sampleRate;
   if( classConfigurations && classConfigurations.length ) {
     // TODO: handle multiple class configurations here?
     // for now, assume we have just one entry in classConfigurations
+    
+    // refSetName = classConfigurations[eliteMapIndex].refSetName;
+    // each map holds only one class configuration, as set in initializeGrid
     refSetName = classConfigurations[0].refSetName;
+    
     refSetEmbedsPath = classConfigurations[0].refSetEmbedsPath;
-    querySetEmbedsPath = classConfigurations[0].querySetEmbedsPath;
-    featureExtractionEndpoint = classConfigurations[0].featureExtractionEndpoint;
+    querySetEmbedsPath = getQuerySetEmbedsPath( evoRunDirPath ); // classConfigurations[0].querySetEmbedsPath;
     sampleRate = classConfigurations[0].sampleRate;
     qualityFromEmbeds = true;
   }
@@ -1703,7 +1795,6 @@ async function getFeaturesAndScoreForAudioBuffer(
     // optional:
     ckptDir,
     sampleRate,
-    featureExtractionEndpoint
   ).catch(e => {
     console.error("Error getting features", e);
   });
@@ -1742,7 +1833,7 @@ async function getFeaturesAndScoreForAudioBuffer(
   };
 }
 
-async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDiversityHost, evoRunDirPath, classScoringVariationsAsContainerDimensions ) {
+async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDiversityHost, evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap ) {
   const featuresArray = seedFeaturesAndScores.map( f => f.features );
   const diversityProjection = await getDiversityFromWebsocket(
     featuresArray,
@@ -1753,6 +1844,11 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
   });
+
+  // doing the same thing here as in function retrainProjectionModel
+  eliteMap.projectionModelFitGenerations.push( eliteMap.generationNumber );
+  eliteMap.projectionSizes.push( diversityProjection.feature_map.length );
+  
   if( classScoringVariationsAsContainerDimensions ) {
     return diversityProjection.feature_map.map( (oneClassKey, i) => {
       const {duration, noteDelta, velocity} = seedFeaturesAndScores[i];
@@ -1768,9 +1864,10 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
 
 async function getFeaturesAndScoresFromEliteMap(
   eliteMap, cellFeatures,
-  _evaluationQualityServers, evoRunDirPath,
+  _evaluationQualityServers, evolutionRunId, evoRunDirPath,
   scoreProportion,
-  ckptDir, measureCollectivePerformance
+  ckptDir, measureCollectivePerformance,
+  refSetEmbedsPath
 ) {
   const seedFeaturesAndScores = [];
   // const featuresArray = Object.valnues(cellFeatures);
@@ -1785,32 +1882,40 @@ async function getFeaturesAndScoresFromEliteMap(
   // });
 
   let i = 0;
+  const querySetEmbedsPath = getQuerySetEmbedsPath( evoRunDirPath );
   for( let cellKey in cellFeatures ) {
-    const features = cellFeatures[cellKey];
-    const genomeId = eliteMap.cells[cellKey].elts[0].g;
-    const genomeString = await readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
-    const genomeAndMeta = JSON.parse( genomeString );
-    const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === cellKey );
-    const { duration, noteDelta, velocity } = tagForCell;
-    const genomeQuality = getQualityFromWebsocketForEmbedding(
-      features.embedding,
-      refSetEmbedsPath,
-      querySetEmbedsPath,
-      measureCollectivePerformance,
-      _evaluationQualityServers[ i % _evaluationQualityServers.length ],
-      ckptDir
-    );
-    const fitness = genomeQuality.fitness * scoreProportion;
-    seedFeaturesAndScores.push({
-      genomeId,
-      genomeString,
-      fitness,
-      duration,
-      noteDelta,
-      velocity,
-      features: features.features
-    });
-    i++;
+    
+    if( eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length ) {
+      const features = cellFeatures[cellKey];
+      const genomeId = eliteMap.cells[cellKey].elts[0].g;
+      const genomeString = await readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
+      const genomeAndMeta = JSON.parse( genomeString );
+      const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === cellKey );
+      if( undefined === tagForCell ) {
+        console.error(`Error: tagForCell is undefined for genomeId ${genomeId} and cellKey ${cellKey}`);
+      }
+      const { duration, noteDelta, velocity } = tagForCell;
+      const genomeQuality = await getQualityFromWebsocketForEmbedding(
+        features.embedding,
+        refSetEmbedsPath,
+        querySetEmbedsPath,
+        measureCollectivePerformance,
+        _evaluationQualityServers[ i % _evaluationQualityServers.length ],
+        ckptDir
+      );
+      const fitness = genomeQuality.fitness * scoreProportion;
+      seedFeaturesAndScores.push({
+        genomeId,
+        genomeString,
+        fitness,
+        duration,
+        noteDelta,
+        velocity,
+        features: features.features,
+        embedding: features.embedding
+      });
+      i++;
+    }
   }
   return seedFeaturesAndScores;
 }
@@ -1838,7 +1943,7 @@ async function retrainProjectionModel( cellFeatures, eliteMap, evaluationDiversi
   const cellKeysWithFeatures = Object.keys(cellFeatures);
   const allFeaturesToProject = [];
   for( const cellKeyWithFeatures of cellKeysWithFeatures ) {
-    allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures] );
+    allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures].features );
   }
   console.log(`Retraining projection with ${allFeaturesToProject.length} features, after generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`)
   const diversityProjection = await getDiversityFromWebsocket(
@@ -1892,7 +1997,7 @@ function initializeEliteMap(
   classConfigurations
 ) {
   let eliteMap = {
-    _id: getEliteMapKey(evolutionRunId),
+    _id: getEliteMapKey(evolutionRunId, classConfigurations[0].refSetName),
     algorithm,
     evolutionRunConfig, evolutionaryHyperparameters,
     generationNumber: 0,
@@ -1906,7 +2011,8 @@ function initializeEliteMap(
     classConfigurations,
     qdScore: 0, qdScoreWithoutIncreaseCount: 0,
     coverage: 0, coverageWithoutIncreaseCount: 0,
-    isBeingSwitchedToFromAnotherMap: false
+    isBeingSwitchedToFromAnotherMap: false,
+    mapSwitchLog: []
   };
   const classifierTags = getClassifierTags(classificationGraphModel, dummyRun);
   if( classScoringVariationsAsContainerDimensions ) {
@@ -1916,7 +2022,8 @@ function initializeEliteMap(
           classifierTags.forEach((oneTag, i) => {
             const oneClassKey = `${oneTag}_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
             eliteMap.cells[oneClassKey] = {
-              elts: []
+              elts: [],
+              eltAddCnt: 0
             };
           });
         }
@@ -1972,40 +2079,6 @@ function initializeGrid(
     );
     eliteMap = oneEliteMap;
   }
-  // let eliteMap = {
-  //   _id: getEliteMapKey(evolutionRunId),
-  //   algorithm,
-  //   evolutionRunConfig, evolutionaryHyperparameters,
-  //   generationNumber: 0,
-  //   lastProjectionFitIndex: 0, // or re-training of the projection model
-  //   projectionModelFitGenerations: [],
-  //   projectionSizes: [], // aka coverage
-  //   timestamp: Date.now(),
-  //   eliteCountAtGeneration: 0,
-  //   terminated: false,
-  //   cells: {} // aka classes or niches
-  // };
-  // const classifierTags = getClassifierTags(classificationGraphModel, dummyRun);
-  // if( classScoringVariationsAsContainerDimensions ) {
-  //   for( const oneDuration of classScoringDurations ) {
-  //     for( const oneNoteDelta of classScoringNoteDeltas ) {
-  //       for( const oneVelocity of classScoringVelocities ) {
-  //         classifierTags.forEach((oneTag, i) => {
-  //           const oneClassKey = `${oneTag}_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
-  //           eliteMap.cells[oneClassKey] = {
-  //             elts: []
-  //           };
-  //         });
-  //       }
-  //     }
-  //   }
-  // } else {
-  //   classifierTags.forEach((oneTag, i) => {
-  //     eliteMap.cells[oneTag] = {
-  //       elts: []
-  //     };
-  //   });
-  // }
   return eliteMap;
 }
 
@@ -2013,20 +2086,23 @@ function createEvoRunDir( evoRunDirPath ) {
   if( ! fs.existsSync(evoRunDirPath) ) fs.mkdirSync( evoRunDirPath, { recursive: true } );
 }
 
-async function saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, terrainName ) {
+async function saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, terrainName, addToGit ) {
   if( Array.isArray(eliteMap) ) {
     for( const oneEliteMap of eliteMap ) {
       const refSetName = oneEliteMap.classConfigurations[0].refSetName;
-      await saveEliteMapToDisk( oneEliteMap, evoRunDirPath, evolutionRunId, refSetName );
+      await saveEliteMapToDisk( oneEliteMap, evoRunDirPath, evolutionRunId, refSetName, addToGit );
     }
   } else {
     const eliteMapFileName = `${getEliteMapKey(evolutionRunId, terrainName)}.json`;
     const eliteMapFilePath = `${evoRunDirPath}${eliteMapFileName}`;
     const eliteMapStringified = JSON.stringify(eliteMap, null, 2); // prettified to obtain the benefits (compression of git diffs)
     await fsPromise.writeFile( eliteMapFilePath, eliteMapStringified );
+
+    if( addToGit ) {
+      // add file to git (possibly redundantly)
+      runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
+    }
   }
-  // add file to git (possibly redundantly)
-  // runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
 }
 function readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName ) {
   let eliteMap;
@@ -2073,6 +2149,9 @@ async function saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath
   const genomeKey = getGenomeKey(evolutionRunId, genomeId);
   const genomeFileName = `${genomeKey}.json`;
   const genomeFilePath = `${evoRunDirPath}${genomeFileName}`;
+  if( fs.existsSync(genomeFilePath) ) {
+    console.error(`Error: genome file already exists at ${genomeFilePath}`);
+  }
   const genomeString = JSON.stringify({
     _id: genomeKey,
     genome
@@ -2212,12 +2291,14 @@ function shouldTerminate( terminationCondition, eliteMap, dummyRun ) {
 }
 
 function shouldSwitchMap( eliteMap, mapSwitchingCondition ) {
-  if( 
+  if(
+    eliteMap.generationNumber > 0 && eliteMap.generationNumber % mapSwitchingCondition.switchEveryNGenerations === 0
+    ||
     mapSwitchingCondition.coverageWithoutIncreaseGenerations && 
-    mapSwitchingCondition.coverageWithoutIncreaseGenerations > eliteMap.coverageWithoutIncreaseCount 
+    mapSwitchingCondition.coverageWithoutIncreaseGenerations < eliteMap.coverageWithoutIncreaseCount 
     ||
     mapSwitchingCondition.qdScoreWithoutIncreaseGenerations &&
-    mapSwitchingCondition.qdScoreWithoutIncreaseGenerations > eliteMap.qdScoreWithoutIncreaseCount
+    mapSwitchingCondition.qdScoreWithoutIncreaseGenerations < eliteMap.qdScoreWithoutIncreaseCount
   ) {
     return true;
   } else {

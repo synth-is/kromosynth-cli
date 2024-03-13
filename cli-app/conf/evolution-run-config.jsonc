@@ -1,16 +1,16 @@
 {
   "algorithm": "mapElites_with_uBC", // uBC = unproductive bias count
   // "algorithm": "Deep-Grid-MAP-Elites",
-  "seedEvals": 20,
+  "seedEvals": 50,
   // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution, 
   // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
   "eliteWinsOnlyOneCell": false,
   "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
   // "batchSize": 200,
-  "batchSize": 20,
+  "batchSize": 50,
   "maxNumberOfParents": 10,
   "terminationCondition": {
-    "numberOfEvals": 300000
+    "numberOfEvals": 200000
   //  or
   //  "averageFitnessInMap": 0.1
   // or
@@ -30,7 +30,8 @@
   "probabilityMutatingWaveNetwork": 0.5,
   "probabilityMutatingPatch": 0.5,
   // "classScoringDurations": [0.5, 1, 2, 5],
-  "classScoringDurations": [3, 5, 10],
+  // "classScoringDurations": [3, 5, 10],
+  "classScoringDurations": [4],
   // "classScoringNoteDeltas": [-36, -24, -12, 0, 12, 24, 36],
   // "classScoringVelocities": [0.25, 0.5, 0.75, 1],
   // "classScoringDurations": [4],
@@ -49,25 +50,24 @@
     {
       "classConfigurations": [
         {
-          "className": "mallet",
+          "refSetName": "mallet",
           "refSetEmbedsPath": "/Users/bthj/embeds/malletRef.npy",
-          "querySetEmbedsPath": "/Users/bthj/embeds/malletQuery.npy",
           "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "sampleRate": 16000
         },
         {
-          "className": "string",
+          "refSetName": "string",
           "refSetEmbedsPath": "/Users/bthj/embeds/stringRef.npy",
-          "querySetEmbedsPath": "/Users/bthj/embeds/stringQuery.npy",
           "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "sampleRate": 16000
         },
         {
-          "className": "reed",
+          "refSetName": "reed",
           "refSetEmbedsPath": "/Users/bthj/embeds/reedRef.npy",
-          "querySetEmbedsPath": "/Users/bthj/embeds/reedQuery.npy",
           "featureExtractionEndpoint": "/vggish",
           "projectionEndpoint": "/pca",
           "sampleRate": 16000
@@ -87,73 +87,60 @@
         {
           "refSetName": "myFavs1",
           "refSetEmbedsPath": "/Users/bthj/Sounds/favSet1Ref.npy",
-          "querySetEmbedsPath": "/Users/bthj/Sounds/favSet1Query.npy",
           "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "sampleRate": 16000
         },
         {
           "refSetName": "myFavs2",
           "refSetEmbedsPath": "/Users/bthj/Sounds/favSet2Ref.npy",
-          "querySetEmbedsPath": "/Users/bthj/Sounds/favSet2Query.npy",
           "featureExtractionEndpoint": "/pann",
+          "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "sampleRate": 16000
         },
         {
           "refSetName": "myFavs3",
           "refSetEmbedsPath": "/Users/bthj/Sounds/favSet3Ref.npy",
-          "querySetEmbedsPath": "/Users/bthj/Sounds/favSet3Query.npy",
           "featureExtractionEndpoint": "/clap",
+          "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "sampleRate": 48000
         },
         {
           "refSetName": "myFavs4",
           "refSetEmbedsPath": "/Users/bthj/Sounds/favSet4Ref.npy",
-          "querySetEmbedsPath": "/Users/bthj/Sounds/favSet4Query.npy",
           "featureExtractionEndpoint": "/encodec",
+          "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "sampleRate": 24000
         }
       ],
       "classificationDimensions": [50, 50]
+    },
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "nsynth-valid",
+          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "sampleRate": 16000
+        }
+      ],
+      "classificationDimensions": [50, 50]
     }
-    // ,
-    // [50, 50, [
-    //   {
-    //     "refSetName": "myFavs1",
-    //     "refSetEmbedsPath": "/Users/bthj/Sounds/favSet1.npy",
-    //     "featureExtractionEndpoint": "/vggish",
-    //     "sampleRate": 16000
-    //   },
-    //   {
-    //     "refSetName": "myFavs2",
-    //     "refSetEmbedsPath": "/Users/bthj/Sounds/favSet2.npy",
-    //     "featureExtractionEndpoint": "/pann",
-    //     "sampleRate": 16000
-    //   },
-    //   {
-    //     "refSetName": "myFavs3",
-    //     "refSetEmbedsPath": "/Users/bthj/Sounds/favSet3.npy",
-    //     "featureExtractionEndpoint": "/clap",
-    //     "sampleRate": 48000
-    //   },
-    //   {
-    //     "refSetName": "myFavs4",
-    //     "refSetEmbedsPath": "/Users/bthj/Sounds/favSet4.npy",
-    //     "featureExtractionEndpoint": "/encodec",
-    //     "sampleRate": 24000
-    //   }
-    // ]]
   ],
   "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
   "mapSwitchingCondition": {
+    "switchEveryNGenerations": 20,
     "coverageWithoutIncreaseGenerations": 10,
     "qdScoreWithoutIncreaseGenerations": 10
   }, 
-  "classifierIndex" : 5,
-  "ckptDir": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/ckpt",
+  "classifierIndex" : 6,
+  "ckptDir": "/Users/bjornpjo/.cache/torch/hub/checkpoints",
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
 
   "measureCollectivePerformance": true, // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
@@ -164,8 +151,8 @@
 
   "commitEliteMapToGitEveryNIterations": 1000,
   "addGenomesToGit": false,
-  "prunePastEliteGenomesEveryNGenerations": 20,
-  "renderEliteMapToWavFilesEveryNGenerations": null, // 50000,
+  "prunePastEliteGenomesEveryNGenerations": null,// 20,
+  "renderEliteMapToWavFilesEveryNGenerations": 500, // 50000,
   "renderElitesToWavFiles": true,
   "evoRendersDirPath": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/evorenders/",
 
@@ -197,8 +184,8 @@
   // ],
   "geneVariationServers": [
     "127.0.0.1:50051",
-    "127.0.0.1:50052",
-    "127.0.0.1:50053"
+    // "127.0.0.1:50052",
+    // "127.0.0.1:50053"
   ],
   "geneRenderingServers": [
     "ws://127.0.0.1:30051",
@@ -223,13 +210,13 @@
   ],
   "evaluationQualityServers": [ // quality evaluation
     "ws://127.0.0.1:32051",
-    // "ws://127.0.0.1:32052",
-    // "ws://127.0.0.1:32053"
+    "ws://127.0.0.1:32052",
+    "ws://127.0.0.1:32053"
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
-    "ws://127.0.0.1:33052",
-    "ws://127.0.0.1:33053"
+    // "ws://127.0.0.1:33052",
+    // "ws://127.0.0.1:33053"
     // "ws://127.0.0.1:33054",
     // "ws://127.0.0.1:33055"
   ]

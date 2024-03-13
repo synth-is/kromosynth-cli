@@ -1,0 +1,28 @@
+{
+  "waveNetwork": {
+    "neatParameters": { // see kromosynth > cppn-neat > network-evolution.js
+      "pMutateAddConnection": 0.13,
+      "pMutateAddNode": 0.13,
+      "pMutateDeleteSimpleNeuron": 0.00,
+      "pMutateDeleteConnection": 0.00,
+      "pMutateConnectionWeights": 0.72,
+      "pMutateChangeActivations": 0.02,
+
+      "pNodeMutateActivationRate": 0.2,
+      "connectionWeightRange": 3.0,
+      "disallowRecurrence": true
+    },
+    "iecOptions": {
+      "initialMutationCount": 5,
+      "postMutationCount": 50  // <-- heavy mutation (usually 5)
+    }
+  },
+  "audioGraph": { // aka asNEAT
+    "defaultParameters": {
+      // Chance between an Oscillator node or a (CPPN) network output node, when "addOscillator"
+      "addOscillatorNetworkOutputVsOscillatorNodeRate": 0.0,
+
+      "includeNoise": true
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "maxNumberOfParents": 1,
+
+  "classifiers": [
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "customRef1",
+          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef1/embeds.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "sampleRate": 16000
+        },
+        {
+          "refSetName": "customRef2",
+          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "sampleRate": 16000
+        }
+      ],
+      "classificationDimensions": [10, 10]
+    }
+  ],
+  "classifierIndex" : 0,
+
+  "measureCollectivePerformance": false // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
+
+}
