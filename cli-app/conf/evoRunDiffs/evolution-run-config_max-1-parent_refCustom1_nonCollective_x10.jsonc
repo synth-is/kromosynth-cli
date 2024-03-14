@@ -6,18 +6,22 @@
       "classConfigurations": [
         {
           "refSetName": "customRef1",
-          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef1/embeds.npy",
+          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef1/embeds.npy",
+          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/acoustic/embeds.npy",
           "featureExtractionEndpoint": "/vggish",
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
+          "pcaComponents": "0,2",
           "sampleRate": 16000
         },
         {
           "refSetName": "customRef2",
-          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
+          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
+          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
           "featureExtractionEndpoint": "/vggish",
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
+          "pcaComponents": "1,3",
           "sampleRate": 16000
         }
       ],
@@ -26,6 +30,6 @@
   ],
   "classifierIndex" : 0,
 
-  "measureCollectivePerformance": false // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
+  "measureCollectivePerformance": true // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
 
 }

@@ -1,0 +1,106 @@
+{
+  "baseEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "features-mfcc_quality-fad_projection-pca-quantised_parents-max-1",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_max-1-parent.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HRG9N0GP2E6K6MCPC4QYSX9N_features-mfcc_quality-fad_projection-pca-quantised_parents-max-1"
+        }
+      ]
+    },
+    {
+      "label": "fad_noOsc_wNOise_lowDelRate_parents-max-1",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_max-1-parent_refKeyboard.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_FAD1.jsonc",
+      "iterations": [
+        {
+          "id": "01HRHEQ5Y9M4GN5K968M4791PG_fad_noOsc_wNOise_lowDelRate_parents-max-1"
+        },
+        {
+          "id": "01HRHGGQF464EWGW28Q0BNEY2Q_fad_noOsc_wNOise_lowDelRate_parents-max-1"
+        }
+      ]
+    },
+    {
+      "label": "fad_noOsc_wNOise_lowDelRate_parents-max-1_refKeyboard_nonCollective",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_max-1-parent_refKeyboard_nonCollective.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_FAD1.jsonc",
+      "iterations": [
+        {
+          "id": "01HRHHB04AZ2Q6GK37ESEZDDFA_fad_noOsc_wNOise_lowDelRate_parents-max-1_refKeyboard_nonCollective"
+        }
+      ]
+    },
+    {
+      "label": "fad_noOsc_wNOise_lowDelRate_parents-max-1_refCustom1_nonCollective",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_max-1-parent_refCustom1_nonCollective.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_FAD1.jsonc",
+      "iterations": [
+        {
+          "id": "01HRHM92EC2EWV48EAEZ9S2HDE_fad_noOsc_wNOise_lowDelRate_parents-max-1_refCustom1_nonCollective"
+        }
+      ]
+    },
+    {
+      "label": "fad_noOsc_wNOise_lowDelRate_parents-max-1_refCustom1_nonCollective_x10",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_max-1-parent_refCustom1_nonCollective_x10.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_FAD1.jsonc",
+      "iterations": [
+        {
+          "id": "01HRHSBWYBH0R05HMMSXT8R280_fad_noOsc_wNOise_lowDelRate_parents-max-1_refCustom1_nonCollective_x10"
+        }
+      ]
+    },
+    {
+      "label": "fad_noOsc_wNOise_lowDelRate_parents-max-1_refCustom1_nonCollective_noDel_x10",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_max-1-parent_refCustom1_nonCollective_x10.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_FAD2_noDel.jsonc",
+      "iterations": [
+        {
+          "id": "01HRJ3DJ3VMEFY5JGKRXX1GHWP_fad_noOsc_wNOise_lowDelRate_parents-max-1_refCustom1_nonCollective_noDel_x10"
+        },
+        {
+          "id": "01HRJNDCF3MPKRB68JQB0PWX62_fad_noOsc_wNOise_lowDelRate_parents-max-1_refCustom1_nonCollective_noDel_x10"
+        },
+        {
+          "id": null
+        }
+      ]
+    },
+    {
+      "label": "fad_noOsc_wNOise_lowDelRate_parents-max-1_refCustom1_nonCollective_noDel_heavyCPPNmutation_x10",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_max-1-parent_refCustom1_nonCollective_x10.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_FAD2_noDel_heavyCPPNmutation.jsonc",
+      "iterations": [
+        {
+          "id": "01HRMCFBQP92HC9MJKZ3M1YN9W_fad_noOsc_wNOise_lowDelRate_parents-max-1_refCustom1_nonCollective_noDel_heavyCPPNmutation_x10"
+        },
+        {
+          "id": "01HRR0WNVXE4HX5ZNNVXZ6J7MX_fad_noOsc_wNOise_lowDelRate_parents-max-1_refCustom1_nonCollective_noDel_heavyCPPNmutation_x10"
+        },
+        {
+          "id": "01HRWZGMC2425KY8G9TG681K4M_fad_noOsc_wNOise_lowDelRate_parents-max-1_refCustom1_nonCollective_noDel_heavyCPPNmutation_x10"
+        }
+      ]
+    },
+    {
+      "label": "features-mfcc_quality-fad_projection-pca-quantised_parents-max-10",
+      "diffEvolutionRunConfigFile": null,
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HRFZGX0T3K5WAP4EAR3S2411"
+        },
+        {
+          "id": null
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 6,
+  "currentEvolutionRunIteration": 2
+}

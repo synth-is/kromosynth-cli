@@ -55,6 +55,7 @@
           "featureExtractionEndpoint": "/vggish",
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1", // to allow selection of specific projection components, which are ranked by importence in the case of PCA
           "sampleRate": 16000
         },
         {
@@ -63,6 +64,7 @@
           "featureExtractionEndpoint": "/vggish",
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
           "sampleRate": 16000
         },
         {
@@ -70,6 +72,7 @@
           "refSetEmbedsPath": "/Users/bthj/embeds/reedRef.npy",
           "featureExtractionEndpoint": "/vggish",
           "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
           "sampleRate": 16000
         }
       ],
@@ -82,6 +85,7 @@
           "refSetName": "myFavs0",
           "featureExtractionEndpoint": "/mfcc",
           "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
           "sampleRate": 16000
         },
         {
@@ -90,6 +94,7 @@
           "featureExtractionEndpoint": "/vggish",
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
           "sampleRate": 16000
         },
         {
@@ -98,6 +103,7 @@
           "featureExtractionEndpoint": "/pann",
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
           "sampleRate": 16000
         },
         {
@@ -106,6 +112,7 @@
           "featureExtractionEndpoint": "/clap",
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
           "sampleRate": 48000
         },
         {
@@ -114,6 +121,7 @@
           "featureExtractionEndpoint": "/encodec",
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
           "sampleRate": 24000
         }
       ],
@@ -127,6 +135,7 @@
           "featureExtractionEndpoint": "/vggish",
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
           "sampleRate": 16000
         }
       ],
@@ -210,8 +219,8 @@
   ],
   "evaluationQualityServers": [ // quality evaluation
     "ws://127.0.0.1:32051",
-    "ws://127.0.0.1:32052",
-    "ws://127.0.0.1:32053"
+    // "ws://127.0.0.1:32052",
+    // "ws://127.0.0.1:32053"
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",

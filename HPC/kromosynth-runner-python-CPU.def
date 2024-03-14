@@ -15,10 +15,3 @@ From: tensorflow/tensorflow
     # download Python evaluation requirements definition file and install dependencies from it
     curl -fsSL https://raw.githubusercontent.com/synth-is/kromosynth-evaluate/main/evaluation/unsupervised/requirements.txt -o /tmp/requirements.txt &&\
     pip install -r /tmp/requirements.txt
-
-
-    # curl -fsSL https://deb.nodesource.com/setup_20.x | bash - &&\
-    # apt-get install -y nodejs
-
-    # npm install pm2 -g
-    # npm install -g yarn

@@ -248,6 +248,7 @@ export function getDiversityFromWebsocket(
   evaluationDiversityHost,
   evoRunDirPath,
   shouldFit,
+  pcaComponents,
   projectionEndpoint = ""
 ) {
   console.log('getDiversityFromWebsocket', evaluationDiversityHost);
@@ -258,7 +259,8 @@ export function getDiversityFromWebsocket(
         "feature_vectors": featureVectors,
         "fitness_values": fitnessValues,
         "evorun_dir": evoRunDirPath,
-        "should_fit": shouldFit
+        "should_fit": shouldFit,
+        "pca_components": pcaComponents,
       };
       ws.send( JSON.stringify( diversityMessage ) );
     });
