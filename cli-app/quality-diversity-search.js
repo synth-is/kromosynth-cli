@@ -165,6 +165,7 @@ export async function qdSearch(
     _evaluationFeatureServers = [];
     for( let i=1; i <= evaluationFeatureSocketServerCount; i++ ) {
       const hostFilePath = `${evaluationFeatureSocketHostFilePathPrefix}${i}`;
+      console.log("evaluation hostFilePath:",hostFilePath);
       const evaluationHost = "ws://" + await readFromFileWhenItExists(hostFilePath, 0);
       if( evaluationHost ) _evaluationFeatureServers.push(evaluationHost);
     }
@@ -175,6 +176,7 @@ export async function qdSearch(
     _evaluationQualityServers = [];
     for( let i=1; i <= evaluationQualitySocketServerCount; i++ ) {
       const hostFilePath = `${evaluationQualitySocketHostFilePathPrefix}${i}`;
+      console.log("quality hostFilePath:",hostFilePath);
       const evaluationHost = "ws://" + await readFromFileWhenItExists(hostFilePath, 0);
       if( evaluationHost ) _evaluationQualityServers.push(evaluationHost);
     }
@@ -185,6 +187,7 @@ export async function qdSearch(
     _evaluationProjectionServers = [];
     for( let i=1; i <= evaluationProjectionSocketServerCount; i++ ) {
       const hostFilePath = `${evaluationProjectionSocketHostFilePathPrefix}${i}`;
+      console.log("projection hostFilePath:",hostFilePath);
       const evaluationHost = "ws://" + await readFromFileWhenItExists(hostFilePath, 0);
       if( evaluationHost ) _evaluationProjectionServers.push(evaluationHost);
     }
@@ -2285,13 +2288,13 @@ function readFromFileWhenItExists( filePath, tries ) {
     fs.readFile( filePath, 'utf8', (err, data) => {
       if( err ) {
         if( err.code === 'ENOENT' ) {
-          if( tries < 10 ) {
-            console.log(`waiting for ${filePath} to be created`);
+          if( tries < 60 ) {
+            console.log(`waiting for ${filePath} to be created, tries: ${tries}`);
             setTimeout( () => {
-              resolve( readFromFileWhenItExists(filePath), tries + 1 );
+              resolve( readFromFileWhenItExists(filePath, tries + 1) );
             }, 1000 );
           } else {
-            console.log(`gave up on waiting for ${filePath} to be created`);
+            console.log(`gave up on waiting for ${filePath} to be created, tries: ${tries}`);
             resolve(undefined);
           }
         } else {

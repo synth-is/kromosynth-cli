@@ -195,8 +195,10 @@ export function getQualityFromWebsocketForEmbedding(
   evaluationQualityHost,
   ckptDir
 ) {
-  console.log('getQualityFromWebsocketForEmbedding', evaluationQualityHost);
-  const ws = getClient( `${evaluationQualityHost}/score?background_embds_path=${refSetEmbedsPath}&eval_embds_path=${querySetEmbedsPath}&measure_collective_performance=${measureCollectivePerformance}&ckpt_dir=${ckptDir}` );
+  // console.log('getQualityFromWebsocketForEmbedding', evaluationQualityHost);
+  const qualityURL = `${evaluationQualityHost}/score?background_embds_path=${refSetEmbedsPath}&eval_embds_path=${querySetEmbedsPath}&measure_collective_performance=${measureCollectivePerformance}&ckpt_dir=${ckptDir}`;
+  // console.log('qualityURL:', qualityURL);
+  const ws = getClient( qualityURL );
   return new Promise((resolve, reject) => {
     ws.on('open', () => {
       ws.send( JSON.stringify(embedding) );
