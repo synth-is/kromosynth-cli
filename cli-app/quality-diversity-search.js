@@ -817,7 +817,7 @@ async function mapElitesBatch(
                         measureCollectivePerformance, ckptDir
                       ).catch( e => {
                         console.error("Error getting genome class scores by diversity projection with new genomes", e);
-                        reject(e);
+                        // reject(e);
                       });
                       for( const oneClassKey in oneCombinationClassScores ) { // TODO: here this will just be one iteration for now
                         const oneClassScores = oneCombinationClassScores[oneClassKey];
@@ -856,7 +856,7 @@ async function mapElitesBatch(
                   measureCollectivePerformance, ckptDir
                 ).catch( e => {
                   console.error("Error getting genome class scores by diversity projection with new genomes", e);
-                  reject(e);
+                  // reject(e);
                 });
               }
             }
