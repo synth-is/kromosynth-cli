@@ -817,7 +817,7 @@ async function mapElitesBatch(
                         measureCollectivePerformance, ckptDir
                       ).catch( e => {
                         console.error("Error getting genome class scores by diversity projection with new genomes", e);
-                        // reject(e);
+                        reject(e);
                       });
                       for( const oneClassKey in oneCombinationClassScores ) { // TODO: here this will just be one iteration for now
                         const oneClassScores = oneCombinationClassScores[oneClassKey];
@@ -856,7 +856,7 @@ async function mapElitesBatch(
                   measureCollectivePerformance, ckptDir
                 ).catch( e => {
                   console.error("Error getting genome class scores by diversity projection with new genomes", e);
-                  // reject(e);
+                  reject(e);
                 });
               }
             }
@@ -1403,7 +1403,8 @@ async function populateAndSaveCellFeatures(
       cellKeyIndex++;
     }
   }
-  saveCellFeaturesToDisk( cellFeatures, eliteMap.generationNumber, evoRunDirPath, evolutionRunId );
+  const terrainName = eliteMap.classConfigurations && eliteMap.classConfigurations.length ? eliteMap.classConfigurations[0].refSetName : undefined;
+  saveCellFeaturesToDisk( cellFeatures, eliteMap.generationNumber, evoRunDirPath, evolutionRunId, terrainName );
 }
 
 async function getCellFitnessValues( eliteMap ) {
@@ -1484,6 +1485,8 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       newGenomesEmbedding.push( embedding );
       let newGenomeQuality = quality;
       
+console.log("----------- features",features);
+console.log("----------- embedding",embedding);
 console.log("----------- newGenomeQuality",newGenomeQuality)
 
       const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass( newGenomeQuality.fitness );
@@ -2102,7 +2105,7 @@ function readEliteMapMetaFromDisk( evolutionRunId, evoRunDirPath) {
   return eliteMapMeta;
 }
 
-function saveCellFeaturesToDisk( cellFeatures, generationNumber, evoRunDirPath, evolutionRunId ) {
+function saveCellFeaturesToDisk( cellFeatures, generationNumber, evoRunDirPath, evolutionRunId, terrainName ) {
   const cellFeaturesToSave = { ...cellFeatures }
   cellFeaturesToSave["_timestamp"] = Date.now();
   cellFeaturesToSave["_generationNumber"] = generationNumber;
@@ -2110,6 +2113,14 @@ function saveCellFeaturesToDisk( cellFeatures, generationNumber, evoRunDirPath, 
   const cellFeaturesFilePath = `${evoRunDirPath}${cellFeaturesFileName}`;
   const cellFeaturesStringified = JSON.stringify(cellFeaturesToSave, null, 2); // prettified to obtain the benefits (compression of git diffs)
   fs.writeFileSync( cellFeaturesFilePath, cellFeaturesStringified );
+  
+  if( generationNumber % 100 === 0 ) {
+    // for analysis purposes, save the cellFeatures at each generation
+    const terrainSuffix = terrainName ? `_${terrainName}` : "";
+    const cellFeaturesFileNameAtGeneration = `cellFeatures_${evolutionRunId}_gen${generationNumber}${terrainSuffix}.json`;
+    const cellFeaturesFilePathAtGeneration = `${evoRunDirPath}${cellFeaturesFileNameAtGeneration}`;
+    fs.writeFileSync( cellFeaturesFilePathAtGeneration, cellFeaturesStringified );
+  }
 }
 function readCellFeaturesFromDisk( evolutionRunId, evoRunDirPath ) {
   let cellFeatures;
