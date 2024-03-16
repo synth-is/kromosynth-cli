@@ -201,23 +201,36 @@ export async function qdSearch(
   const evoRunFailedGenesDirPath = `${evoRunsDirPath}${evolutionRunId}_failed-genes/`;
 
   let eliteMap;
-  let eliteMapIndex = 0;
+  let eliteMapMeta;
+  let eliteMapIndex;
   let terrainName = undefined;
   let sampleRate;
+
+  eliteMapMeta = readEliteMapMetaFromDisk( evolutionRunId, evoRunDirPath );
+  if( ! eliteMapMeta ) {
+    eliteMapIndex = 0
+    eliteMapMeta = {
+      eliteMapIndex
+    };
+    createEvoRunDir( evoRunDirPath );
+    createEvoRunDir( evoRunFailedGenesDirPath );
+    saveEliteMapMetaToDisk( eliteMapMeta, evoRunDirPath, evolutionRunId );
+  } else {
+    eliteMapIndex = eliteMapMeta.eliteMapIndex;
+  }
+
   if( typeof classificationGraphModel === "object" && classificationGraphModel.hasOwnProperty("classConfigurations") ) {
-    terrainName = classificationGraphModel.classConfigurations[0].refSetName;
-    sampleRate = classificationGraphModel.classConfigurations[0].sampleRate;
+    terrainName = classificationGraphModel.classConfigurations[eliteMapIndex].refSetName;
+    sampleRate = classificationGraphModel.classConfigurations[eliteMapIndex].sampleRate;
   } else {
     sampleRate = renderSampleRateForClassifier;
   }
+
   eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName );
   if( ! eliteMap ) {
     let eliteMapContainer = initializeGrid( 
       evolutionRunId, algorithmKey, evolutionRunConfig, evolutionaryHyperparameters
     );
-
-    createEvoRunDir( evoRunDirPath );
-    createEvoRunDir( evoRunFailedGenesDirPath );
 
     runCmd(`git init ${evoRunDirPath}`);
 
@@ -249,6 +262,7 @@ export async function qdSearch(
       }
     });
   }
+
   const audioGraphMutationParams = getAudioGraphMutationParams( evolutionaryHyperparameters );
   const patchFitnessTestDuration = 0.1;
 
@@ -321,6 +335,9 @@ export async function qdSearch(
         const currentMapId = eliteMap._id;
 
         eliteMapIndex = nextEliteMapIndex;
+
+        eliteMapMeta.eliteMapIndex = eliteMapIndex;
+        saveEliteMapMetaToDisk( eliteMapMeta, evoRunDirPath, evolutionRunId );
 
         // let's get the features and scores from the current map, before switching
         // - using nextElite's refSetEmbedsPath to get the quality / fitness according to that one, before projecting individuals to the new map
@@ -2062,6 +2079,27 @@ function readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName ) {
     console.error("readEliteMapFromDisk: ", err);
   }
   return eliteMap;
+}
+
+function saveEliteMapMetaToDisk( eliteMapMeta, evoRunDirPath, evolutionRunId ) {
+  const eliteMapMetaFileName = `eliteMapMeta_${evolutionRunId}.json`;
+  const eliteMapMetaFilePath = `${evoRunDirPath}${eliteMapMetaFileName}`;
+  const eliteMapMetaStringified = JSON.stringify(eliteMapMeta, null, 2); // prettified to obtain the benefits (compression of git diffs)
+  fs.writeFileSync( eliteMapMetaFilePath, eliteMapMetaStringified );
+}
+
+function readEliteMapMetaFromDisk( evolutionRunId, evoRunDirPath) {
+  let eliteMapMeta;
+  try {
+    const eliteMapMetaFilePath = `${evoRunDirPath}eliteMapMeta_${evolutionRunId}.json`;
+    if( fs.existsSync(eliteMapMetaFilePath) ) {
+      const eliteMapMetaJSONString = fs.readFileSync(eliteMapMetaFilePath, 'utf8');
+      eliteMapMeta = JSON.parse( eliteMapMetaJSONString );
+    }
+  } catch( err ) {
+    console.error("readEliteMapMetaFromDisk: ", err);
+  }
+  return eliteMapMeta;
 }
 
 function saveCellFeaturesToDisk( cellFeatures, generationNumber, evoRunDirPath, evolutionRunId ) {
