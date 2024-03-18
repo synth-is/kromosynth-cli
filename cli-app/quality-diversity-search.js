@@ -1485,9 +1485,9 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       newGenomesEmbedding.push( embedding );
       let newGenomeQuality = quality;
       
-console.log("----------- features",features);
-console.log("----------- embedding",embedding);
-console.log("----------- newGenomeQuality",newGenomeQuality)
+// console.log("----------- features",features);
+// console.log("----------- embedding",embedding);
+// console.log("----------- newGenomeQuality",newGenomeQuality)
 
       const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass( newGenomeQuality.fitness );
       if( isTopScoreFitnessWithAssociatedClass ) {

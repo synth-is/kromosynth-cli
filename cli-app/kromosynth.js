@@ -39,7 +39,9 @@ import {
 	getGoalSwitches, getGoalSwitchesThroughLineages,
 	getLineageGraphData,
 	getDurationPitchDeltaVelocityCombinations,
-	getClassLabels
+	getClassLabels,
+	getNewEliteCountForAllIterations,
+	getDiversityFromEmbeddingFiles
 } from './qd-run-analysis.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
@@ -264,7 +266,7 @@ const cli = meow(`
 		$ kromosynth evo-run-lineage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
 		$ kromosynth evo-run-duration-pitch-delta-velocity-combinations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100 --unique-genomes true
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,elite-generations,genome-statistics,genome-sets,genome-sets-through-rendering-variations,variance,elites-energy,goal-switches,goal-switches-through-lineages,lineage,duration-pitch-delta-velocity-combinations --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction '["Narration, monologue"]' --max-iteration-index 300000
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,new-elite-count,elite-generations,genome-statistics,genome-sets,genome-sets-through-rendering-variations,variance,elites-energy,goal-switches,goal-switches-through-lineages,lineage,duration-pitch-delta-velocity-combinations,diversity-from-embeddings --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction '["Narration, monologue"]' --max-iteration-index 300000
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
@@ -1278,6 +1280,12 @@ async function qdAnalysis_evoRuns() {
 				for( const oneAnalysisOperation of analysisOperationsList ) {
 					const classLabels = await getClassLabels( evoRunConfig, evolutionRunId );
 					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].classLabels = classLabels;
+					if( oneAnalysisOperation === "diversity-from-embeddings" ) {
+						const diversityFromEmbeddings = getDiversityFromEmbeddingFiles( evoRunConfig, evolutionRunId);
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].diversityFromEmbeddings = diversityFromEmbeddings;
+						console.log(`Added diversity from embeddings to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
 					if( oneAnalysisOperation === "qd-scores" ) {
 						const qdScores = await calculateQDScoresForAllIterations( evoRunConfig, evolutionRunId, stepSize, excludeEmptyCells, classRestrictionList, maxIterationIndex );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].qdScores = qdScores;
@@ -1300,6 +1308,12 @@ async function qdAnalysis_evoRuns() {
 						const coverage = await getCoverageForAllIterations( evoRunConfig, evolutionRunId, stepSize, scoreThreshold );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].coverage = coverage;
 						console.log(`Added coverage to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
+					if( oneAnalysisOperation === "new-elite-count") {
+						const newEliteCount = await getNewEliteCountForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].newEliteCount = newEliteCount;
+						console.log(`Added new elite count to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "elite-generations" ) {
@@ -1366,16 +1380,36 @@ async function qdAnalysis_evoRuns() {
 			if( oneAnalysisOperation === "qd-scores" ) {
 				console.log("aggregating qd scores for evolution run #", currentEvolutionRunIndex, "...");
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"] = {};
-				const qdScoresAcrossIterations = [];
-				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
-					// sum each iteration's qd scores
-					const { qdScores } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
-					qdScoresAcrossIterations.push( qdScores );
+				if( Array.isArray(evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[0].qdScores) ) {
+					const qdScoresAcrossIterations = [];
+					for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+						// sum each iteration's qd scores
+						const { qdScores } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+						qdScoresAcrossIterations.push( qdScores );
+					}
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["means"] = mean( qdScoresAcrossIterations, 0 );
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["variances"] = variance( qdScoresAcrossIterations, 0 );
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["stdDevs"] = std( qdScoresAcrossIterations, 0 );
+				} else {
+					// assume qdScores is an object with keys for each terrain / eliteMap
+					const qdScoresAcrossIterations = {};
+					for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+						// sum each iteration's qd scores
+						const { qdScores } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+						for( const oneTerrainName in qdScores ) {	
+							if( ! qdScoresAcrossIterations[oneTerrainName] ) {
+								qdScoresAcrossIterations[oneTerrainName] = [];
+							}
+							qdScoresAcrossIterations[oneTerrainName].push( qdScores[oneTerrainName] );
+						}
+					}
+					for( const oneTerrainName in qdScoresAcrossIterations ) {
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"][oneTerrainName] = {};
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"][oneTerrainName]["means"] = mean( qdScoresAcrossIterations[oneTerrainName], 0 );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"][oneTerrainName]["variances"] = variance( qdScoresAcrossIterations[oneTerrainName], 0 );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"][oneTerrainName]["stdDevs"] = std( qdScoresAcrossIterations[oneTerrainName], 0 );
+					}
 				}
-				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["means"] = mean( qdScoresAcrossIterations, 0 );
-				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["variances"] = variance( qdScoresAcrossIterations, 0 );
-				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"]["stdDevs"] = std( qdScoresAcrossIterations, 0 );
-
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
 			if( oneAnalysisOperation === "genome-statistics" ) {
@@ -1440,15 +1474,68 @@ async function qdAnalysis_evoRuns() {
 			if( oneAnalysisOperation === "coverage" ) {
 				console.log("aggregating coverage for evolution run #", currentEvolutionRunIndex, "...");
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"] = {};
-				const coverageAcrossIterations = [];
-				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
-					const { coverage } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
-					coverageAcrossIterations.push( coverage );
-				}
-				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"]["means"] = mean( coverageAcrossIterations, 0 );
-				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"]["variances"] = variance( coverageAcrossIterations, 0 );
-				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"]["stdDevs"] = std( coverageAcrossIterations, 0 );
 
+				if( Array.isArray(evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[0].coverage) ) {
+					const coverageAcrossIterations = [];
+					for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+						const { coverage } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+						coverageAcrossIterations.push( coverage );
+					}
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"]["means"] = mean( coverageAcrossIterations, 0 );
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"]["variances"] = variance( coverageAcrossIterations, 0 );
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"]["stdDevs"] = std( coverageAcrossIterations, 0 );
+				} else {
+					// assume coverage is an object with keys for each terrain / eliteMap
+					const coverageAcrossIterations = {};
+					for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+						const { coverage } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+						for( const oneTerrainName in coverage ) {
+							if( ! coverageAcrossIterations[oneTerrainName] ) {
+								coverageAcrossIterations[oneTerrainName] = [];
+							}
+							coverageAcrossIterations[oneTerrainName].push( coverage[oneTerrainName] );
+						}
+					}
+					for( const oneTerrainName in coverageAcrossIterations ) {
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"][oneTerrainName] = {};
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"][oneTerrainName]["means"] = mean( coverageAcrossIterations[oneTerrainName], 0 );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"][oneTerrainName]["variances"] = variance( coverageAcrossIterations[oneTerrainName], 0 );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["coverage"][oneTerrainName]["stdDevs"] = std( coverageAcrossIterations[oneTerrainName], 0 );
+					}
+				}
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+			}
+			if( oneAnalysisOperation === "new-elite-count") {
+				console.log("aggregating new elite count for evolution run #", currentEvolutionRunIndex, "...");
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["newEliteCount"] = {};
+				if( Array.isArray(evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[0].newEliteCount) ) {
+					const newEliteCountAcrossIterations = [];
+					for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+						const { newEliteCount } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+						newEliteCountAcrossIterations.push( newEliteCount );
+					}
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["newEliteCount"]["means"] = mean( newEliteCountAcrossIterations, 0 );
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["newEliteCount"]["variances"] = variance( newEliteCountAcrossIterations, 0 );
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["newEliteCount"]["stdDevs"] = std( newEliteCountAcrossIterations, 0 );
+				} else {
+					// assume newEliteCount is an object with keys for each terrain / eliteMap
+					const newEliteCountAcrossIterations = {};
+					for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+						const { newEliteCount } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+						for( const oneTerrainName in newEliteCount ) {
+							if( ! newEliteCountAcrossIterations[oneTerrainName] ) {
+								newEliteCountAcrossIterations[oneTerrainName] = [];
+							}
+							newEliteCountAcrossIterations[oneTerrainName].push( newEliteCount[oneTerrainName] );
+						}
+					}
+					for( const oneTerrainName in newEliteCountAcrossIterations ) {
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["newEliteCount"][oneTerrainName] = {};
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["newEliteCount"][oneTerrainName]["means"] = mean( newEliteCountAcrossIterations[oneTerrainName], 0 );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["newEliteCount"][oneTerrainName]["variances"] = variance( newEliteCountAcrossIterations[oneTerrainName], 0 );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["newEliteCount"][oneTerrainName]["stdDevs"] = std( newEliteCountAcrossIterations[oneTerrainName], 0 );
+					}
+				}
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
 			if( oneAnalysisOperation === "genome-sets" ) {

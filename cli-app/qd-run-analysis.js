@@ -23,25 +23,127 @@ export async function getClassLabels( evoRunConfig, evoRunId ) {
   return cellKeys;
 }
 
+// checks if the evoRunConfig contains classConfigurations, each with a "refSetName" defining a "terrain" for one eliteMap
+// - if so, returns the terrain names, indicating that there are multiple eliteMaps
+function getTerrainNames( evoRunConfig ) {
+  const classConfigurations = evoRunConfig.classifiers[evoRunConfig.classifierIndex].classConfigurations;
+  if( classConfigurations ) {
+    return classConfigurations.map( classConfiguration => classConfiguration.refSetName );
+  }
+  return [];
+}
+
+
+///// elite diversity, from cellFeatures files
+
+function calculateEuclideanDistance(vectorA, vectorB) {
+  let distance = 0.0;
+  for (let i = 0; i < vectorA.length; i++) {
+      distance += Math.pow(vectorA[i] - vectorB[i], 2);
+  }
+  return Math.sqrt(distance);
+}
+function calculateDistanceMatrix(embeddings) {
+  const numEmbeddings = embeddings.length;
+  const distanceMatrix = Array.from(Array(numEmbeddings), () => new Array(numEmbeddings));
+  for (let i = 0; i < numEmbeddings; i++) {
+      for (let j = i; j < numEmbeddings; j++) { // Start at i to avoid redundant calculations.
+          if (i === j) {
+              distanceMatrix[i][j] = 0; // Distance to itself is 0.
+          } else {
+              const distance = calculateEuclideanDistance(embeddings[i], embeddings[j]);
+              distanceMatrix[i][j] = distance;
+              distanceMatrix[j][i] = distance; // Use symmetry to save computation.
+          }
+      }
+  }
+  return distanceMatrix;
+}
+function calculateAveragePairwiseDistance(distanceMatrix) {
+  let sumDistances = 0;
+  let count = 0;
+  for (let i = 0; i < distanceMatrix.length; i++) {
+      for (let j = i + 1; j < distanceMatrix.length; j++) { // Avoid diagonal and redundant pairs.
+          sumDistances += distanceMatrix[i][j];
+          count += 1;
+      }
+  }
+  return sumDistances / count;
+}
+export function getDiversityFromEmbeddingFiles( evoRunConfig, evoRunId) {
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const embeddingFilePaths = fs.readdirSync(evoRunDirPath).filter( filePath => filePath.includes("cellFeatures_") );
+  const diversity = {};
+  for( const oneEmbeddingFilePath of embeddingFilePaths ) {
+    // given a file name ending like "_gen100_terrain0.json", we want to extract the generation number and the "terrain0" part
+    const cellFeaturesAtGenerationMatch = oneEmbeddingFilePath.match(/_gen(\d+)_(.*)\.json/);
+    if( cellFeaturesAtGenerationMatch ) {
+      const generation = oneEmbeddingFilePath.match(/_gen(\d+)_/)[1];
+      const terrain = oneEmbeddingFilePath.match(/_gen\d+_(.*)\.json/)[1];
+      // read in the file at oneEmbeddingFilePath
+      const cellFeaturesString = fs.readFileSync(`${evoRunDirPath}${oneEmbeddingFilePath}`, 'utf8');
+      const cellFeatures = JSON.parse(cellFeaturesString);
+      // for each value in the cellFeatures object, calculate the diversity
+      const embeddings = [];
+      for( const oneCellKey of Object.keys(cellFeatures) ) {
+        const cellFeaturesAndEmbedding = cellFeatures[oneCellKey];
+        const embedding = cellFeaturesAndEmbedding.embedding;
+        if( embedding ) { // there can also be keys lik "_timestamp" and "_generationNumber"
+          // calculate the mean of the embeddings
+          const meanVector = embedding.reduce((acc, vec) => acc.map((val, i) => val + vec[i]), new Array(embedding[0].length).fill(0))
+          .map(val => val / embedding.length);
+          embeddings.push(meanVector);
+        }
+      }
+      const distanceMatrix = calculateDistanceMatrix(embeddings);
+      const averagePairwiseDistance = calculateAveragePairwiseDistance(distanceMatrix);
+      if( ! diversity[terrain] ) {
+        diversity[terrain] = {};
+      }
+      diversity[terrain][generation] = averagePairwiseDistance;
+    }
+  }
+  return diversity;
+}
+
 ///// QD score
 
 export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction, maxIterationIndex ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   let qdScores;
-  if( maxIterationIndex ) {
-    qdScores = new Array(Math.ceil(maxIterationIndex / stepSize));
-  } else {
-    qdScores = new Array(Math.ceil(commitCount / stepSize));
-  }
-  for( let iterationIndex = 0, qdScoreIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, qdScoreIndex++ ) {
-    if( iterationIndex % stepSize === 0 ) {
-      console.log(`Calculating QD score for iteration ${iterationIndex}...`);
-      qdScores[qdScoreIndex] = await calculateQDScoreForOneIteration(
-        evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction
-      );
+  const terrainNames = getTerrainNames( evoRunConfig );
+  if( terrainNames.length ) {
+    qdScores = {};
+    for( const oneTerrainName of terrainNames ) { // not taking maxIterationIndex into account here, for now
+      qdScores[oneTerrainName] = new Array(Math.ceil(commitCount / stepSize));
     }
-    if( maxIterationIndex && maxIterationIndex < iterationIndex ) break;
+    for( let iterationIndex = 0, qdScoreIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, qdScoreIndex++ ) {
+      if( iterationIndex % stepSize === 0 ) {
+        console.log(`Calculating QD scores for iteration ${iterationIndex}...`);
+        for( const oneTerrainName of terrainNames ) {
+          qdScores[oneTerrainName][qdScoreIndex] = await calculateQDScoreForOneIteration(
+            evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction, oneTerrainName
+          );
+        }
+      }
+      // if( maxIterationIndex && maxIterationIndex < iterationIndex ) break;
+    }
+  } else {
+    if( maxIterationIndex ) {
+      qdScores = new Array(Math.ceil(maxIterationIndex / stepSize));
+    } else {
+      qdScores = new Array(Math.ceil(commitCount / stepSize));
+    }
+    for( let iterationIndex = 0, qdScoreIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, qdScoreIndex++ ) {
+      if( iterationIndex % stepSize === 0 ) {
+        console.log(`Calculating QD score for iteration ${iterationIndex}...`);
+        qdScores[qdScoreIndex] = await calculateQDScoreForOneIteration(
+          evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction
+        );
+      }
+      if( maxIterationIndex && maxIterationIndex < iterationIndex ) break;
+    }
   }
   const qdScoresStringified = JSON.stringify(qdScores);
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
@@ -51,9 +153,13 @@ export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId,
 }
 
 export async function calculateQDScoreForOneIteration( 
-    evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction 
+    evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction, terrainName
 ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const eliteMap = await getEliteMap( 
+    evoRunConfig, evoRunId, iterationIndex,
+    false, // forceCreateCommitIdsList
+    terrainName
+    );
   return calculateQDScoreForEliteMap( eliteMap, excludeEmptyCells, classRestriction ); 
 }
 
@@ -136,28 +242,104 @@ export function getCoverageForEliteMap( eliteMap, scoreThreshold = 0 ) {
   return coverage;
 }
 
-export async function getCoverageForOneIteration( evoRunConfig, evoRunId, iterationIndex, scoreThreshold = 0 ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+export async function getCoverageForOneIteration( evoRunConfig, evoRunId, iterationIndex, scoreThreshold = 0, terrainName ) {
+  const eliteMap = await getEliteMap( 
+    evoRunConfig, evoRunId, iterationIndex,
+    false, // forceCreateCommitIdsList
+    terrainName
+  );
   return getCoverageForEliteMap( eliteMap, scoreThreshold );
 }
 
 export async function getCoverageForAllIterations( evoRunConfig, evoRunId, stepSize = 1, scoreThreshold = 0 ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
-  const coverages = new Array(Math.ceil(commitCount / stepSize));
-  for( let iterationIndex = 0, coverageIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, coverageIndex++ ) {
-    if( iterationIndex % stepSize === 0 ) {
-      console.log(`Calculating coverage for iteration ${iterationIndex}...`);
-      coverages[coverageIndex] = await getCoverageForOneIteration(
-        evoRunConfig, evoRunId, iterationIndex, scoreThreshold
-      );
+  const terrainNames = getTerrainNames( evoRunConfig );
+  let coverages;
+  if( terrainNames.length ) {
+    coverages = {};
+    for( const oneTerrainName of terrainNames ) {
+      coverages[oneTerrainName] = new Array(Math.ceil(commitCount / stepSize));
+    }
+    for( let iterationIndex = 0, coverageIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, coverageIndex++ ) {
+      if( iterationIndex % stepSize === 0 ) {
+        console.log(`Calculating coverage for iteration ${iterationIndex}...`);
+        for( const oneTerrainName of terrainNames ) {
+          coverages[oneTerrainName][coverageIndex] = await getCoverageForOneIteration(
+            evoRunConfig, evoRunId, iterationIndex, scoreThreshold, oneTerrainName
+          );
+        }
+      }
+    }
+  } else {
+    coverages = new Array(Math.ceil(commitCount / stepSize));
+    for( let iterationIndex = 0, coverageIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, coverageIndex++ ) {
+      if( iterationIndex % stepSize === 0 ) {
+        console.log(`Calculating coverage for iteration ${iterationIndex}...`);
+        coverages[coverageIndex] = await getCoverageForOneIteration(
+          evoRunConfig, evoRunId, iterationIndex, scoreThreshold
+        );
+      }
     }
   }
+
+
   const coveragesStringified = JSON.stringify(coverages);
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const coveragesFilePath = `${evoRunDirPath}coverages_step-${stepSize}_threshold-${scoreThreshold}.json`;
   fs.writeFileSync( coveragesFilePath, coveragesStringified );
   return coverages;
+}
+
+///// elite count
+export function getNewEliteCountForEliteMap( eliteMap ) {
+  return eliteMap.eliteCountAtGeneration;
+}
+export async function getNewEliteCountForOneIteration( evoRunConfig, evoRunId, iterationIndex, terrainName ) {
+  const eliteMap = await getEliteMap( 
+    evoRunConfig, evoRunId, iterationIndex,
+    false, // forceCreateCommitIdsList
+    terrainName
+  );
+  return getNewEliteCountForEliteMap( eliteMap );
+}
+export async function getNewEliteCountForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+  // NB: stepSize larger than 1 doesn't really make sense for new elite count
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const terrainNames = getTerrainNames( evoRunConfig );
+  let eliteCounts;
+  if( terrainNames.length ) {
+    eliteCounts = {};
+    for( const oneTerrainName of terrainNames ) {
+      eliteCounts[oneTerrainName] = new Array(Math.ceil(commitCount / stepSize));
+    }
+    for( let iterationIndex = 0, eliteCountIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, eliteCountIndex++ ) {
+      if( iterationIndex % stepSize === 0 ) {
+        console.log(`Calculating elite count for iteration ${iterationIndex}...`);
+        for( const oneTerrainName of terrainNames ) {
+          eliteCounts[oneTerrainName][eliteCountIndex] = await getNewEliteCountForOneIteration(
+            evoRunConfig, evoRunId, iterationIndex, oneTerrainName
+          );
+        }
+      }
+    }
+  } else {
+    eliteCounts = new Array(Math.ceil(commitCount / stepSize));
+    for( let iterationIndex = 0, eliteCountIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, eliteCountIndex++ ) {
+      if( iterationIndex % stepSize === 0 ) {
+        console.log(`Calculating elite count for iteration ${iterationIndex}...`);
+        eliteCounts[eliteCountIndex] = await getNewEliteCountForOneIteration(
+          evoRunConfig, evoRunId, iterationIndex
+        );
+      }
+    }
+  }
+  const eliteCountsStringified = JSON.stringify(eliteCounts);
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const eliteCountsFilePath = `${evoRunDirPath}elite-counts_step-${stepSize}.json`;
+  fs.writeFileSync( eliteCountsFilePath, eliteCountsStringified );
+  return eliteCounts;
 }
 
 ///// genome sets
@@ -1110,10 +1292,22 @@ export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, 
   process.exit();
 }
 
-async function getEliteMap( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList ) {
+async function getEliteMap( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList, terrainName ) {
   const commitId = await getCommitID( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList );
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  const eliteMapString = await spawnCmd(`git -C ${evoRunDirPath} show ${commitId}:elites_${evoRunId}.json`, {}, true);
+  const terrainSuffix = terrainName ? `_${terrainName}` : '';
+  let eliteMapFileName = `elites_${evoRunId}${terrainSuffix}.json`;
+  // check if eliteMapFileName exists
+  if( ! fs.existsSync(`${evoRunDirPath}/${eliteMapFileName}`) ) {
+    // let's try to find the first elite map file starting with 'elites_'
+    const eliteMapFiles = fs.readdirSync(evoRunDirPath).filter( file => file.startsWith('elites_') );
+    if( eliteMapFiles.length ) {
+      eliteMapFileName = eliteMapFiles[0];
+    } else {
+      throw new Error(`Elite map file not found in ${evoRunDirPath}`);
+    }
+  }
+  const eliteMapString = await spawnCmd(`git -C ${evoRunDirPath} show ${commitId}:${eliteMapFileName}`, {}, true);
   const eliteMap = JSON.parse(eliteMapString);
   return eliteMap;
 }
