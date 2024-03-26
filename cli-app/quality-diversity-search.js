@@ -1391,11 +1391,11 @@ async function populateAndSaveCellFeatures(
         geneRenderingServerHosts[cellKeyIndex % geneRenderingServerHosts.length], renderSampleRateForClassifier
       );
       const evaluationFeatureHost = evaluationFeatureExtractionHosts[cellKeyIndex % evaluationFeatureExtractionHosts.length];
-      const evaluationFeatureHostBase64encoded = Buffer.from(evaluationFeatureHost).toString('base64');
+      // const evaluationFeatureHostBase64encoded = Buffer.from(evaluationFeatureHost).toString('base64');
       const featuresResponse = await getFeaturesFromWebsocket(
         audioBuffer,
         evaluationFeatureHost + featureExtractionEndpoint,
-        `${ckptDir}/${evaluationFeatureHostBase64encoded}`,
+        ckptDir, // `${ckptDir}/${evaluationFeatureHostBase64encoded}`,
         renderSampleRateForClassifier
       );
       const { features, embedding } = featuresResponse;
@@ -1762,13 +1762,13 @@ async function getFeaturesAndScoreForAudioBuffer(
     qualityFromEmbeds = true;
   }
 
-  const hostFeaturesEncodedBase64 = Buffer.from(evaluationFeatureExtractionHost).toString('base64');
+  // const hostFeaturesEncodedBase64 = Buffer.from(evaluationFeatureExtractionHost).toString('base64');
   // get features from audio buffer
   const featuresResponse = await getFeaturesFromWebsocket(
     audioBuffer,
     evaluationFeatureExtractionHost,
     // optional:
-    `${ckptDir}/${hostFeaturesEncodedBase64}`,
+    ckptDir, // `${ckptDir}/${hostFeaturesEncodedBase64}`,
     sampleRate,
   ).catch(e => {
     console.error("Error getting features", e);
@@ -1782,14 +1782,14 @@ async function getFeaturesAndScoreForAudioBuffer(
   let newGenomeQuality;
   if( qualityFromEmbeds ) {
     const newGenomeEmbed = featuresResponse.embedding;
-    const hostEvalQualityEncodedBase64 = Buffer.from(evaluationQualityHost).toString('base64');
+    // const hostEvalQualityEncodedBase64 = Buffer.from(evaluationQualityHost).toString('base64');
     newGenomeQuality = await getQualityFromWebsocketForEmbedding(
       newGenomeEmbed,
       refSetEmbedsPath,
       querySetEmbedsPath,
       measureCollectivePerformance,
       evaluationQualityHost,
-      `${ckptDir}/${hostEvalQualityEncodedBase64}`
+      ckptDir, // `${ckptDir}/${hostEvalQualityEncodedBase64}`
     ).catch(e => {
       console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
     });
@@ -1864,14 +1864,14 @@ async function getFeaturesAndScoresFromEliteMap(
       }
       const { duration, noteDelta, velocity } = tagForCell;
       const evaluationQualityHost = _evaluationQualityServers[ i % _evaluationQualityServers.length ];
-      const evaluationQualityHostEncodedBase64 = Buffer.from(evaluationQualityHost).toString('base64');
+      // const evaluationQualityHostEncodedBase64 = Buffer.from(evaluationQualityHost).toString('base64');
       const genomeQuality = await getQualityFromWebsocketForEmbedding(
         features.embedding,
         refSetEmbedsPath,
         querySetEmbedsPath,
         measureCollectivePerformance,
         evaluationQualityHost,
-        `${ckptDir}/${evaluationQualityHostEncodedBase64}`
+        ckptDir, // `${ckptDir}/${evaluationQualityHostEncodedBase64}`
       );
       const fitness = genomeQuality.fitness * scoreProportion;
       seedFeaturesAndScores.push({
