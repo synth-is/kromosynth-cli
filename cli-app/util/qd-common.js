@@ -69,9 +69,26 @@ export function deleteAllGenomeRendersNotInEliteMap( eliteMap, evoRenderDirPath 
 export async function getEliteMap( evoRunDirPath, iterationIndex, forceCreateCommitIdsList ) {
   const commitId = await getCommitID( evoRunDirPath, iterationIndex, forceCreateCommitIdsList );
   const evoRunId = evoRunDirPath.split('/').pop();
-  const eliteMapString = await spawnCmd(`git -C ${evoRunDirPath} show ${commitId}:elites_${evoRunId}.json`, {}, true);
-  const eliteMap = JSON.parse(eliteMapString);
-  return eliteMap;
+  const eliteMapFilePath = `${evoRunDirPath}/elites_${evoRunId}.json`;
+  if( fs.existsSync(eliteMapFilePath) ) {
+    const eliteMapString = await spawnCmd(`git -C ${evoRunDirPath} show ${commitId}:elites_${evoRunId}.json`, {}, true);
+    const eliteMap = JSON.parse(eliteMapString);
+    return eliteMap;
+  } else {
+    return undefined;
+  }
+}
+
+export async function getEliteMaps( evoRunDirPath, iterationIndex, forceCreateCommitIdsList ) {
+  const commitId = await getCommitID( evoRunDirPath, iterationIndex, forceCreateCommitIdsList );
+  const eliteMapFilePaths = fs.readdirSync(evoRunDirPath).filter( file => file.startsWith('elites_') );
+  const eliteMaps = [];
+  for( let eliteMapFilePath of eliteMapFilePaths ) {
+    const eliteMapString = await spawnCmd(`git -C ${evoRunDirPath} show ${commitId}:${eliteMapFilePath}`, {}, true);
+    const eliteMap = JSON.parse(eliteMapString);
+    eliteMaps.push(eliteMap);
+  }
+  return eliteMaps;
 }
 
 export function getCommitCount( evoRunDirPath, forceCreateCommitIdsList ) {
@@ -84,6 +101,10 @@ export async function getClassLabelsWithElites( evoRunDirPath ) {
   const lastCommitIndex = getCommitCount( evoRunDirPath ) - 1;
   console.log('lastCommitIndex:', lastCommitIndex);
   const eliteMap = await getEliteMap( evoRunDirPath, lastCommitIndex );
+  const classes = Object.keys(eliteMap.cells).filter( (className) => eliteMap.cells[className].elts.length > 0 ).sort();
+  return classes;
+}
+export async function getClassLabelsWithElitesFromEliteMap( eliteMap ) {
   const classes = Object.keys(eliteMap.cells).filter( (className) => eliteMap.cells[className].elts.length > 0 ).sort();
   return classes;
 }
@@ -108,6 +129,8 @@ async function getCommitID( evoRunDirPath, iterationIndex, forceCreateCommitIdsL
     const lastCommitIndex = commitCount - 1;
     commitId = await nthline(lastCommitIndex, commitIdsFilePath);
   } else {
+    console.log("iterationIndex",iterationIndex)
+    console.log("commitIdsFilePath",commitIdsFilePath)
     commitId = await nthline(iterationIndex, commitIdsFilePath);
   }
   return commitId;

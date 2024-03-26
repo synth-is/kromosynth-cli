@@ -52,7 +52,9 @@ import {
 	calcStandardDeviation, calcVariance, calcMean,
 	runCmd,
 	averageAttributes, standardDeviationAttributes, 
-	getCommitCount, getClassLabelsWithElites, readGenomeAndMetaFromDisk, getEliteMap
+	getCommitCount, getClassLabelsWithElites, readGenomeAndMetaFromDisk, 
+	getEliteMap, getEliteMaps, 
+	getClassLabelsWithElitesFromEliteMap
 } from './util/qd-common.js';
 import { mean, median, variance, std } from 'mathjs'
 import { sample } from 'lodash-es';
@@ -855,61 +857,74 @@ async function renderEvorun() {
 	if( everyNthGeneration >= generationCount ) {
 		everyNthGeneration = generationCount - 1;
 	}
-	const classes = await getClassLabelsWithElites( evoRunDirPath );
-	for( let oneClass of classes ) {
-		for( let iteration = everyNthGeneration; iteration < generationCount; iteration = (iteration + everyNthGeneration) > generationCount && iteration !== generationCount-1 ? generationCount-1 : iteration + everyNthGeneration ) {
-			const eliteMap = await getEliteMap( evoRunDirPath, iteration );
-			const classElites = eliteMap.cells[oneClass].elts;
-			if( classElites && classElites.length ) {
-				const genomeId = classElites[0].g;
-				const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
-				// await getGenomeString( evoRunDirPath, oneClass, iteration );
-				const genomeAndMeta = JSON.parse( genomeString );
-				const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === oneClass);
-				const { duration, noteDelta, velocity, score } = tagForCell;
-				let _duration = durationParam || duration;
-				let _noteDelta = noteDeltaParam || noteDelta;
-				let _velocity = velocityParam || velocity;
-				if( geneMetadataOverride ) {
-					_duration = durationParam;
-					_noteDelta = noteDeltaParam;
-					_velocity = velocityParam;
-				} else {
-					_duration = duration;
-					_noteDelta = noteDelta;
-					_velocity = velocity;
+	
+	for( let iteration = everyNthGeneration; iteration < generationCount; iteration = (iteration + everyNthGeneration) > generationCount && iteration !== generationCount-1 ? generationCount-1 : iteration + everyNthGeneration ) {
+		const eliteMaps = await getEliteMaps( evoRunDirPath, iteration );
+		for( let eliteMap of eliteMaps) {
+			const classes = await getClassLabelsWithElitesFromEliteMap( eliteMap );
+			for( let oneClass of classes ) {
+				let terrainSuffix;
+				if( eliteMaps.length > 1 ) { // assume last part of file name is the terrain suffix
+					terrainSuffix = eliteMap._id.split("_").pop();
 				}
-
-				let fileNamePrefix = "";
-				if( scoreInFileName ) {
-					const scorePercentRoundedAndPadded = Math.round(score*100).toString().padStart(3, '0');
-					fileNamePrefix = `${scorePercentRoundedAndPadded}_`;
+				const classElites = eliteMap.cells[oneClass].elts;
+				if( classElites && classElites.length ) {
+					const genomeId = classElites[0].g;
+					const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+					// await getGenomeString( evoRunDirPath, oneClass, iteration );
+					const genomeAndMeta = JSON.parse( genomeString );
+					const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === oneClass);
+					const { duration, noteDelta, velocity, score } = tagForCell;
+					let _duration = durationParam || duration;
+					let _noteDelta = noteDeltaParam || noteDelta;
+					let _velocity = velocityParam || velocity;
+					if( geneMetadataOverride ) {
+						_duration = durationParam;
+						_noteDelta = noteDeltaParam;
+						_velocity = velocityParam;
+					} else {
+						_duration = duration;
+						_noteDelta = noteDelta;
+						_velocity = velocity;
+					}
+	
+					let fileNamePrefix = "";
+					if( scoreInFileName ) {
+						const scorePercentRoundedAndPadded = Math.round(score*100).toString().padStart(3, '0');
+						fileNamePrefix = `${scorePercentRoundedAndPadded}_`;
+					}
+	
+					const oneClassFileNameFriendly = fileNamePrefix + oneClass.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+					const subFolder = writeToFolder + "/" + evoRunId + "/" + iteration + "_" + _duration + "/" + (terrainSuffix ? terrainSuffix + "/" : "");
+	
+					const wavFileName = `${fileNamePrefix}${oneClassFileNameFriendly}_${genomeId}_${iteration}.wav`;
+					if( fs.existsSync( subFolder + wavFileName ) && ! overwriteExistingFiles) {
+						console.log("File exists, not rendering:", subFolder + wavFileName);
+						continue;
+					}
+	
+					console.log("Rendering evoRun", evoRunId, ", iteration ", iteration, ", class", oneClassFileNameFriendly, "from genomeId", genomeId);
+					try {
+						const audioBuffer = await getAudioBufferFromGenomeAndMeta(
+							genomeAndMeta,
+							_duration, _noteDelta, _velocity, reverse,
+							false, // asDataArray
+							getNewOfflineAudioContext( _duration, sampleRate ),
+							getAudioContext( sampleRate ),
+							useOvertoneInharmonicityFactors,
+							useGpu,
+							antiAliasing,
+							frequencyUpdatesApplyToAllPathcNetworkOutputs
+						);
+						console.log("Audio buffer length", audioBuffer.length);
+						const wav = toWav(audioBuffer);
+						// console.log("Wav", wav);
+						
+						writeToFile( Buffer.from(new Uint8Array(wav)), subFolder, genomeId, `${oneClassFileNameFriendly}_`, `_${iteration}.wav`, false );
+					} catch (error) {
+						console.error("Error rendering", evoRunId, iteration, oneClassFileNameFriendly, genomeId, error);
+					}
 				}
-
-				const oneClassFileNameFriendly = fileNamePrefix + oneClass.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-				const subFolder = writeToFolder + "/" + evoRunId + "/" + iteration + "_" + _duration  + "/";
-
-				const wavFileName = `${fileNamePrefix}${oneClassFileNameFriendly}_${genomeId}_${iteration}.wav`;
-				if( fs.existsSync( subFolder + wavFileName ) && ! overwriteExistingFiles) {
-					console.log("File exists, not rendering:", subFolder + wavFileName);
-					continue;
-				}
-
-				console.log("Rendering evoRun", evoRunId, ", iteration ", iteration, ", class", oneClassFileNameFriendly, "from genomeId", genomeId);
-				const audioBuffer = await getAudioBufferFromGenomeAndMeta(
-					genomeAndMeta,
-					_duration, _noteDelta, _velocity, reverse,
-					false, // asDataArray
-					getNewOfflineAudioContext( _duration, sampleRate ),
-					getAudioContext( sampleRate ),
-					useOvertoneInharmonicityFactors,
-					useGpu,
-					antiAliasing,
-					frequencyUpdatesApplyToAllPathcNetworkOutputs
-				);
-				const wav = toWav(audioBuffer);
-				
-				writeToFile( Buffer.from(new Uint8Array(wav)), subFolder, genomeId, `${oneClassFileNameFriendly}_`, `_${iteration}.wav`, false );
 			}
 		}
 	}
@@ -1254,7 +1269,7 @@ async function qdAnalysis_percentCompletion() {
 
 async function qdAnalysis_evoRuns() {
 	const evoRunsConfig = getEvolutionRunsConfig();
-	const {analysisOperations, stepSize, scoreThreshold, uniqueGenomes, excludeEmptyCells, classRestriction, maxIterationIndex} = cli.flags;
+	const {analysisOperations, stepSize, scoreThreshold, uniqueGenomes, excludeEmptyCells, classRestriction, maxIterationIndex, writeToFolder} = cli.flags;
 	const analysisOperationsList = analysisOperations.split(",");
 	let classRestrictionList;
 	if( classRestriction ) {
@@ -1263,7 +1278,12 @@ async function qdAnalysis_evoRuns() {
 	console.log("analysisOperationsList", analysisOperationsList);
 	const evoRunsAnalysis = {...evoRunsConfig};
 	// TODO move this to the qd-run-analysis module or a separate one, to have this module a bit leaner 😅
-	const analysisResultFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
+	let analysisResultFilePath;
+	if( writeToFolder === './' ) { // let's then rather place the output at evoRunsConfig.baseEvolutionRunConfigFile
+		analysisResultFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
+	} else {
+		analysisResultFilePath = `${writeToFolder}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
+	}
 	for( let currentEvolutionRunIndex = 0; currentEvolutionRunIndex < evoRunsConfig.evoRuns.length; currentEvolutionRunIndex++ ) {
 		const currentEvoConfig = evoRunsConfig.evoRuns[currentEvolutionRunIndex];
 		for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
@@ -1774,12 +1794,13 @@ function writeToFile( content, fileNameFlag, id, fileNamePrefix, fileNameSuffix,
 			fileName = fileNameFlag + fileName;
 		}
 	}
-	fs.writeFile(fileName, content, err => {
-		if (err) {
-			console.error("writeToFile: ", err);
-		}
-		if( exitAfterWriting ) process.exit();
-	});
+	// fs.writeFile(fileName, content, err => {
+	// 	if (err) {
+	// 		console.error("writeToFile: ", err);
+	// 	}
+	// 	if( exitAfterWriting ) process.exit();
+	// });
+	fs.writeFileSync(fileName, content);
 }
 function writeGeneToFile( content, fileNameFlag, id ) {
 	writeToFile( content, fileNameFlag, id, 'kromosynth_gene_', '.json' );
