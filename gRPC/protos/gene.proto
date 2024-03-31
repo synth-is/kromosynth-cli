@@ -19,6 +19,7 @@ message RandomGenomeRequest {
   string evolution_run_id = 1;
   int32 generation_number = 2;
   google.protobuf.Struct evolutionary_hyperparameters = 3;
+  bool one_cppn_per_frequency = 4;
 }
 
 message GenomeVariationRequest {
