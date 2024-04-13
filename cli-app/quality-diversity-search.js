@@ -484,10 +484,11 @@ async function mapElitesBatch(
     (_evaluationProjectionServers && _evaluationProjectionServers.length > 0) &&
     (_evaluationQualityServers && _evaluationQualityServers.length > 0);
 
-  const isSeedRound = (eliteMap.generationNumber*searchBatchSize) < seedEvals;
+  const isSeedRound = (eliteMap.generationNumber*searchBatchSize) < seedEvals 
+    && ! eliteMap.eliteMapIndex > 0; // only seed the first map
   
-  const shouldPopulateCellFeatures = eliteMap.isBeingSwitchedToFromAnotherMap || 
-    (! isSeedRound && isUnsupervisedDiversityEvaluation && ! Object.keys(cellFeatures).length && seedFeaturesAndScores.length);
+  const shouldPopulateCellFeatures = eliteMap.isBeingSwitchedToFromAnotherMap 
+    || ! isSeedRound && isUnsupervisedDiversityEvaluation && ! Object.keys(cellFeatures).length && seedFeaturesAndScores.length;
 
   if( shouldPopulateCellFeatures ) {
     // seed rounds are over, we're doing unsupervised diversity evaluation, but we haven't yet projected the features:
@@ -694,6 +695,9 @@ async function mapElitesBatch(
                   clearServiceConnectionList(geneVariationServerHost);
                   reject(e);
                 }
+                if( ! newGenomeString ) {
+                  console.error("newGenomeString is undefined");
+                }
               } else if( geneEvaluationProtocol === "worker" ) {
                  const geneVariationWorkerResponse = await callGeneVariationWorker(
                   searchBatchSize, batchIteration,
@@ -729,6 +733,10 @@ async function mapElitesBatch(
         } // if( isSeedRound ) {  } else { 
   
         const genomeId = ulid();
+
+        if( ! newGenomeString ) {
+          console.error("newGenomeString is undefined");
+        }
   
         let newGenomeClassScores;
         let evaluationCandidatesJsonFilePath;
@@ -859,6 +867,9 @@ async function mapElitesBatch(
                   console.error("Error getting genome class scores by diversity projection with new genomes", e);
                   reject(e);
                 });
+                if( ! newGenomeClassScores && Object.keys(newGenomeClassScores).length === 0 ) {
+                  console.log("newGenomeClassScores is undefined");
+                }
               }
             }
           } else if( geneEvaluationServerHost ) {
@@ -1969,7 +1980,8 @@ function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOn
 function initializeEliteMap(
   evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationGraphModel, dummyRun,
   classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
-  classConfigurations
+  classConfigurations,
+  eliteMapIndex
 ) {
   let eliteMap = {
     _id: getEliteMapKey(evolutionRunId, classConfigurations[0].refSetName),
@@ -1987,7 +1999,8 @@ function initializeEliteMap(
     qdScore: 0, qdScoreWithoutIncreaseCount: 0,
     coverage: 0, coverageWithoutIncreaseCount: 0,
     isBeingSwitchedToFromAnotherMap: false,
-    mapSwitchLog: []
+    mapSwitchLog: [],
+    eliteMapIndex
   };
   const classifierTags = getClassifierTags(classificationGraphModel, dummyRun);
   if( classScoringVariationsAsContainerDimensions ) {
@@ -2026,6 +2039,7 @@ function initializeGrid(
   let eliteMap;
   if( typeof classificationGraphModel === 'object' && classificationGraphModel.hasOwnProperty('classConfigurations') && classificationGraphModel.hasOwnProperty('classificationDimensions') ) {
     const { classConfigurations, classificationDimensions } = classificationGraphModel;
+    let eliteMapIndex = 0;
     if( classesAsMaps ) {
       // an array of eliteMaps, with each map representing a classConfiguration
       eliteMap = [];
@@ -2033,16 +2047,19 @@ function initializeGrid(
         const oneEliteMap = initializeEliteMap(
           evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationDimensions, dummyRun,
           classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
-          [oneClassConfiguration]
+          [oneClassConfiguration],
+          eliteMapIndex
         );
         eliteMap.push( oneEliteMap );
+        eliteMapIndex++;
       }
     } else {
       // only one map, but still using classConfigurations and classificationDimensions as the classificationGraphModel
       const oneEliteMap = initializeEliteMap(
         evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationDimensions, dummyRun,
         classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
-        classConfigurations
+        classConfigurations,
+        eliteMapIndex
       );
       eliteMap = oneEliteMap
     }
@@ -2050,7 +2067,8 @@ function initializeGrid(
     const oneEliteMap = initializeEliteMap(
       evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationGraphModel, dummyRun,
       classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
-      undefined // classConfigurations
+      undefined, // classConfigurations
+      eliteMapIndex
     );
     eliteMap = oneEliteMap;
   }
