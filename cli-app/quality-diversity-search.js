@@ -296,7 +296,7 @@ export async function qdSearch(
   let seedFeaturesAndScores = [];
 
   while( 
-      ! shouldTerminate(terminationCondition, eliteMap, dummyRun)
+      ! shouldTerminate(terminationCondition, eliteMap, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun)
       &&
       ! ( batchDurationMs && batchDurationMs < Date.now() - startTimeMs )
   ) {
@@ -2269,46 +2269,71 @@ function getClassScoresStandardDeviation( genomeClassScores ) {
  * or
  * {percentageOfMapFilledWithFitnessThreshold: {percentage: x, minimumCellFitness: x}}
  */
-function shouldTerminate( terminationCondition, eliteMap, dummyRun ) {
+function shouldTerminate( terminationCondition, eliteMap, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun ) {
   let condition;
   let shouldTerminate = false;
-  if( dummyRun && dummyRun.iterations ) {
-    shouldTerminate = dummyRun.iterations <= eliteMap.generationNumber;
-  } else if( condition = terminationCondition["numberOfEvals"] ) {
-    shouldTerminate = condition <= eliteMap.generationNumber * eliteMap.searchBatchSize;
-  } else if( condition = terminationCondition["averageFitnessInMap"] ) {
-    const cellsKeysWithChampions = getCellKeysWithChampions(eliteMap.cells);
-    if( cellsKeysWithChampions.length ) {
-      let scoreSum = 0;
-      for( const oneCellKey of cellsKeysWithChampions ) {
-        scoreSum += eliteMap.cells[oneCellKey].elts[eliteMap.cells[oneCellKey].elts.length-1].s;
-      }
-      const averageFitness = scoreSum / cellsKeysWithChampions.length;
-      shouldTerminate = condition <= averageFitness;
-    } else {
-      shouldTerminate = false;
-    }
-  } else if( condition = terminationCondition["medianFitnessInMap"] ) {
-    const cellsKeysWithChampions = getCellKeysWithChampions(eliteMap.cells);
-    if( cellsKeysWithChampions.length ) {
-      const cellScores = getScoresForCellKeys( cellsKeysWithChampions, eliteMap.cells );
-      const cellScoreMedian = median(cellScores);
-      shouldTerminate = condition <= cellScoreMedian;
-    } else {
-      shouldTerminate = false;
-    }
-  } else if( condition = terminationCondition["percentageOfMapFilledWithFitnessThreshold"] ) {
-    const cellCount = Object.keys(eliteMap.cells).length;
-    const { percentage, minimumCellFitness } = condition;
-    let cellsWithFitnessOverThresholdCount = 0;
-    Object.keys(eliteMap.cells).forEach( oneClassKey => {
-      if( minimumCellFitness <= eliteMap.cells[oneClassKey].elts[eliteMap.cells[oneClassKey].elts.length-1].s ) {
-        cellsWithFitnessOverThresholdCount++;
-      }
-    });
-    const cellsWithFitnessOverThresholdPercentage = cellsWithFitnessOverThresholdCount / cellCount;
-    shouldTerminate = ( percentage <= cellsWithFitnessOverThresholdPercentage );
+
+  let terrainNames = [];
+  if( typeof classificationGraphModel === "object" && classificationGraphModel.hasOwnProperty("classConfigurations") ) {
+    terrainNames = classificationGraphModel.classConfigurations.map( cc => cc.refSetName );
   }
+  console.log("------ terrainNames", terrainNames);
+  let eliteMaps = [];
+  if( terrainNames.length === 0 ) {
+    eliteMaps.push( eliteMap );
+  } else {
+    for( const terrainName of terrainNames ) {
+      const eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName );
+      eliteMaps.push( eliteMap );
+    }
+  }
+
+  for( const oneEliteMap of eliteMaps ) {
+
+    if( dummyRun && dummyRun.iterations ) {
+      shouldTerminate = dummyRun.iterations <= oneEliteMap.generationNumber;
+    } else if( condition = terminationCondition["numberOfEvals"] ) {
+      shouldTerminate = condition <= oneEliteMap.generationNumber * oneEliteMap.searchBatchSize;
+      console.log("shouldTerminate", shouldTerminate, "elite id", oneEliteMap._id, "generationNumber", oneEliteMap.generationNumber, "searchBatchSize", oneEliteMap.searchBatchSize);
+    } else if( condition = terminationCondition["averageFitnessInMap"] ) {
+      const cellsKeysWithChampions = getCellKeysWithChampions(oneEliteMap.cells);
+      if( cellsKeysWithChampions.length ) {
+        let scoreSum = 0;
+        for( const oneCellKey of cellsKeysWithChampions ) {
+          scoreSum += oneEliteMap.cells[oneCellKey].elts[oneEliteMap.cells[oneCellKey].elts.length-1].s;
+        }
+        const averageFitness = scoreSum / cellsKeysWithChampions.length;
+        shouldTerminate = condition <= averageFitness;
+      } else {
+        shouldTerminate = false;
+      }
+    } else if( condition = terminationCondition["medianFitnessInMap"] ) {
+      const cellsKeysWithChampions = getCellKeysWithChampions(oneEliteMap.cells);
+      if( cellsKeysWithChampions.length ) {
+        const cellScores = getScoresForCellKeys( cellsKeysWithChampions, oneEliteMap.cells );
+        const cellScoreMedian = median(cellScores);
+        shouldTerminate = condition <= cellScoreMedian;
+      } else {
+        shouldTerminate = false;
+      }
+    } else if( condition = terminationCondition["percentageOfMapFilledWithFitnessThreshold"] ) {
+      const cellCount = Object.keys(oneEliteMap.cells).length;
+      const { percentage, minimumCellFitness } = condition;
+      let cellsWithFitnessOverThresholdCount = 0;
+      Object.keys(oneEliteMap.cells).forEach( oneClassKey => {
+        if( minimumCellFitness <= oneEliteMap.cells[oneClassKey].elts[oneEliteMap.cells[oneClassKey].elts.length-1].s ) {
+          cellsWithFitnessOverThresholdCount++;
+        }
+      });
+      const cellsWithFitnessOverThresholdPercentage = cellsWithFitnessOverThresholdCount / cellCount;
+      shouldTerminate = ( percentage <= cellsWithFitnessOverThresholdPercentage );
+    }
+
+    if( ! shouldTerminate ) {
+      break;
+    }
+  }
+  console.log("shouldTerminate", shouldTerminate);
   return shouldTerminate;
 }
 
