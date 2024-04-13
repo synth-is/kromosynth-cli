@@ -40,12 +40,14 @@ function newGenome( call, callback ) {
   const evolutionRunId = call.request.evolution_run_id;
   const generationNumber = call.request.generation_number;
   const evolutionaryHyperparameters = struct.decode(call.request.evolutionary_hyperparameters);
+  const oneCPPNPerFrequency = call.request.one_cppn_per_frequency;
 
   const genome = getNewAudioSynthesisGenome(
     evolutionRunId,
     generationNumber,
     undefined,
-    evolutionaryHyperparameters
+    evolutionaryHyperparameters,
+    oneCPPNPerFrequency
   );
   console.log("Created new gene for evolution run", evolutionRunId);
   const genome_string = JSON.stringify( genome );

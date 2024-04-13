@@ -83,7 +83,7 @@ export async function qdSearch(
     geneEvaluationProtocol, childProcessBatchSize, 
     batchSize, batchMultiplicationFactor,
     evaluationCandidateWavFilesDirPath,
-    probabilityMutatingWaveNetwork, probabilityMutatingPatch,
+    probabilityMutatingWaveNetwork, probabilityMutatingPatch, oneCPPNPerFrequency,
     classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
     antiAliasing,
     frequencyUpdatesApplyToAllPathcNetworkOutputs,
@@ -388,7 +388,7 @@ export async function qdSearch(
         renderEliteMapToWavFilesEveryNGenerations, renderElitesToWavFiles,
         searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
         maxNumberOfParents,
-        probabilityMutatingWaveNetwork, probabilityMutatingPatch,
+        probabilityMutatingWaveNetwork, probabilityMutatingPatch, oneCPPNPerFrequency,
         audioGraphMutationParams, evolutionaryHyperparameters,
         classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
         classScoringVariationsAsContainerDimensions,
@@ -461,7 +461,7 @@ async function mapElitesBatch(
   renderEliteMapToWavFilesEveryNGenerations, renderElitesToWavFiles,
   searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
   maxNumberOfParents,
-  probabilityMutatingWaveNetwork, probabilityMutatingPatch,
+  probabilityMutatingWaveNetwork, probabilityMutatingPatch, oneCPPNPerFrequency,
   audioGraphMutationParams, evolutionaryHyperparameters,
   classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
   classScoringVariationsAsContainerDimensions,
@@ -596,7 +596,8 @@ async function mapElitesBatch(
             try {
               newGenomeString = await callRandomGeneService(
                 evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters,
-                geneVariationServerHost
+                geneVariationServerHost,
+                oneCPPNPerFrequency
               );
             } catch (error) {
               console.error("Error calling gene seed service: " + error);
@@ -1820,7 +1821,7 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
     true, // shouldFit
     pcaComponents
   ).catch(e => {
-    console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+    console.error(`Error projecting diversity at generation ${eliteMap.generationNumber}`, e);
   });
 
   // doing the same thing here as in function retrainProjectionModel

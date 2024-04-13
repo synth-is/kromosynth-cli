@@ -6,9 +6,9 @@
   // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
   "eliteWinsOnlyOneCell": false,
   "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
-  // "batchSize": 200,
-  "batchSize": 50,
-  "maxNumberOfParents": 10,
+  "batchSize": 200,
+  // "batchSize": 50,
+  "maxNumberOfParents": 1,
   "terminationCondition": {
     "numberOfEvals": 200000
   //  or
@@ -29,6 +29,7 @@
   "evaluationCandidateWavFilesDirPath": null, // "/Users/bjornpjo/Documents/synth.is/evaluationCandidates",
   "probabilityMutatingWaveNetwork": 0.5,
   "probabilityMutatingPatch": 0.5,
+  "oneCPPNPerFrequency": true,
   // "classScoringDurations": [0.5, 1, 2, 5],
   // "classScoringDurations": [3, 5, 10],
   "classScoringDurations": [4],
@@ -130,21 +131,30 @@
     {
       "classConfigurations": [
         {
-          "refSetName": "nsynth-valid",
-          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
+          "refSetName": "customRef1",
+          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef1/embeds.npy",
           "featureExtractionEndpoint": "/vggish",
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
-          "pcaComponents": "0,1",
+          "pcaComponents": "0,2",
+          "sampleRate": 16000
+        },
+        {
+          "refSetName": "customRef2",
+          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,2",
           "sampleRate": 16000
         }
       ],
-      "classificationDimensions": [50, 50]
+      "classificationDimensions": [100, 100]
     }
   ],
   "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
   "mapSwitchingCondition": {
-    "switchEveryNGenerations": 20,
+    "switchEveryNGenerations": 500,
     "coverageWithoutIncreaseGenerations": 10,
     "qdScoreWithoutIncreaseGenerations": 10
   }, 
@@ -219,13 +229,13 @@
   ],
   "evaluationQualityServers": [ // quality evaluation
     "ws://127.0.0.1:32051",
-    // "ws://127.0.0.1:32052",
-    // "ws://127.0.0.1:32053"
+    "ws://127.0.0.1:32052",
+    "ws://127.0.0.1:32053"
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
-    // "ws://127.0.0.1:33052",
-    // "ws://127.0.0.1:33053"
+    "ws://127.0.0.1:33052",
+    "ws://127.0.0.1:33053"
     // "ws://127.0.0.1:33054",
     // "ws://127.0.0.1:33055"
   ]

@@ -13,14 +13,16 @@ const PROTO_PATH = __dirname + '/../../../gRPC/protos/gene.proto';
 let clients = {};
 
 export function callRandomGeneService(
-  evolutionRunId, generationNumber, evolutionaryHyperparameters, gRPCHost
+  evolutionRunId, generationNumber, evolutionaryHyperparameters, gRPCHost,
+  oneCPPNPerFrequency
 ) {
   console.log("callRandomGeneService gRPC:", gRPCHost);
   return new Promise((resolve, reject) => {
     const payload = {
       evolution_run_id: evolutionRunId,
       generation_number: generationNumber,
-      evolutionary_hyperparameters: struct.encode( evolutionaryHyperparameters )
+      evolutionary_hyperparameters: struct.encode( evolutionaryHyperparameters ),
+      one_cppn_per_frequency: oneCPPNPerFrequency
     };
     getClient( gRPCHost ).RandomGenome( payload, (err, response) => {
 console.log(response);
