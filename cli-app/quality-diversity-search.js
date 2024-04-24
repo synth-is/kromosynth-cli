@@ -1803,7 +1803,7 @@ async function getFeaturesAndScoreForAudioBuffer(
       evaluationQualityHost,
       ckptDir, // `${ckptDir}/${hostEvalQualityEncodedBase64}`
     ).catch(e => {
-      console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+      console.error(`getFeaturesAndScoreForAudioBuffer: Error getting quality.`, e);
     });
   } else {
     // get quality from audio buffer
@@ -1930,7 +1930,7 @@ async function retrainProjectionModel( cellFeatures, eliteMap, evaluationDiversi
     allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures].features );
   }
   console.log(`Retraining projection with ${allFeaturesToProject.length} features, after generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`);
-  const pcaComponents = eliteMap.classConfigurations[0].pcaComponents;
+  const pcaComponents = eliteMap.classConfigurations ? eliteMap.classConfigurations[0].pcaComponents : undefined;
   const diversityProjection = await getDiversityFromWebsocket(
     allFeaturesToProject,
     undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
