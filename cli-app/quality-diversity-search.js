@@ -318,7 +318,7 @@ export async function qdSearch(
       await saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, terrainName );
 
       // randomly select next elite map index, which is not the current one
-      const eliteMapCount = classificationGraphModel.classConfigurations.length;
+      const eliteMapCount = classificationGraphModel.classConfigurations ? classificationGraphModel.classConfigurations.length : 1;
       if( eliteMapCount > 1 ) {
         let nextEliteMapIndex;
         // do {
@@ -1823,7 +1823,7 @@ async function getFeaturesAndScoreForAudioBuffer(
 
 async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDiversityHost, evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap ) {
   const featuresArray = seedFeaturesAndScores.map( f => f.features );
-  const pcaComponents = eliteMap.classConfigurations[0].pcaComponents;
+  const pcaComponents = eliteMap.classConfigurations && eliteMap.classConfigurations.length ? eliteMap.classConfigurations[0].pcaComponentsn : undefined;
   const diversityProjection = await getDiversityFromWebsocket(
     featuresArray,
     undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
@@ -1984,7 +1984,7 @@ function initializeEliteMap(
   eliteMapIndex
 ) {
   let eliteMap = {
-    _id: getEliteMapKey(evolutionRunId, classConfigurations[0].refSetName),
+    _id: getEliteMapKey(evolutionRunId, classConfigurations ? classConfigurations[0].refSetName : undefined),
     algorithm,
     evolutionRunConfig, evolutionaryHyperparameters,
     generationNumber: 0,
@@ -2037,9 +2037,9 @@ function initializeGrid(
   } = evolutionRunConfig;
   const classificationGraphModel = classifiers[classifierIndex];
   let eliteMap;
+  let eliteMapIndex = 0;
   if( typeof classificationGraphModel === 'object' && classificationGraphModel.hasOwnProperty('classConfigurations') && classificationGraphModel.hasOwnProperty('classificationDimensions') ) {
     const { classConfigurations, classificationDimensions } = classificationGraphModel;
-    let eliteMapIndex = 0;
     if( classesAsMaps ) {
       // an array of eliteMaps, with each map representing a classConfiguration
       eliteMap = [];

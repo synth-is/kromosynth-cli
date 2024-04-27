@@ -59,6 +59,11 @@ plt.figure(figsize=(40*cm, 30*cm))
 legend_lines = []
 
 newEliteCount = data['evoRuns'][0]['aggregates']['newEliteCount']
+# check if coverage contains the key 'means' and 'stdDevs'
+if 'means' in newEliteCount and 'stdDevs' in newEliteCount:
+    print("newEliteCount contains 'means' and 'stdDevs'")
+    # add 'means' and 'stdDevs' as elements of 'oneMap' to the 'newEliteCount' dictionary
+    newEliteCount = {'oneMap': {'means': newEliteCount['means'], 'stdDevs': newEliteCount['stdDevs']}}
 for oneMap in newEliteCount:
     print(oneMap)
     newEliteCountMeans = np.array(newEliteCount[oneMap]['means'])
@@ -85,5 +90,5 @@ plt.legend(legend_lines, [oneMap for oneMap in data['evoRuns'][0]['aggregates'][
 plt.xlabel('Generation')
 plt.ylabel('Elite Count at Generations')
 
-# plt.savefig(save_dir + title + '_confidenceInterval.png')
+plt.savefig(save_dir + title + '_confidenceInterval.png')
 plt.savefig(save_dir + title + '_confidenceInterval.pdf')

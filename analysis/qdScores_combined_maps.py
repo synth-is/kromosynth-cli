@@ -59,6 +59,12 @@ plt.figure(figsize=(40*cm, 30*cm))
 legend_lines = []
 
 qdScores = data['evoRuns'][0]['aggregates']['qdScores']
+print('qdScores: ' + str(qdScores))
+# check if qdScores contains the key 'means' and 'stdDevs'
+if 'means' in qdScores and 'stdDevs' in qdScores:
+    print("qdScores contains 'means' and 'stdDevs'")
+    # add 'means' and 'stdDevs' as elements of 'oneMap' to the 'qdScores' dictionary
+    qdScores = {'oneMap': {'means': qdScores['means'], 'stdDevs': qdScores['stdDevs']}}
 for oneMap in qdScores:
     print(oneMap)
     qdScoresMeans = np.array(qdScores[oneMap]['means'])
@@ -94,5 +100,5 @@ plt.legend(legend_lines, [oneMap for oneMap in data['evoRuns'][0]['aggregates'][
 plt.xlabel('Generation')
 plt.ylabel('QD score')
 
-# plt.savefig(save_dir + title + '_confidenceInterval.png')
+plt.savefig(save_dir + title + '_confidenceInterval.png')
 plt.savefig(save_dir + title + '_confidenceInterval.pdf')

@@ -59,6 +59,11 @@ plt.figure(figsize=(40*cm, 30*cm))
 legend_lines = []
 
 coverage = data['evoRuns'][0]['aggregates']['coverage']
+# check if coverage contains the key 'means' and 'stdDevs'
+if 'means' in coverage and 'stdDevs' in coverage:
+    print("coverage contains 'means' and 'stdDevs'")
+    # add 'means' and 'stdDevs' as elements of 'oneMap' to the 'coverage' dictionary
+    coverage = {'oneMap': {'means': coverage['means'], 'stdDevs': coverage['stdDevs']}}
 for oneMap in coverage:
     print(oneMap)
     coverageMeans = np.array(coverage[oneMap]['means'])
@@ -85,5 +90,5 @@ plt.legend(legend_lines, [oneMap for oneMap in data['evoRuns'][0]['aggregates'][
 plt.xlabel('Generation')
 plt.ylabel('Coverage')
 
-# plt.savefig(save_dir + title + '_confidenceInterval.png')
+plt.savefig(save_dir + title + '_confidenceInterval.png')
 plt.savefig(save_dir + title + '_confidenceInterval.pdf')
