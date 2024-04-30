@@ -26,7 +26,7 @@ import {
   getQualityFromWebsocket, getQualityFromWebsocketForEmbedding, addToQualityQueryEmbeddigs
 } from './service/websocket/ws-gene-evaluation.js';
 import {
-  runCmd, runCmdAsync, readGenomeAndMetaFromDisk, getGenomeKey, calcStandardDeviation,
+  runCmd, runCmdAsync, readGenomeAndMetaFromDisk, getGenomeKey, getFeaturesKey, calcStandardDeviation,
   writeEvaluationCandidateWavFilesForGenome,
   populateNewGenomeClassScoresInBatchIterationResultFromEvaluationCandidateWavFiles,
   invertedLogarithmicRamp,
@@ -205,6 +205,7 @@ export async function qdSearch(
   let eliteMapIndex;
   let terrainName = undefined;
   let sampleRate;
+  let cellFeatures;
 
   eliteMapMeta = readEliteMapMetaFromDisk( evolutionRunId, evoRunDirPath );
   if( ! eliteMapMeta ) {
@@ -262,6 +263,7 @@ export async function qdSearch(
       }
     });
   }
+  cellFeatures = readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRunId, eliteMap );
 
   const audioGraphMutationParams = getAudioGraphMutationParams( evolutionaryHyperparameters );
   const patchFitnessTestDuration = 0.1;
@@ -288,10 +290,6 @@ export async function qdSearch(
   // - gc will be triggered manually at regular intervals below
 // TODO temporarily commenting out:  runCmd('git config --global gc.auto 0');
 
-  let cellFeatures = readCellFeaturesFromDisk( evolutionRunId, evoRunDirPath );
-  if( ! cellFeatures ) {
-    cellFeatures = {};
-  }
 
   let seedFeaturesAndScores = [];
 
@@ -355,6 +353,7 @@ export async function qdSearch(
         terrainName = classificationGraphModel.classConfigurations[eliteMapIndex].refSetName;
         sampleRate = classificationGraphModel.classConfigurations[eliteMapIndex].sampleRate;
         eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName );
+        cellFeatures = readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRunId, eliteMap );
         // eliteMap.generationNumber++; // increment the generation number, as the increment at the end of last batch iteration happened after last save
         eliteMap.mapSwitchLog.push({
           previousMapGeneration: currentMapGeneration,
@@ -1048,8 +1047,8 @@ async function mapElitesBatch(
 
             eliteMap.cells[classKey].eltAddCnt = eliteMap.cells[classKey].eltAddCnt ? eliteMap.cells[classKey].eltAddCnt + 1 : 1;
 
-            const { features, embedding } = newGenomeClassScores[classKey];
-            cellFeatures[classKey] = { features, embedding };
+            const { features, featuresType, embedding } = newGenomeClassScores[classKey];
+            cellFeatures[classKey] = { features, type: featuresType, embedding };
 
             classToBatchEliteCandidates[classKey] = {
               genomeId,
@@ -1410,15 +1409,15 @@ async function populateAndSaveCellFeatures(
         ckptDir, // `${ckptDir}/${evaluationFeatureHostBase64encoded}`,
         renderSampleRateForClassifier
       );
-      const { features, embedding } = featuresResponse;
-      const cellGenomeFeatures = { features, embedding };
+      const { features, type, embedding } = featuresResponse;
+      const cellGenomeFeatures = { features, type, embedding };
       cellFeatures[cellKey] = cellGenomeFeatures;
 
       cellKeyIndex++;
     }
   }
   const terrainName = eliteMap.classConfigurations && eliteMap.classConfigurations.length ? eliteMap.classConfigurations[0].refSetName : undefined;
-  saveCellFeaturesToDisk( cellFeatures, eliteMap.generationNumber, evoRunDirPath, evolutionRunId, terrainName );
+  saveCellFeaturesToDisk( cellFeatures, eliteMap, evoRunDirPath, evolutionRunId, terrainName );
 }
 
 async function getCellFitnessValues( eliteMap ) {
@@ -1466,6 +1465,7 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
   const pcaComponents = classConfigurations && classConfigurations.length ? classConfigurations[0].pcaComponents : undefined;
 
   const newGenomesFeatures = [];
+  const newGenomeFeatureTypes = [];
   const newGenomesEmbedding = [];
   const newGenomesFitnessValues = [];
   // get the feature vector for the new genomes
@@ -1489,13 +1489,16 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
 
     if( audioBuffer && audioBuffer.length && ! audioBuffer.some( value => isNaN(value) ) ) {
 
-      const { features, embedding, quality } = await getFeaturesAndScoreForAudioBuffer(
+      const { 
+        features, featuresType, embedding, quality 
+      } = await getFeaturesAndScoreForAudioBuffer(
         audioBuffer,
         evaluationFeatureExtractionHost, evaluationQualityHost,
         classConfigurations, eliteMapIndex,
         measureCollectivePerformance, ckptDir, evoRunDirPath
       );
       newGenomesFeatures.push( features );
+      newGenomeFeatureTypes.push( featuresType );
       newGenomesEmbedding.push( embedding );
       let newGenomeQuality = quality;
       
@@ -1516,6 +1519,9 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
   const newGenomeClassScores = {};
 
   if( shouldFit ) {
+
+    // TODO is this ever happening?
+
     // let's blast all available features into the diversity projection, and then pick the new genome projections from the result
 
     console.log(`Retraining projection after generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`);
@@ -1636,6 +1642,7 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
         score = newGenomeFitnessValue;
       }
       const newGenomeFeatureVector = newGenomesFeatures[i];
+      const newGenomeFeatureType = newGenomeFeatureTypes[i];
       const newGenomeEmbedding = newGenomesEmbedding[i];
 
       const diversityMapKey = diversityProjection.feature_map[i].join("_");
@@ -1652,6 +1659,7 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
         noteDelta,
         velocity,
         features: newGenomeFeatureVector,
+        featuresType: newGenomeFeatureType,
         embedding: newGenomeEmbedding
       };
     }
@@ -1694,6 +1702,7 @@ async function getGenomeScoreAndFeatures(
   });
 
   let newGenomeFeatureVector;
+  let newGenomeFeatureType;
   let newGenomeEmbedding;
   let newGenomeQuality;
   let fitness;
@@ -1715,7 +1724,9 @@ async function getGenomeScoreAndFeatures(
     //   console.error(`getGenomeScoreAndFeatures: Error getting quality  for genome ID ${genomeId}`, e);
     // });
 
-    const { features, embedding, quality } = await getFeaturesAndScoreForAudioBuffer(
+    const { 
+      features, featuresType, embedding, quality 
+    } = await getFeaturesAndScoreForAudioBuffer(
       audioBuffer,
       evaluationFeatureExtractionHost, evaluationQualityHost,
       classConfigurations, eliteMapIndex,
@@ -1724,6 +1735,7 @@ async function getGenomeScoreAndFeatures(
       evoRunDirPath
     );
     newGenomeFeatureVector = features;
+    newGenomeFeatureType = featuresType;
     newGenomeEmbedding = embedding;
     newGenomeQuality = quality;
 
@@ -1744,6 +1756,7 @@ async function getGenomeScoreAndFeatures(
     noteDelta,
     velocity,
     features: newGenomeFeatureVector,
+    featuresType: newGenomeFeatureType,
     embedding: newGenomeEmbedding
   };
 }
@@ -1791,6 +1804,8 @@ async function getFeaturesAndScoreForAudioBuffer(
   const newGenomeEmbedding = featuresResponse.embedding;
   // newGenomesEmbedding.push( newGenomeEmbedding );
 
+  const featuresType = featuresResponse.type;
+
   let newGenomeQuality;
   if( qualityFromEmbeds ) {
     const newGenomeEmbed = featuresResponse.embedding;
@@ -1816,6 +1831,7 @@ async function getFeaturesAndScoreForAudioBuffer(
   }
   return {
     features: newGenomeFeatureVector,
+    featuresType,
     embedding: newGenomeEmbedding,
     quality: newGenomeQuality
   };
@@ -2132,37 +2148,34 @@ function readEliteMapMetaFromDisk( evolutionRunId, evoRunDirPath) {
   return eliteMapMeta;
 }
 
-function saveCellFeaturesToDisk( cellFeatures, generationNumber, evoRunDirPath, evolutionRunId, terrainName ) {
-  const cellFeaturesToSave = { ...cellFeatures }
-  cellFeaturesToSave["_timestamp"] = Date.now();
-  cellFeaturesToSave["_generationNumber"] = generationNumber;
-  const cellFeaturesFileName = `cellFeatures_${evolutionRunId}.json`;
-  const cellFeaturesFilePath = `${evoRunDirPath}${cellFeaturesFileName}`;
-  const cellFeaturesStringified = JSON.stringify(cellFeaturesToSave, null, 2); // prettified to obtain the benefits (compression of git diffs)
-  fs.writeFileSync( cellFeaturesFilePath, cellFeaturesStringified );
-  
-  if( generationNumber % 100 === 0 ) {
-    // for analysis purposes, save the cellFeatures at each generation
-    const terrainSuffix = terrainName ? `_${terrainName}` : "";
-    const cellFeaturesFileNameAtGeneration = `cellFeatures_${evolutionRunId}_gen${generationNumber}${terrainSuffix}.json`;
-    const cellFeaturesFilePathAtGeneration = `${evoRunDirPath}${cellFeaturesFileNameAtGeneration}`;
-    fs.writeFileSync( cellFeaturesFilePathAtGeneration, cellFeaturesStringified );
+function saveCellFeaturesToDisk( cellFeatures, eliteMap, evoRunDirPath, evolutionRunId ) {
+  const cellFeaturesDirPath = `${evoRunDirPath}cellFeatures/`;
+  if( ! fs.existsSync(cellFeaturesDirPath) ) fs.mkdirSync( cellFeaturesDirPath, { recursive: true } );
+  // for each cell key in cellFeatures, save the features to disk with the corresponding key
+  for( const cellKey in cellFeatures ) {
+    const genomeId = eliteMap.cells[cellKey].elts[0].g;
+    const featuresKey = getFeaturesKey(evolutionRunId, genomeId);
+    const cellFeaturesFileName = `${featuresKey}.json`;
+    const cellFeaturesFilePath = `${cellFeaturesDirPath}${cellFeaturesFileName}`;
+    const cellFeaturesStringified = JSON.stringify(cellFeatures[cellKey], null, 2); // prettified to obtain the benefits (compression of git diffs)
+    fs.writeFileSync( cellFeaturesFilePath, cellFeaturesStringified );
   }
 }
-function readCellFeaturesFromDisk( evolutionRunId, evoRunDirPath ) {
-  let cellFeatures;
-  try {
-    const cellFeaturesFilePath = `${evoRunDirPath}cellFeatures_${evolutionRunId}.json`;
-    if( fs.existsSync (cellFeaturesFilePath) ) {
-      const cellFeaturesJSONString = fs.readFileSync( cellFeaturesFilePath, 'utf8' );
-      cellFeatures = JSON.parse( cellFeaturesJSONString );
+function readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRunId, eliteMap ) {
+  let cellFeatures = {};
+  // for all populated cells in the eliteMap, read the features from disk
+  for( const cellKey in eliteMap.cells ) {
+    if( eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length ) {
+      const genomeId = eliteMap.cells[cellKey].elts[0].g;
+      const featuresKey = getFeaturesKey(evolutionRunId, genomeId);
+      const cellFeaturesFileName = `${featuresKey}.json`;
+      const cellFeaturesFilePath = `${evoRunDirPath}cellFeatures/${cellFeaturesFileName}`;
+      if( fs.existsSync(cellFeaturesFilePath) ) {
+        const cellFeaturesJSONString = fs.readFileSync( cellFeaturesFilePath, 'utf8' );
+        const cellFeaturesJSON = JSON.parse( cellFeaturesJSONString );
+        cellFeatures[cellKey] = cellFeaturesJSON;
+      }
     }
-  } catch( err ) {
-    console.error("readCellFeaturesFromDisk: ", err);
-  }
-  if( cellFeatures ) {
-    delete cellFeatures["_timestamp"];
-    delete cellFeatures["_generationNumber"];
   }
   return cellFeatures;
 }
