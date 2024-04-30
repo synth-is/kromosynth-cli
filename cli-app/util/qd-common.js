@@ -31,6 +31,9 @@ export async function readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRu
 export function getGenomeKey( evolutionRunId, genomeId ) {
   return `genome_${evolutionRunId}_${genomeId}`;
 }
+export function getFeaturesKey( evolutionRunId, genomeId ) {
+  return `features_${evolutionRunId}_${genomeId}`;
+}
 
 export function deleteAllGenomesNotInEliteMap( eliteMap, evoRunDirPath ) {
   const eliteGenomeIds = Object.fromEntries( 
