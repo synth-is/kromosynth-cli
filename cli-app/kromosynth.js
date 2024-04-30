@@ -29,6 +29,7 @@ import {
 	getCellScoresForAllIterations,
 	getCoverageForOneIteration,
 	getCoverageForAllIterations,
+	getScoreMatrixForLastIteration,
 	getCellSaturationGenerations,
 	getGenomeSetsForOneIteration,
 	getGenomeCountsForAllIterations,
@@ -268,7 +269,7 @@ const cli = meow(`
 		$ kromosynth evo-run-lineage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
 		$ kromosynth evo-run-duration-pitch-delta-velocity-combinations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100 --unique-genomes true
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,new-elite-count,elite-generations,genome-statistics,genome-sets,genome-sets-through-rendering-variations,variance,elites-energy,goal-switches,goal-switches-through-lineages,lineage,duration-pitch-delta-velocity-combinations,diversity-from-embeddings --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction '["Narration, monologue"]' --max-iteration-index 300000
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,score-matrix,new-elite-count,elite-generations,genome-statistics,genome-sets,genome-sets-through-rendering-variations,variance,elites-energy,goal-switches,goal-switches-through-lineages,lineage,duration-pitch-delta-velocity-combinations,diversity-from-embeddings --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction '["Narration, monologue"]' --max-iteration-index 300000
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
@@ -1328,6 +1329,12 @@ async function qdAnalysis_evoRuns() {
 						const coverage = await getCoverageForAllIterations( evoRunConfig, evolutionRunId, stepSize, scoreThreshold );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].coverage = coverage;
 						console.log(`Added coverage to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
+					if( oneAnalysisOperation === "score-matrix" ) {
+						const scoreMatrix = await getScoreMatrixForLastIteration( evoRunConfig, evolutionRunId );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreMatrix = scoreMatrix;
+						console.log(`Added score matrix to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "new-elite-count") {
