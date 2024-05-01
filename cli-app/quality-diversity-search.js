@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { promises as fsPromise } from 'fs';
+import JSONStream from 'JSONStream'
 import path from 'path';
 import {glob} from 'glob';
 import {ulid} from 'ulid';
@@ -491,7 +492,7 @@ async function mapElitesBatch(
 
   if( shouldPopulateCellFeatures ) {
     // seed rounds are over, we're doing unsupervised diversity evaluation, but we haven't yet projected the features:
-    // - so far the have been collected: let's project the whole collection
+    // - so far they have been collected: let's project the whole collection
     searchPromises = new Array( seedFeaturesAndScores.length );
     const seedFeatureClassKeys = await getClassKeysFromSeedFeatures(
       seedFeaturesAndScores, _evaluationProjectionServers[0], evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap
@@ -1828,7 +1829,7 @@ async function getFeaturesAndScoreForAudioBuffer(
       audioBuffer,
       evaluationQualityHost
     ).catch(e => {
-      console.error(`Error getting quality.`, e);
+      console.error(`Error getting quality from evaluationFeatureExtractionHost ${evaluationFeatureExtractionHost}`, e);
     });
   }
   return {

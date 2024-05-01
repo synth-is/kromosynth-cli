@@ -283,12 +283,63 @@ export async function getCoverageForAllIterations( evoRunConfig, evoRunId, stepS
     }
   }
 
-
   const coveragesStringified = JSON.stringify(coverages);
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const coveragesFilePath = `${evoRunDirPath}coverages_step-${stepSize}_threshold-${scoreThreshold}.json`;
   fs.writeFileSync( coveragesFilePath, coveragesStringified );
   return coverages;
+}
+
+
+// QD score heatmap
+
+export async function getScoreMatrixForLastIteration( evoRunConfig, evoRunId ) {
+  const terrainNames = getTerrainNames( evoRunConfig );
+  let scoreMatrixes;
+  if( terrainNames.length ) {
+    scoreMatrixes = {};
+    for( const oneTerrainName of terrainNames ) {
+      console.log(`Calculating score matrix for terrain ${oneTerrainName}...`);
+      const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, oneTerrainName );
+      scoreMatrixes[oneTerrainName] = await getScoreMatrixForTerrain( evoRunConfig, evoRunId, oneTerrainName );
+    }
+  } else {
+    const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false );
+    scoreMatrixes = await getScoreMatrixForTerrain( evoRunConfig, evoRunId );
+  }
+  return scoreMatrixes;
+}
+
+export async function getScoreMatrixForTerrain( evoRunConfig, evoRunId, terrainName ) {
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, terrainName );
+  return getScoreMatrixFromEliteMap( eliteMap );
+}
+
+export async function getScoreMatrixFromEliteMap( eliteMap ) {
+  let scoresArray = [];
+
+  // Iterate over each key in the JSON object
+  for (let key in eliteMap.cells) {
+    let [firstIndex, secondIndex] = key.split(/[_|,]/); // Split key by underscore or comma
+
+    firstIndex = parseInt(firstIndex);
+    secondIndex = parseInt(secondIndex);
+
+    // Create nested arrays to store scores
+    scoresArray[firstIndex] = scoresArray[firstIndex] || [];
+
+    // Check if "elts" array exists and has elements
+    if (
+      eliteMap.cells[key].hasOwnProperty("elts") && 
+      eliteMap.cells[key].elts.length > 0
+    ) {
+      scoresArray[firstIndex][secondIndex] = eliteMap.cells[key].elts[0].s;
+    } else {
+      scoresArray[firstIndex][secondIndex] = null; // Handle empty "elts" array
+    }
+  }
+
+  return scoresArray;
 }
 
 ///// elite count
