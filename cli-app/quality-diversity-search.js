@@ -506,7 +506,9 @@ async function mapElitesBatch(
         let score;
         if( getIsTopScoreFitnessWithAssociatedClass(fitness) ) {
           score = fitness.top_score;
-          seedFeatureClassKeys[i] = seedFeatureClassKeys[i] + `_${fitness.top_score_class}`;
+          const seedFeatureClassKeyParts = seedFeatureClassKeys[i].split("-");
+          seedFeatureClassKeyParts[0] = seedFeatureClassKeyParts[0] + `_${fitness.top_score_class}`;
+          seedFeatureClassKeys[i] = seedFeatureClassKeyParts.join("-");
         } else {
           score = fitness;
         }
@@ -797,7 +799,7 @@ async function mapElitesBatch(
                         projection: _evaluationProjectionServers[ (batchIteration + iterationIncrement) % _evaluationProjectionServers.length ],
                         quality: _evaluationQualityServers[ (batchIteration + iterationIncrement) % _evaluationQualityServers.length ]
                       };
-                      const oneClassKeySuffix = `_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
+                      const oneClassKeySuffix = `-${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
                       // await populateAndSaveCellFeatures( 
                       //   eliteMap, cellFeatures, 
                       //   oneDuration, oneNoteDelta, oneVelocity, useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
@@ -1826,7 +1828,7 @@ async function getFeaturesAndScoreForAudioBuffer(
       audioBuffer,
       evaluationQualityHost
     ).catch(e => {
-      console.error(`Error getting quality at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+      console.error(`Error getting quality.`, e);
     });
   }
   return {
@@ -1858,7 +1860,7 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
   if( classScoringVariationsAsContainerDimensions ) {
     return diversityProjection.feature_map.map( (oneClassKey, i) => {
       const {duration, noteDelta, velocity} = seedFeaturesAndScores[i];
-      const classScoringVariationsKey =  `_${duration}_${noteDelta}_${velocity}`;
+      const classScoringVariationsKey =  `-${duration}_${noteDelta}_${velocity}`;
       return oneClassKey.join('_') + classScoringVariationsKey;
     });
   } else {
@@ -2024,7 +2026,7 @@ function initializeEliteMap(
       for( const oneNoteDelta of classScoringNoteDeltas ) {
         for( const oneVelocity of classScoringVelocities ) {
           classifierTags.forEach((oneTag, i) => {
-            const oneClassKey = `${oneTag}_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
+            const oneClassKey = `${oneTag}-${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
             eliteMap.cells[oneClassKey] = {
               elts: [],
               eltAddCnt: 0
