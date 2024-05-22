@@ -154,15 +154,20 @@
   ],
   "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
   "mapSwitchingCondition": {
-    "switchEveryNGenerations": 500,
+    // only one of those should be set at a time:
+    // - for the gradient thresholds, the gradientWindowSize should be set to the number of generations to consider
+    "switchEveryNGenerations": 10,
     "coverageWithoutIncreaseGenerations": 10,
-    "qdScoreWithoutIncreaseGenerations": 10
+    "qdScoreWithoutIncreaseGenerations": 10,
+    "coverageGradientThreshold": 0.6, // 0.01,
+    "qdScoreGradientThreshold": 0.6, // 0.01,
+    "gradientWindowSize": 10
   }, 
   "classifierIndex" : 6,
   "ckptDir": "/Users/bjornpjo/.cache/torch/hub/checkpoints",
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
 
-  "measureCollectivePerformance": true, // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
+  "measureCollectivePerformance": false, // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
 
   "useGpuForTensorflow": true,
   "renderSampleRateForClassifier": 16000,

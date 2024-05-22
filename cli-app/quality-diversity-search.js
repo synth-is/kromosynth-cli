@@ -366,7 +366,11 @@ export async function qdSearch(
       } else {
         console.log("only one map, not switching");
       }
-    } else if( eliteMap.isBeingSwitchedToFromAnotherMap ) {
+    } else if( 
+      eliteMap.isBeingSwitchedToFromAnotherMap 
+      ||
+      eliteMap.shouldFit
+    ) {
       const refSetEmbedsPath = classificationGraphModel.classConfigurations[eliteMapIndex].refSetEmbedsPath;
       seedFeaturesAndScores = await getFeaturesAndScoresFromEliteMap( 
         eliteMap, cellFeatures,
@@ -487,8 +491,13 @@ async function mapElitesBatch(
   const isSeedRound = (eliteMap.generationNumber*searchBatchSize) < seedEvals 
     && ! eliteMap.eliteMapIndex > 0; // only seed the first map
   
-  const shouldPopulateCellFeatures = eliteMap.isBeingSwitchedToFromAnotherMap 
-    || ! isSeedRound && isUnsupervisedDiversityEvaluation && ! Object.keys(cellFeatures).length && seedFeaturesAndScores.length;
+  const shouldPopulateCellFeatures = (
+      eliteMap.isBeingSwitchedToFromAnotherMap 
+      ||
+      eliteMap.shouldFit
+      || ! isSeedRound && isUnsupervisedDiversityEvaluation && ! Object.keys(cellFeatures).length 
+    )
+    && seedFeaturesAndScores.length;
 
   if( shouldPopulateCellFeatures ) {
     // seed rounds are over, we're doing unsupervised diversity evaluation, but we haven't yet projected the features:
@@ -528,9 +537,10 @@ async function mapElitesBatch(
         });
       });
     }
-  // getClassKeysFromSeedFeatures trains the projection: let's set the projection fit index according to the number of seed features, from the current generation number
-    eliteMap.lastProjectionFitIndex = getNextFitGenerationIndex( (eliteMap.generationNumber*searchBatchSize) + seedFeaturesAndScores.length );
-
+    // getClassKeysFromSeedFeatures trains the projection: let's set the projection fit index according to the number of seed features, from the current generation number
+    if( isSeedRound ) {
+      eliteMap.lastProjectionFitIndex = getNextFitGenerationIndex( (eliteMap.generationNumber*searchBatchSize) + seedFeaturesAndScores.length );
+    }
   } else {
 
     searchPromises = new Array(searchBatchSize);
@@ -1115,6 +1125,7 @@ async function mapElitesBatch(
       batchEliteIndex++;
     }
     eliteMap.eliteCountAtGeneration = Object.keys(classToBatchEliteCandidates).length;
+    eliteMap.eliteCounts.push( eliteMap.eliteCountAtGeneration );
     classToBatchEliteCandidates = undefined; // attempt to free up memory
 
   }); // await Promise.all( searchPromises ).then( async (batchIterationResult) => {
@@ -1169,7 +1180,9 @@ async function mapElitesBatch(
 
   const shouldFit = getShouldFit(eliteMap.lastProjectionFitIndex, eliteMap.generationNumber*searchBatchSize); // eliteMap.generationNumber*searchBatchSize === iterationNumber
   if( isUnsupervisedDiversityEvaluation && ! isSeedRound && shouldFit ) {
-    await retrainProjectionModel( cellFeatures, eliteMap, _evaluationProjectionServers, evoRunDirPath );
+    // TODO: letting getClassKeysFromSeedFeatures handle the retraining
+    // await retrainProjectionModel( cellFeatures, eliteMap, _evaluationProjectionServers, evoRunDirPath );
+    eliteMap.shouldFit = true;
   }
 
   if( shouldRenderWaveFiles ) {
@@ -1853,8 +1866,10 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber}`, e);
   });
+  eliteMap.shouldFit = false;
 
   // doing the same thing here as in function retrainProjectionModel
+  eliteMap.lastProjectionFitIndex++;
   eliteMap.projectionModelFitGenerations.push( eliteMap.generationNumber );
   eliteMap.projectionSizes.push( diversityProjection.feature_map.length );
   
@@ -1942,28 +1957,31 @@ function getNextFitGenerationIndex( lastProjectionFitGenerationNumber ) {
 }
 
 async function retrainProjectionModel( cellFeatures, eliteMap, evaluationDiversityHosts, evoRunDirPath ) {
-  const evaluationDiversityHost = evaluationDiversityHosts[0];
-  const cellKeysWithFeatures = Object.keys(cellFeatures);
-  const allFeaturesToProject = [];
-  for( const cellKeyWithFeatures of cellKeysWithFeatures ) {
-    allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures].features );
-  }
-  console.log(`Retraining projection with ${allFeaturesToProject.length} features, after generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`);
-  const pcaComponents = eliteMap.classConfigurations ? eliteMap.classConfigurations[0].pcaComponents : undefined;
-  const diversityProjection = await getDiversityFromWebsocket(
-    allFeaturesToProject,
-    undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
-    evaluationDiversityHost,
-    evoRunDirPath,
-    true, // shouldFit
-    pcaComponents
-  ).catch(e => {
-    console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
-  });
-  eliteMap.lastProjectionFitIndex++;
-  eliteMap.projectionModelFitGenerations.push( eliteMap.generationNumber );
-  eliteMap.projectionSizes.push( diversityProjection.feature_map.length );
-  return diversityProjection;
+
+  // TODO: letting getClassKeysFromSeedFeatures handle this
+
+  // const evaluationDiversityHost = evaluationDiversityHosts[0];
+  // const cellKeysWithFeatures = Object.keys(cellFeatures);
+  // const allFeaturesToProject = [];
+  // for( const cellKeyWithFeatures of cellKeysWithFeatures ) {
+  //   allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures].features );
+  // }
+  // console.log(`Retraining projection with ${allFeaturesToProject.length} features, after generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`);
+  // const pcaComponents = eliteMap.classConfigurations ? eliteMap.classConfigurations[0].pcaComponents : undefined;
+  // const diversityProjection = await getDiversityFromWebsocket(
+  //   allFeaturesToProject,
+  //   undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
+  //   evaluationDiversityHost,
+  //   evoRunDirPath,
+  //   true, // shouldFit
+  //   pcaComponents
+  // ).catch(e => {
+  //   console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
+  // });
+  // eliteMap.lastProjectionFitIndex++;
+  // eliteMap.projectionModelFitGenerations.push( eliteMap.generationNumber );
+  // eliteMap.projectionSizes.push( diversityProjection.feature_map.length );
+  // return diversityProjection;
 }
 
 function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOneCell, classRestriction ) {
@@ -2010,6 +2028,7 @@ function initializeEliteMap(
     lastProjectionFitIndex: 0, // or re-training of the projection model
     projectionModelFitGenerations: [],
     projectionSizes: [], // aka coverage
+    eliteCounts: [],
     timestamp: Date.now(),
     eliteCountAtGeneration: 0,
     terminated: false,
@@ -2355,15 +2374,29 @@ function shouldTerminate( terminationCondition, eliteMap, classificationGraphMod
 
 function shouldSwitchMap( eliteMap, mapSwitchingCondition ) {
   if(
-    eliteMap.generationNumber > 0 && eliteMap.generationNumber % mapSwitchingCondition.switchEveryNGenerations === 0
-    // ||
-    // mapSwitchingCondition.coverageWithoutIncreaseGenerations && 
-    // mapSwitchingCondition.coverageWithoutIncreaseGenerations < eliteMap.coverageWithoutIncreaseCount 
-    // ||
-    // mapSwitchingCondition.qdScoreWithoutIncreaseGenerations &&
-    // mapSwitchingCondition.qdScoreWithoutIncreaseGenerations < eliteMap.qdScoreWithoutIncreaseCount
+    eliteMap.generationNumber > 0 && mapSwitchingCondition.switchEveryNGenerations && eliteMap.generationNumber % mapSwitchingCondition.switchEveryNGenerations === 0
   ) {
     return true;
+  } else if( 
+    mapSwitchingCondition.coverageWithoutIncreaseGenerations && 
+    mapSwitchingCondition.coverageWithoutIncreaseGenerations < eliteMap.coverageWithoutIncreaseCount 
+   ) {
+    return true;
+  } else if(
+    mapSwitchingCondition.qdScoreWithoutIncreaseGenerations &&
+    mapSwitchingCondition.qdScoreWithoutIncreaseGenerations < eliteMap.qdScoreWithoutIncreaseCount
+  ) {
+    return true;
+  } else if(
+    mapSwitchingCondition.coverageGradientThreshold && mapSwitchingCondition.gradientWindowSize
+  ) {
+    const coverageGradient = getGradient( eliteMap.projectionSizes, mapSwitchingCondition.gradientWindowSize );
+    return coverageGradient < mapSwitchingCondition.coverageGradientThreshold;
+  } else if(
+    mapSwitchingCondition.qdScoreGradientThreshold && mapSwitchingCondition.gradientWindowSize
+  ) {
+    const qdScoreGradient = getGradient( eliteMap.qdScores, mapSwitchingCondition.gradientWindowSize );
+    return qdScoreGradient < mapSwitchingCondition.qdScoreGradientThreshold;
   } else {
     return false;
   }
