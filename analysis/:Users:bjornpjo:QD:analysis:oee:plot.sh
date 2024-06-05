@@ -1,0 +1,26 @@
+#  python3 qdScores_combined_maps.py /Users/bjornpjo/QD/analysis/oee/non/guitar/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710806537978.json 1 /Users/bjornpjo/QD/analysis/oee/non/guitar/
+#  python3 qdScores_combined_maps.py /Users/bjornpjo/QD/analysis/oee/non/mallet/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710807217566.json 1 /Users/bjornpjo/QD/analysis/oee/non/mallet/
+#  python3 qdScores_combined_maps.py /Users/bjornpjo/QD/analysis/oee/non/reed/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710807610646.json 1 /Users/bjornpjo/QD/analysis/oee/non/reed/
+#  python3 qdScores_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-both/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710793091121.json 1 /Users/bjornpjo/QD/analysis/oee/switch-both/
+#  python3 qdScores_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-features/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710796137790.json 1 /Users/bjornpjo/QD/analysis/oee/switch-features/
+#  python3 qdScores_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-features/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710796137790.json 1 /Users/bjornpjo/QD/analysis/oee/switch-features/
+#  python3 qdScores_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-fitness/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710797815046.json 1 /Users/bjornpjo/QD/analysis/oee/switch-fitness/
+#  python3 qdScores_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-train/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710800720212.json 1 /Users/bjornpjo/QD/analysis/oee/switch-train/
+
+ python3 coverage_combined_maps.py /Users/bjornpjo/QD/analysis/oee/non/guitar/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710806537978.json 1 /Users/bjornpjo/QD/analysis/oee/non/guitar/
+ python3 coverage_combined_maps.py /Users/bjornpjo/QD/analysis/oee/non/mallet/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710807217566.json 1 /Users/bjornpjo/QD/analysis/oee/non/mallet/
+ python3 coverage_combined_maps.py /Users/bjornpjo/QD/analysis/oee/non/reed/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710807610646.json 1 /Users/bjornpjo/QD/analysis/oee/non/reed/
+ python3 coverage_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-both/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710793091121.json 1 /Users/bjornpjo/QD/analysis/oee/switch-both/
+ python3 coverage_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-features/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710796137790.json 1 /Users/bjornpjo/QD/analysis/oee/switch-features/
+ python3 coverage_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-features/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710796137790.json 1 /Users/bjornpjo/QD/analysis/oee/switch-features/
+ python3 coverage_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-fitness/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710797815046.json 1 /Users/bjornpjo/QD/analysis/oee/switch-fitness/
+ python3 coverage_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-train/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710800720212.json 1 /Users/bjornpjo/QD/analysis/oee/switch-train/
+
+python3 eliteCountAtGenerations_combined_maps.py /Users/bjornpjo/QD/analysis/oee/non/guitar/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710806537978.json 1 /Users/bjornpjo/QD/analysis/oee/non/guitar/
+python3 eliteCountAtGenerations_combined_maps.py /Users/bjornpjo/QD/analysis/oee/non/mallet/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710807217566.json 1 /Users/bjornpjo/QD/analysis/oee/non/mallet/
+python3 eliteCountAtGenerations_combined_maps.py /Users/bjornpjo/QD/analysis/oee/non/reed/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710807610646.json 1 /Users/bjornpjo/QD/analysis/oee/non/reed/
+python3 eliteCountAtGenerations_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-both/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710793091121.json 1 /Users/bjornpjo/QD/analysis/oee/switch-both/
+python3 eliteCountAtGenerations_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-features/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710796137790.json 1 /Users/bjornpjo/QD/analysis/oee/switch-features/
+python3 eliteCountAtGenerations_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-features/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710796137790.json 1 /Users/bjornpjo/QD/analysis/oee/switch-features/
+python3 eliteCountAtGenerations_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-fitness/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710797815046.json 1 /Users/bjornpjo/QD/analysis/oee/switch-fitness/
+python3 eliteCountAtGenerations_combined_maps.py /Users/bjornpjo/QD/analysis/oee/switch-train/evolution-run-analysis_qd-scores,coverage,new-elite-count_step-1_1710800720212.json 1 /Users/bjornpjo/QD/analysis/oee/switch-train/

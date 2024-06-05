@@ -1,0 +1,18 @@
+{
+  "baseEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "features-mfcc_pca-quantised_quality-instrumentation_classDims_durDims",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_quality-instrumentation-max-1_classDims_durDims_clsscSynth.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HWT47946HF20AR49H1G5TYNB_features-mfcc_pca-quantised_quality-instrumentation_classDims_durDims"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

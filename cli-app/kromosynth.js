@@ -160,6 +160,9 @@ const cli = meow(`
 		render-evoruns
 			Render all elites in the elite map, for all evolution runs returned from a REST endpoint (evoruns.synth.is by default), to audio (WAV) files
 
+		render-evorun
+			Render all elites in the elite map, for one evolution run, to audio (WAV) files
+
 	Options
 		Commands: <new-genome, mutate-genome, render-audio or classify-genome>
 		--read-from-file, -r  Gene file to read from
@@ -854,7 +857,7 @@ async function renderEvorun() {
 		process.exit();
 	}
 	const evoRunId = evoRunDirPath.substring(0,evoRunDirPath.length).split('/').pop();
-	const generationCount = getCommitCount( evoRunDirPath );
+	const generationCount = getCommitCount( evoRunDirPath, true );
 	if( everyNthGeneration >= generationCount ) {
 		everyNthGeneration = generationCount - 1;
 	}

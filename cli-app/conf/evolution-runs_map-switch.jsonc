@@ -1,0 +1,40 @@
+{
+  "baseEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "evoConf_mapSwitch_refSingleEmbeddings_x10",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_mapSwitch_refSingleEmbeddings_x10.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HZ2784598TVS1CJ8ZRJ25GBF_evoConf_mapSwitch_refSingleEmbeddings_x10"
+        },
+        {
+          "id": "01HZDG5V3JN94NVPCXRMV3S38R_evoConf_mapSwitch_refSingleEmbeddings_x10"
+        },
+        {
+          "id": "01HZEQC7PNNF710AFJ340A8BWR_evoConf_mapSwitch_refSingleEmbeddings_x10"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_mapSwitch_refSingleEmbeddings_x100",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_mapSwitch_refSingleEmbeddings_x100.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HZ39T6CA37E64ZCEH2G9EZRA_evoConf_mapSwitch_refSingleEmbeddings_x100"
+        },
+        {
+          "id": "01HZEPSTJFM8P0B1H9V6VN4XS5_evoConf_mapSwitch_refSingleEmbeddings_x100"
+        },
+        {
+          "id": "01HZG2MA4VTG91PXXSYWCY35G5_evoConf_mapSwitch_refSingleEmbeddings_x100"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIteration": 2
+}

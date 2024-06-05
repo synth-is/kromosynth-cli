@@ -1,0 +1,18 @@
+{
+  "baseEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "5dur-1ndelt-1vel",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_5dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HG4DFR8N3Z21MXQ0JCFK296Z_5dur-1ndelt-1vel"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

@@ -145,8 +145,15 @@ export function getFeaturesFromWebsocket(
   ckptDir = "",
   sampleRate = ""
 ) {
-  console.log('getFeaturesFromWebsocket', evaluationFeatureHost);
-  const ws = getClient( `${evaluationFeatureHost}?ckpt_dir=${ckptDir}&sample_rate=${sampleRate}` );
+  // if evaluationFeatureHost contains query parameters, add ckptDir and sampleRate as query parameters, if not, then add those as the only query parameters
+  let evaluationFeatureHostWithQueryParams;
+  if( evaluationFeatureHost.includes('?') ) {
+    evaluationFeatureHostWithQueryParams = `${evaluationFeatureHost}&ckpt_dir=${ckptDir}&sample_rate=${sampleRate}`;
+  } else {
+    evaluationFeatureHostWithQueryParams = `${evaluationFeatureHost}?ckpt_dir=${ckptDir}&sample_rate=${sampleRate}`;
+  }
+  console.log('getFeaturesFromWebsocket', evaluationFeatureHostWithQueryParams);
+  const ws = getClient( evaluationFeatureHostWithQueryParams );
   ws.binaryType = "arraybuffer"; // Set binary type for receiving array buffers
   return new Promise((resolve, reject) => {
     ws.on('open', () => {
@@ -195,8 +202,12 @@ export function getQualityFromWebsocketForEmbedding(
   evaluationQualityHost,
   ckptDir
 ) {
+  if( embedding.length === 1 ) {
+    console.error('getQualityFromWebsocketForEmbedding: embedding length is 1');
+  }
   // console.log('getQualityFromWebsocketForEmbedding', evaluationQualityHost);
-  const qualityURL = `${evaluationQualityHost}/score?background_embds_path=${refSetEmbedsPath}&eval_embds_path=${querySetEmbedsPath}&measure_collective_performance=${measureCollectivePerformance}&ckpt_dir=${ckptDir}`;
+  // const qualityURL = `${evaluationQualityHost}/score?background_embds_path=${refSetEmbedsPath}&eval_embds_path=${querySetEmbedsPath}&measure_collective_performance=${measureCollectivePerformance}&ckpt_dir=${ckptDir}`;
+  const qualityURL = `${evaluationQualityHost}`;
   // console.log('qualityURL:', qualityURL);
   const ws = getClient( qualityURL );
   return new Promise((resolve, reject) => {
@@ -204,8 +215,13 @@ export function getQualityFromWebsocketForEmbedding(
       ws.send( JSON.stringify(embedding) );
     });
     ws.on('message', (message) => {
-      const quality = JSON.parse( message );
-      resolve( quality );
+      if( message.status === 'ERROR' ) {
+        console.error('getQualityFromWebsocketForEmbedding error:', message);
+        reject( message );
+      } else {
+        const quality = JSON.parse( message );
+        resolve( quality );
+      }
     });
     ws.on('error', (error) => {
       delete clients[evaluationQualityHost];

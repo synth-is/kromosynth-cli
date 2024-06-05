@@ -1,6 +1,5 @@
 import fs from 'fs';
 import { promises as fsPromise } from 'fs';
-import JSONStream from 'JSONStream'
 import path from 'path';
 import {glob} from 'glob';
 import {ulid} from 'ulid';
@@ -31,7 +30,8 @@ import {
   writeEvaluationCandidateWavFilesForGenome,
   populateNewGenomeClassScoresInBatchIterationResultFromEvaluationCandidateWavFiles,
   invertedLogarithmicRamp,
-  deleteAllGenomesNotInEliteMap, deleteAllGenomeRendersNotInEliteMap
+  deleteAllGenomesNotInEliteMap, deleteAllGenomeRendersNotInEliteMap,
+  getGradient
 } from './util/qd-common.js';
 import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker } from './service/workers/gene-child-process-forker.js';
 import { get } from 'http';
@@ -309,7 +309,10 @@ export async function qdSearch(
     }
 
     // check if we should switch maps
-    if( classesAsMaps && shouldSwitchMap(eliteMap, mapSwitchingCondition) ) {
+    if( classesAsMaps && 
+      (eliteMap.generationNumber*searchBatchSize) > (seedEvals+searchBatchSize) &&
+      shouldSwitchMap(eliteMap, mapSwitchingCondition) 
+    ) {
 
       // reset map switching conditions in map and save it
       eliteMap.coverageWithoutIncreaseGenerations = 0;
@@ -338,23 +341,86 @@ export async function qdSearch(
         eliteMapMeta.eliteMapIndex = eliteMapIndex;
         saveEliteMapMetaToDisk( eliteMapMeta, evoRunDirPath, evolutionRunId );
 
+
+        // TODO: if the map being switched to as an associated configuration specifying a different feature extraction approach,
+        // - eg. wav2vec vs a pair of low level features, then we need to populate --cellFeatures-- with the new features
+        
+        // - - we populate cellFeaturesFromCurrentAndNextEliteMaps, instead of cellFeatures, with features from both maps;
+        // - - the one we are switching from and the one we are switching to, so elite features from both have an opportunity to influence the training of the projection, which happens in mapElitesBatch() ... if( shouldPopulateCellFeatures ) ... 
+
+        // TODO: outdated?:
         // let's get the features and scores from the current map, before switching
         // - using nextElite's refSetEmbedsPath to get the quality / fitness according to that one, before projecting individuals to the new map
-        const refSetEmbedsPath = classificationGraphModel.classConfigurations[eliteMapIndex].refSetEmbedsPath;
-        const refSetName = classificationGraphModel.classConfigurations[eliteMapIndex].refSetName;
-        seedFeaturesAndScores = await getFeaturesAndScoresFromEliteMap( 
-          eliteMap, cellFeatures,
-          _evaluationQualityServers, evolutionRunId, evoRunDirPath,
-          scoreProportion,
-          ckptDir, measureCollectivePerformance,
-          refSetEmbedsPath, refSetName
-        );
+
+        // first get the genome ids from the current map ...
+        const genomeIdsFromCurrentAndNextEliteMaps = new Set( getEliteGenomeIdsFromEliteMaps( eliteMap ) );
+
+        const classConfiguration = classificationGraphModel.classConfigurations[eliteMapIndex];
+
+        // TODO: can populateAndSaveCellFeatures be of use here? ... call with a parameter specifying the projection to use
+        // const { 
+        //   featureExtractionEndpoint, 
+        // } = getWsServiceEndpointsFromClassConfiguration( classConfiguration );
+        // await populateAndSaveCellFeatures( 
+        //   eliteMap, cellFeatures, 
+        //   classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+        //   _geneRenderingServers, renderSampleRateForClassifier,
+        //   _evaluationFeatureServers,
+        //   evoRunDirPath, evolutionRunId,
+        //   ckptDir,
+        //   featureExtractionEndpoint, classConfiguration.featureExtractionType
+        // );
+
+
+        // TODO should we get the features (and scores) from all maps, 
+        // - or the current one and the one we are switching to? 
+        // - or just the one we are switching from?
+        // - - the coverage can at least go sharply down when projection features from the current map to the new one
+        // - - - potentially triggering an immediate switch back to the previous map
+
+        // For now, 
+        
+        const refSetEmbedsPath = classConfiguration.refSetEmbedsPath;
+        const refSetName = classConfiguration.refSetName;
+        // seedFeaturesAndScores = await getFeaturesAndScoresFromEliteMap( 
+        //   eliteMap, cellFeatures,
+        //   _evaluationQualityServers, classConfiguration, // classConfiguration dictates the feature extraction approach
+        //   evolutionRunId, evoRunDirPath,
+        //   scoreProportion,
+        //   ckptDir, measureCollectivePerformance,
+        //   refSetEmbedsPath, refSetName
+        // );
 
         // eliteMap = eliteMapContainer[eliteMapIndex];
-        terrainName = classificationGraphModel.classConfigurations[eliteMapIndex].refSetName;
-        sampleRate = classificationGraphModel.classConfigurations[eliteMapIndex].sampleRate;
+        terrainName = classConfiguration.refSetName;
+        sampleRate = classConfiguration.sampleRate;
         eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName );
-        cellFeatures = readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRunId, eliteMap );
+
+        // ... then add the genome ids from the next map
+        getEliteGenomeIdsFromEliteMaps( eliteMap ).forEach( genomeId => {
+          genomeIdsFromCurrentAndNextEliteMaps.add(genomeId);
+        });
+
+        const cellFeaturesFromCurrentAndNextEliteMaps = readFeaturesForGenomeIdsFromDisk( 
+          evoRunDirPath, evolutionRunId, genomeIdsFromCurrentAndNextEliteMaps 
+        );
+
+        seedFeaturesAndScores = await getFeaturesAndScoresForGenomeIds(
+          cellFeaturesFromCurrentAndNextEliteMaps,
+          _evaluationQualityServers, classConfiguration,
+          evolutionRunId, evoRunDirPath,
+          scoreProportion,
+          ckptDir, measureCollectivePerformance,
+          refSetEmbedsPath, refSetName,
+          useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+          _geneRenderingServers[0], renderSampleRateForClassifier,
+          _evaluationFeatureServers[0], classConfiguration.featureExtractionEndpoint,
+          sampleRate
+        );
+
+        // TODO: is this necessary?
+        // cellFeatures = readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRunId, eliteMap );
+        
         // eliteMap.generationNumber++; // increment the generation number, as the increment at the end of last batch iteration happened after last save
         eliteMap.mapSwitchLog.push({
           previousMapGeneration: currentMapGeneration,
@@ -371,13 +437,21 @@ export async function qdSearch(
       ||
       eliteMap.shouldFit
     ) {
-      const refSetEmbedsPath = classificationGraphModel.classConfigurations[eliteMapIndex].refSetEmbedsPath;
+      const classConfiguration = classificationGraphModel.classConfigurations[eliteMapIndex];
+      const refSetEmbedsPath = classConfiguration.refSetEmbedsPath;
+      const refSetName = classConfiguration.refSetName;
       seedFeaturesAndScores = await getFeaturesAndScoresFromEliteMap( 
         eliteMap, cellFeatures,
-        _evaluationQualityServers, evolutionRunId, evoRunDirPath,
+        _evaluationQualityServers, classConfiguration,
+        evolutionRunId, evoRunDirPath,
         scoreProportion,
         ckptDir, measureCollectivePerformance,
-        refSetEmbedsPath
+        refSetEmbedsPath, refSetName,
+        useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+        _geneRenderingServers[0], renderSampleRateForClassifier,
+        _evaluationFeatureServers[0],
+        classConfiguration.featureExtractionEndpoint,
+        sampleRate
       );
     }
 
@@ -491,20 +565,39 @@ async function mapElitesBatch(
   const isSeedRound = (eliteMap.generationNumber*searchBatchSize) < seedEvals 
     && ! eliteMap.eliteMapIndex > 0; // only seed the first map
   
-  const shouldPopulateCellFeatures = (
-      eliteMap.isBeingSwitchedToFromAnotherMap 
-      ||
-      eliteMap.shouldFit
-      || ! isSeedRound && isUnsupervisedDiversityEvaluation && ! Object.keys(cellFeatures).length 
-    )
-    && seedFeaturesAndScores.length;
+  //( ! isSeedRound && isUnsupervisedDiversityEvaluation && Object.keys(cellFeatures).length === 0 )
+  const isNotSeedRoundDuringUnsupervisedDiversityEvaluationAndCellFeaturesEmpty = ! isSeedRound && isUnsupervisedDiversityEvaluation && Object.keys(cellFeatures).length === 0;
+  const isBeingSwitchedToFromAnotherMap = eliteMap.isBeingSwitchedToFromAnotherMap === true;
+  const eliteMapShouldFit = eliteMap.shouldFit === true;
+  const cellFeaturesPopulationConditionmet = isBeingSwitchedToFromAnotherMap || eliteMapShouldFit || isNotSeedRoundDuringUnsupervisedDiversityEvaluationAndCellFeaturesEmpty;
+  const shouldPopulateCellFeatures = cellFeaturesPopulationConditionmet && seedFeaturesAndScores.length > 0;
+
+  // (ws) service endpoints form configuration
+  // let featureExtractionEndpoint;
+  // let qualityEvaluationEndpoint;
+  // let projectionEndpoint;
+  // if( classificationGraphModel.classConfigurations && classificationGraphModel.classConfigurations.length ) {
+  //   featureExtractionEndpoint = classificationGraphModel.classConfigurations[eliteMapIndex].featureExtractionEndpoint;
+  //   qualityEvaluationEndpoint = classificationGraphModel.classConfigurations[eliteMapIndex].qualityEvaluationEndpoint;
+  //   projectionEndpoint = classificationGraphModel.classConfigurations[eliteMapIndex].projectionEndpoint;
+  // } else {
+  //   featureExtractionEndpoint = "";
+  //   qualityEvaluationEndpoint = "";
+  //   projectionEndpoint = "";
+  // }
+  const classConfiguration = classificationGraphModel.classConfigurations && classificationGraphModel.classConfigurations.length ? classificationGraphModel.classConfigurations[eliteMapIndex] : undefined;
+  const { 
+    featureExtractionEndpoint, 
+    qualityEvaluationEndpoint, 
+    projectionEndpoint 
+  } = getWsServiceEndpointsFromClassConfiguration( classConfiguration ); 
 
   if( shouldPopulateCellFeatures ) {
     // seed rounds are over, we're doing unsupervised diversity evaluation, but we haven't yet projected the features:
     // - so far they have been collected: let's project the whole collection
     searchPromises = new Array( seedFeaturesAndScores.length );
     const seedFeatureClassKeys = await getClassKeysFromSeedFeatures(
-      seedFeaturesAndScores, _evaluationProjectionServers[0], evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap
+      seedFeaturesAndScores, _evaluationProjectionServers[0]+projectionEndpoint, evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap
     );
     for( let i=0; i < seedFeaturesAndScores.length; i++ ) {
       searchPromises[i] = new Promise( async (resolve, reject) => {
@@ -523,9 +616,12 @@ async function mapElitesBatch(
           score = fitness;
         }
         const classKey = seedFeatureClassKeys[i];
+        if( ! seedFeatureAndScore.featuresType ) {
+          console.error("seedFeatureAndScore.featuresType not defined");
+        }
         const newGenomeClassScores = { [classKey]: {
           score, duration, noteDelta, velocity,
-          features: seedFeatureAndScore.features,
+          features: seedFeatureAndScore.features, featuresType: seedFeatureAndScore.featuresType,
           embedding: seedFeatureAndScore.embedding
         } };
         resolve({
@@ -545,19 +641,6 @@ async function mapElitesBatch(
 
     searchPromises = new Array(searchBatchSize);
 
-    let featureExtractionEndpoint;
-    let qualityEvaluationEndpoint;
-    let projectionEndpoint;
-    if( classificationGraphModel.classConfigurations && classificationGraphModel.classConfigurations.length ) {
-      featureExtractionEndpoint = classificationGraphModel.classConfigurations[eliteMapIndex].featureExtractionEndpoint;
-      qualityEvaluationEndpoint = ""; // TODO: not using for now: classificationGraphModel.classConfigurations[eliteMapIndex].qualityEvaluationEndpoint;
-      projectionEndpoint = ""; // TODO: not using for now: classificationGraphModel.classConfigurations[eliteMapIndex].projectionEndpoint;
-    } else {
-      featureExtractionEndpoint = "";
-      qualityEvaluationEndpoint = "";
-      projectionEndpoint = "";
-    }
-
     if( isUnsupervisedDiversityEvaluation && _evaluationFeatureServers && _evaluationFeatureServers.length ) {
       await populateAndSaveCellFeatures( 
         eliteMap, cellFeatures, 
@@ -566,7 +649,7 @@ async function mapElitesBatch(
         _evaluationFeatureServers,
         evoRunDirPath, evolutionRunId,
         ckptDir,
-        featureExtractionEndpoint
+        featureExtractionEndpoint, classConfiguration.featureExtractionType
       );
     }
     for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
@@ -577,7 +660,7 @@ async function mapElitesBatch(
       let geneEvaluationServerHost;
       if( dummyRun ) {
         geneVariationServerHost = _geneVariationServers[0];
-        geneRenderingServerHost = _geneVariationServers[0];
+        geneRenderingServerHost = _geneRenderingServers[0];
         geneEvaluationServerHost = _geneEvaluationServers[0];
       } else {
         geneVariationServerHost = _geneVariationServers[ batchIteration % _geneVariationServers.length ];
@@ -997,9 +1080,14 @@ async function mapElitesBatch(
     for( let batchResultIdx = 0; batchResultIdx < batchIterationResults.length; batchResultIdx++ ) {
 
       const {
-        genomeId, randomClassKey, newGenomeString, newGenomeClassScores, parentGenomes,
+        genomeId, randomClassKey, newGenomeClassScores, parentGenomes,
         seedFeaturesAndScores
       } = batchIterationResults[batchResultIdx];
+      let { newGenomeString } = batchIterationResults[batchResultIdx];
+      if( ! newGenomeString ) {
+        // when coming from a seed round, or population from getFeaturesAndScoresForGenomeIds, newGenomeString is undefined
+        newGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
+      }
 
       ///// add to archive
 
@@ -1038,6 +1126,9 @@ async function mapElitesBatch(
           newGenome.generationNumber = eliteMap.generationNumber;
           const eliteMapUpdateStartTime = performance.now();
           for( const classKey of eliteClassKeys ) {
+            if( eliteMap.cells[classKey].elts === undefined ) {
+              console.error("eliteMap.cells[classKey].elts is undefined");
+            }
             cellKeyToExistingEliteGenomeId[classKey] = eliteMap.cells[classKey].elts.length ? eliteMap.cells[classKey].elts[0].g : undefined;
             const {score, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
             const updated = Date.now();
@@ -1061,7 +1152,13 @@ async function mapElitesBatch(
             eliteMap.cells[classKey].eltAddCnt = eliteMap.cells[classKey].eltAddCnt ? eliteMap.cells[classKey].eltAddCnt + 1 : 1;
 
             const { features, featuresType, embedding } = newGenomeClassScores[classKey];
-            cellFeatures[classKey] = { features, type: featuresType, embedding };
+            if( ! featuresType ) {
+              console.error("featuresType is undefined");
+            }
+            if( ! cellFeatures[classKey] ) {
+              cellFeatures[classKey] = {};
+            }
+            cellFeatures[classKey][featuresType] = { features, embedding };
 
             classToBatchEliteCandidates[classKey] = {
               genomeId,
@@ -1110,13 +1207,15 @@ async function mapElitesBatch(
         genomeId 
       } = classToBatchEliteCandidates[oneNewEliteClass];
       // add this genome's features to the quality query embeddings, if using classConfigurations, by calling /add-to-query-embeddings websocket endpoint
-      if( eliteMap.classConfigurations && eliteMap.classConfigurations.length ) {
+      if( eliteMap.classConfigurations && eliteMap.classConfigurations.length && eliteMap.classConfigurations[0].usingQueryEmbeddings/* e.g. FAD */ ) {
         const refSetName = eliteMap.classConfigurations[0].refSetName;
         const existingGenomeIdAtClass = cellKeyToExistingEliteGenomeId[oneNewEliteClass];
         const querySetEmbedsPath = getQuerySetEmbedsPath( evoRunDirPath, refSetName );
         const evaluationQualityHost = _evaluationQualityServers[ batchEliteIndex % _evaluationQualityServers.length ];
+        const featureExtractionType = eliteMap.classConfigurations[0].featureExtractionType;
+        const embeddingToAdd = cellFeatures[oneNewEliteClass][featureExtractionType].embedding;
         addToQualityQueryEmbeddigs(
-          cellFeatures[oneNewEliteClass].embedding, // added to cellFeatures in the iteration above
+          embeddingToAdd, // added to cellFeatures in the iteration above
           genomeId, existingGenomeIdAtClass,
           querySetEmbedsPath,
           evaluationQualityHost
@@ -1154,6 +1253,7 @@ async function mapElitesBatch(
     eliteMap.qdScoreWithoutIncreaseCount++;
   }
   eliteMap.qdScore = qdScore;
+  eliteMap.qdScores.push( qdScore );
 
   console.log(
     "generation", eliteMap.generationNumber,
@@ -1399,12 +1499,15 @@ async function populateAndSaveCellFeatures(
   evaluationFeatureExtractionHosts,
   evoRunDirPath, evolutionRunId,
   ckptDir,
-  featureExtractionEndpoint
+  featureExtractionEndpoint, featureExtractionType
 ) {
   let cellKeyIndex = 0;
   for( const cellKey in eliteMap.cells ) {
     const cell = eliteMap.cells[cellKey];
     if( cell.elts && cell.elts.length && ! cellFeatures[cellKey] ) {
+      console.error("cellFeatures[cellKey] is undefined, for cellKey", cellKey);
+    }
+    if( cell.elts && cell.elts.length && (!cellFeatures[cellKey] || !cellFeatures[cellKey][featureExtractionType]) ) {
       const cellGenomeId = cell.elts[0].g;
       const cellGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, cellGenomeId, evoRunDirPath );
       const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
@@ -1426,8 +1529,12 @@ async function populateAndSaveCellFeatures(
         renderSampleRateForClassifier
       );
       const { features, type, embedding } = featuresResponse;
+      if( ! type ) {
+        console.error("type is undefined");
+      }
       const cellGenomeFeatures = { features, type, embedding };
-      cellFeatures[cellKey] = cellGenomeFeatures;
+      if( ! cellFeatures[cellKey] ) cellFeatures[cellKey] = {};
+      cellFeatures[cellKey][type] = cellGenomeFeatures;
 
       cellKeyIndex++;
     }
@@ -1661,6 +1768,9 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       const newGenomeFeatureType = newGenomeFeatureTypes[i];
       const newGenomeEmbedding = newGenomesEmbedding[i];
 
+      if( diversityProjection.feature_map === undefined ) {
+        console.error("diversityProjection.feature_map is undefined");
+      }
       const diversityMapKey = diversityProjection.feature_map[i].join("_");
 
       // TODO: this is premature, as this individual genome is not yet in the elite map; is handled in the batchIterationResults round
@@ -1766,7 +1876,7 @@ async function getGenomeScoreAndFeatures(
 
   return {
     genomeId,
-    genomeString,
+    // genomeString,
     fitness,
     duration,
     noteDelta,
@@ -1788,6 +1898,7 @@ async function getFeaturesAndScoreForAudioBuffer(
   measureCollectivePerformance, ckptDir, evoRunDirPath
 ) {
   let qualityFromEmbeds = false;
+  let qualityFromFeatures = false;
   let refSetName, refSetEmbedsPath, querySetEmbedsPath, featureExtractionEndpoint, sampleRate;
   if( classConfigurations && classConfigurations.length ) {
     // TODO: handle multiple class configurations here?
@@ -1800,7 +1911,11 @@ async function getFeaturesAndScoreForAudioBuffer(
     refSetEmbedsPath = classConfigurations[0].refSetEmbedsPath;
     querySetEmbedsPath = getQuerySetEmbedsPath( evoRunDirPath, refSetName ); // classConfigurations[0].querySetEmbedsPath;
     sampleRate = classConfigurations[0].sampleRate;
-    qualityFromEmbeds = true;
+    if( classConfigurations[0].qualityFromFeatures ) {
+      qualityFromFeatures = true;
+    } else {
+      qualityFromEmbeds = true;
+    }
   }
 
   // const hostFeaturesEncodedBase64 = Buffer.from(evaluationFeatureExtractionHost).toString('base64');
@@ -1823,11 +1938,19 @@ async function getFeaturesAndScoreForAudioBuffer(
   const featuresType = featuresResponse.type;
 
   let newGenomeQuality;
-  if( qualityFromEmbeds ) {
-    const newGenomeEmbed = featuresResponse.embedding;
+  if( qualityFromEmbeds || qualityFromFeatures ) {
+    let vectorsToCompare;
+    if( qualityFromEmbeds ) {
+      vectorsToCompare = newGenomeEmbedding;
+    } else {
+      vectorsToCompare =  newGenomeFeatureVector;
+    }
+    if( vectorsToCompare.length === 1  ) {  
+      console.error(`Error: vectorsToCompare has length 1`);
+    }
     // const hostEvalQualityEncodedBase64 = Buffer.from(evaluationQualityHost).toString('base64');
     newGenomeQuality = await getQualityFromWebsocketForEmbedding(
-      newGenomeEmbed,
+      vectorsToCompare,
       refSetEmbedsPath,
       querySetEmbedsPath,
       measureCollectivePerformance,
@@ -1853,6 +1976,43 @@ async function getFeaturesAndScoreForAudioBuffer(
   };
 }
 
+function getFeaturesForGenomeString( 
+    genomeString, 
+    duration, noteDelta, velocity, 
+    useGPU, 
+    antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs, 
+    geneRenderingServerHost, 
+    renderSampleRateForClassifier,
+    evaluationFeatureExtractionHost, featureExtractionEndpoint,
+    ckptDir, sampleRate
+) {
+  return new Promise( async (resolve, reject) => {
+    const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
+      genomeString,
+      duration,
+      noteDelta,
+      velocity,
+      useGPU,
+      antiAliasing,
+      frequencyUpdatesApplyToAllPathcNetworkOutputs,
+      geneRenderingServerHost, renderSampleRateForClassifier
+    ).catch(e => {
+      console.error(`Error rendering geneome ${genomeString.substring(0, 10)}`, e);
+      reject(e);
+    });
+    const featuresResponse = await getFeaturesFromWebsocket(
+      audioBuffer,
+      evaluationFeatureExtractionHost + featureExtractionEndpoint,
+      ckptDir, // `${ckptDir}/${evaluationFeatureExtractionHostEncodedBase64}`,
+      sampleRate,
+    ).catch(e => {
+      console.error("Error getting features", e);
+      reject(e);
+    });
+    resolve( { features: featuresResponse.features, embedding: featuresResponse.embedding } );
+  });
+}
+
 async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDiversityHost, evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap ) {
   const featuresArray = seedFeaturesAndScores.map( f => f.features );
   const pcaComponents = eliteMap.classConfigurations && eliteMap.classConfigurations.length ? eliteMap.classConfigurations[0].pcaComponentsn : undefined;
@@ -1871,6 +2031,9 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
   // doing the same thing here as in function retrainProjectionModel
   eliteMap.lastProjectionFitIndex++;
   eliteMap.projectionModelFitGenerations.push( eliteMap.generationNumber );
+  if( diversityProjection.feature_map === undefined ) {
+    console.error("diversityProjection.feature_map is undefined");
+  }
   eliteMap.projectionSizes.push( diversityProjection.feature_map.length );
   
   if( classScoringVariationsAsContainerDimensions ) {
@@ -1886,53 +2049,140 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
   }
 }
 
-async function getFeaturesAndScoresFromEliteMap(
-  eliteMap, cellFeatures,
-  _evaluationQualityServers, evolutionRunId, evoRunDirPath,
+async function getFeaturesAndScoresForGenomeIds(
+  genomeIdsToFeatures,
+  _evaluationQualityServers, classConfiguration,
+  evolutionRunId, evoRunDirPath,
   scoreProportion,
   ckptDir, measureCollectivePerformance,
-  refSetEmbedsPath, refSetName
+  refSetEmbedsPath, refSetName,
+  // for a call to getGenomeScoreAndFeatures:
+  useGPU,
+  antiAliasing,
+  frequencyUpdatesApplyToAllPathcNetworkOutputs,
+  geneRenderingServerHost, renderSampleRateForClassifier,
+  evaluationFeatureExtractionHost, featureExtractionEndpoint, 
+  sampleRate
 ) {
   const seedFeaturesAndScores = [];
+  let i = 0;
+  const querySetEmbedsPath = getQuerySetEmbedsPath( evoRunDirPath, refSetName );
+
+  for( let genomeId in genomeIdsToFeatures ) {
+    const features = genomeIdsToFeatures[genomeId];
+    const genomeString = await readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
+    const genomeAndMeta = JSON.parse( genomeString );
+    let tagForCell;
+    if( features.cellKey ) {
+      tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === features.cellKey );
+      if( undefined === tagForCell ) {
+        // this genome has not been an elite in the current map, so let's use the last tag
+        tagForCell = genomeAndMeta.genome.tags[genomeAndMeta.genome.tags.length - 1];
+      }
+    } else {
+      // let's use the last tag
+      tagForCell = genomeAndMeta.genome.tags[genomeAndMeta.genome.tags.length - 1];
+    }
+    
+    const { duration, noteDelta, velocity } = tagForCell;
+    // const classConfiguration = eliteMap.classConfigurations[eliteMap.eliteMapIndex];
+    const { 
+      qualityEvaluationEndpoint, 
+    } = getWsServiceEndpointsFromClassConfiguration( classConfiguration ); 
+    const evaluationQualityHost = _evaluationQualityServers[ i % _evaluationQualityServers.length ] + qualityEvaluationEndpoint;
+    // const evaluationQualityHostEncodedBase64 = Buffer.from(evaluationQualityHost).toString('base64');
+    const featureExtractionType = classConfiguration.featureExtractionType;
+    if( ! features[featureExtractionType] ) {
+      // this can happen if the genome has not been an elite in the current classConfiguration, so let's extract the features for this featureExtractionType
+      const {
+        features : featuresResult, embedding: embeddingResult 
+      } = await getFeaturesForGenomeString(
+        genomeString,
+        duration, noteDelta, velocity,
+        useGPU,
+        antiAliasing,
+        frequencyUpdatesApplyToAllPathcNetworkOutputs,
+        geneRenderingServerHost,
+        renderSampleRateForClassifier,
+        evaluationFeatureExtractionHost, featureExtractionEndpoint,
+        ckptDir, sampleRate
+      );
+
+      features[featureExtractionType] = { features: featuresResult, embedding: embeddingResult };
+
+      console.log(`Features extracted for genomeId ${genomeId} and cellKey ${features.cellKey}`);
+    }
+    const vectorsToCompare = classConfiguration.qualityFromFeatures ? features[featureExtractionType].features : features[featureExtractionType].embedding
+    if( vectorsToCompare.length === 1 ) {
+      console.error(`Error: vectorsToCompare has length 1 for genomeId ${genomeId} and cellKey ${cellKey}`);
+    }
+    const genomeQuality = await getQualityFromWebsocketForEmbedding(
+      vectorsToCompare,
+      refSetEmbedsPath,
+      querySetEmbedsPath,
+      measureCollectivePerformance,
+      evaluationQualityHost,
+      ckptDir, // `${ckptDir}/${evaluationQualityHostEncodedBase64}`
+    );
+    const fitness = genomeQuality.fitness * scoreProportion;
+    seedFeaturesAndScores.push({
+      genomeId,
+      // genomeString,
+      fitness,
+      duration,
+      noteDelta,
+      velocity,
+      features: features[featureExtractionType].features,
+      featuresType: featureExtractionType,
+      embedding: features[featureExtractionType].embedding
+    });
+    i++;
+  }
+  return seedFeaturesAndScores;
+}
+
+async function getFeaturesAndScoresFromEliteMap(
+  eliteMap, cellFeatures,
+  _evaluationQualityServers, classConfiguration,
+  evolutionRunId, evoRunDirPath,
+  scoreProportion,
+  ckptDir, measureCollectivePerformance,
+  refSetEmbedsPath, refSetName,
+  useGPU,
+  antiAliasing,
+  frequencyUpdatesApplyToAllPathcNetworkOutputs,
+  geneRenderingServerHost, renderSampleRateForClassifier,
+  evaluationFeatureExtractionHost,
+  featureExtractionEndpoint,
+  sampleRate
+) {
 
   let i = 0;
   const querySetEmbedsPath = getQuerySetEmbedsPath( evoRunDirPath, refSetName );
+  const genomeIdsToFeatures = {};
   for( let cellKey in cellFeatures ) {
-    
     if( eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length ) {
       const features = cellFeatures[cellKey];
+      features.cellKey = cellKey;
       const genomeId = eliteMap.cells[cellKey].elts[0].g;
-      const genomeString = await readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
-      const genomeAndMeta = JSON.parse( genomeString );
-      const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === cellKey );
-      if( undefined === tagForCell ) {
-        console.error(`Error: tagForCell is undefined for genomeId ${genomeId} and cellKey ${cellKey}`);
-      }
-      const { duration, noteDelta, velocity } = tagForCell;
-      const evaluationQualityHost = _evaluationQualityServers[ i % _evaluationQualityServers.length ];
-      // const evaluationQualityHostEncodedBase64 = Buffer.from(evaluationQualityHost).toString('base64');
-      const genomeQuality = await getQualityFromWebsocketForEmbedding(
-        features.embedding,
-        refSetEmbedsPath,
-        querySetEmbedsPath,
-        measureCollectivePerformance,
-        evaluationQualityHost,
-        ckptDir, // `${ckptDir}/${evaluationQualityHostEncodedBase64}`
-      );
-      const fitness = genomeQuality.fitness * scoreProportion;
-      seedFeaturesAndScores.push({
-        genomeId,
-        genomeString,
-        fitness,
-        duration,
-        noteDelta,
-        velocity,
-        features: features.features,
-        embedding: features.embedding
-      });
+      genomeIdsToFeatures[genomeId] = features;
       i++;
     }
   }
+  const seedFeaturesAndScores = await getFeaturesAndScoresForGenomeIds(
+    genomeIdsToFeatures,
+    _evaluationQualityServers, classConfiguration,
+    evolutionRunId, evoRunDirPath,
+    scoreProportion,
+    ckptDir, measureCollectivePerformance,
+    refSetEmbedsPath, refSetName,
+    useGPU,
+    antiAliasing,
+    frequencyUpdatesApplyToAllPathcNetworkOutputs,
+    geneRenderingServerHost, renderSampleRateForClassifier,
+    evaluationFeatureExtractionHost, featureExtractionEndpoint,
+    sampleRate
+  );
   return seedFeaturesAndScores;
 }
 
@@ -2035,6 +2285,7 @@ function initializeEliteMap(
     cells: {}, // aka classes or niches
     classConfigurations,
     qdScore: 0, qdScoreWithoutIncreaseCount: 0,
+    qdScores: [],
     coverage: 0, coverageWithoutIncreaseCount: 0,
     isBeingSwitchedToFromAnotherMap: false,
     mapSwitchLog: [],
@@ -2174,13 +2425,25 @@ function saveCellFeaturesToDisk( cellFeatures, eliteMap, evoRunDirPath, evolutio
   const cellFeaturesDirPath = `${evoRunDirPath}cellFeatures/`;
   if( ! fs.existsSync(cellFeaturesDirPath) ) fs.mkdirSync( cellFeaturesDirPath, { recursive: true } );
   // for each cell key in cellFeatures, save the features to disk with the corresponding key
+  let featureExtractionType;
+  if( eliteMap.classConfigurations && eliteMap.classConfigurations.length ) {
+    featureExtractionType = eliteMap.classConfigurations[0].featureExtractionType;
+  }
   for( const cellKey in cellFeatures ) {
-    const genomeId = eliteMap.cells[cellKey].elts[0].g;
-    const featuresKey = getFeaturesKey(evolutionRunId, genomeId);
-    const cellFeaturesFileName = `${featuresKey}.json`;
-    const cellFeaturesFilePath = `${cellFeaturesDirPath}${cellFeaturesFileName}`;
-    const cellFeaturesStringified = JSON.stringify(cellFeatures[cellKey], null, 2); // prettified to obtain the benefits (compression of git diffs)
-    fs.writeFileSync( cellFeaturesFilePath, cellFeaturesStringified );
+    if( ! featureExtractionType || cellFeatures[cellKey][featureExtractionType] ) {
+      // either we're not using classConfigurations or
+      // we're using classConfigurations and the featureExtractionType is present in the cellFeatures;
+      // - this means that the features have already been extracted for this cellKey, in this map
+      if( ! eliteMap.cells[cellKey].elts[0] ) {
+        console.error(`Error: eliteMap.cells[${cellKey}] is undefined`);
+      }
+      const genomeId = eliteMap.cells[cellKey].elts[0].g;
+      const featuresKey = getFeaturesKey(evolutionRunId, genomeId);
+      const cellFeaturesFileName = `${featuresKey}.json`;
+      const cellFeaturesFilePath = `${cellFeaturesDirPath}${cellFeaturesFileName}`;
+      const cellFeaturesStringified = JSON.stringify(cellFeatures[cellKey], null, 2); // prettified to obtain the benefits (compression of git diffs)
+      fs.writeFileSync( cellFeaturesFilePath, cellFeaturesStringified );  
+    }
   }
 }
 function readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRunId, eliteMap ) {
@@ -2200,6 +2463,43 @@ function readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRunId, eli
     }
   }
   return cellFeatures;
+}
+
+function readFeaturesForGenomeIdsFromDisk( evoRunDirPath, evolutionRunId, genomeIds ) {
+  let genomeFeatures = {};
+  for( const genomeId of genomeIds ) {
+    const featuresKey = getFeaturesKey(evolutionRunId, genomeId);
+    const featuresFileName = `${featuresKey}.json`;
+    const featuresFilePath = `${evoRunDirPath}cellFeatures/${featuresFileName}`;
+    if( fs.existsSync(featuresFilePath) ) {
+      const featuresJSONString = fs.readFileSync( featuresFilePath, 'utf8' );
+      const featuresJSON = JSON.parse( featuresJSONString );
+      genomeFeatures[genomeId] = featuresJSON;
+    }
+  }
+  return genomeFeatures;
+}
+
+function getEliteGenomeIdsFromEliteMaps( eliteMaps ) {
+  let eliteGenomeIds = [];
+  if( Array.isArray(eliteMaps) ) {
+    for( const oneEliteMap of eliteMaps ) {
+      eliteGenomeIds = eliteGenomeIds.concat( getEliteGenomeIdsFromEliteMap(oneEliteMap) );
+    }
+  } else {
+    eliteGenomeIds = getEliteGenomeIdsFromEliteMap(eliteMaps);
+  }
+  return eliteGenomeIds;
+}
+
+function getEliteGenomeIdsFromEliteMap( eliteMap ) {
+  let eliteGenomeIds = [];
+  for( const cellKey in eliteMap.cells ) {
+    if( eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length ) {
+      eliteGenomeIds.push( eliteMap.cells[cellKey].elts[0].g );
+    }
+  }
+  return eliteGenomeIds;
 }
 
 async function saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath, addToGit ) {
@@ -2373,30 +2673,31 @@ function shouldTerminate( terminationCondition, eliteMap, classificationGraphMod
 }
 
 function shouldSwitchMap( eliteMap, mapSwitchingCondition ) {
+  if( 
+    mapSwitchingCondition.gradientWindowSize && eliteMap.mapSwitchLog && eliteMap.mapSwitchLog.length 
+    &&
+    eliteMap.mapSwitchLog[eliteMap.mapSwitchLog.length-1].nextMapGeneration + mapSwitchingCondition.gradientWindowSize > eliteMap.generationNumber
+  ) { // ensure we stay for gradientWindowSize generations before switching
+    return false;
+  }
   if(
     eliteMap.generationNumber > 0 && mapSwitchingCondition.switchEveryNGenerations && eliteMap.generationNumber % mapSwitchingCondition.switchEveryNGenerations === 0
-  ) {
-    return true;
-  } else if( 
+    ||
     mapSwitchingCondition.coverageWithoutIncreaseGenerations && 
     mapSwitchingCondition.coverageWithoutIncreaseGenerations < eliteMap.coverageWithoutIncreaseCount 
-   ) {
-    return true;
-  } else if(
+    ||
     mapSwitchingCondition.qdScoreWithoutIncreaseGenerations &&
     mapSwitchingCondition.qdScoreWithoutIncreaseGenerations < eliteMap.qdScoreWithoutIncreaseCount
+    ||
+    mapSwitchingCondition.coverageGradientThreshold && mapSwitchingCondition.gradientWindowSize &&
+    eliteMap.projectionSizes.length > mapSwitchingCondition.gradientWindowSize &&
+    getGradient( eliteMap.projectionSizes, mapSwitchingCondition.gradientWindowSize, "projectionSizes" ) < mapSwitchingCondition.coverageGradientThreshold
+    ||
+    mapSwitchingCondition.qdScoreGradientThreshold && mapSwitchingCondition.gradientWindowSize &&
+    eliteMap.qdScores.length > mapSwitchingCondition.gradientWindowSize &&
+    getGradient( eliteMap.qdScores, mapSwitchingCondition.gradientWindowSize, "qdScores" ) < mapSwitchingCondition.qdScoreGradientThreshold
   ) {
     return true;
-  } else if(
-    mapSwitchingCondition.coverageGradientThreshold && mapSwitchingCondition.gradientWindowSize
-  ) {
-    const coverageGradient = getGradient( eliteMap.projectionSizes, mapSwitchingCondition.gradientWindowSize );
-    return coverageGradient < mapSwitchingCondition.coverageGradientThreshold;
-  } else if(
-    mapSwitchingCondition.qdScoreGradientThreshold && mapSwitchingCondition.gradientWindowSize
-  ) {
-    const qdScoreGradient = getGradient( eliteMap.qdScores, mapSwitchingCondition.gradientWindowSize );
-    return qdScoreGradient < mapSwitchingCondition.qdScoreGradientThreshold;
   } else {
     return false;
   }
@@ -2455,4 +2756,24 @@ function readFromFileWhenItExists( filePath, tries ) {
       }
     });
   });
+}
+
+function getWsServiceEndpointsFromClassConfiguration( classConfiguration ) {
+  let featureExtractionEndpoint;
+  let qualityEvaluationEndpoint;
+  let projectionEndpoint;
+  // if( classificationGraphModel.classConfigurations && classificationGraphModel.classConfigurations.length ) {
+  if( classConfiguration ) {
+    // featureExtractionEndpoint = classificationGraphModel.classConfigurations[eliteMapIndex].featureExtractionEndpoint;
+    // qualityEvaluationEndpoint = classificationGraphModel.classConfigurations[eliteMapIndex].qualityEvaluationEndpoint;
+    // projectionEndpoint = classificationGraphModel.classConfigurations[eliteMapIndex].projectionEndpoint;
+    featureExtractionEndpoint = classConfiguration.featureExtractionEndpoint;
+    qualityEvaluationEndpoint = classConfiguration.qualityEvaluationEndpoint;
+    projectionEndpoint = classConfiguration.projectionEndpoint;
+  } else {
+    featureExtractionEndpoint = "";
+    qualityEvaluationEndpoint = "";
+    projectionEndpoint = "";
+  }
+  return { featureExtractionEndpoint, qualityEvaluationEndpoint, projectionEndpoint };
 }
