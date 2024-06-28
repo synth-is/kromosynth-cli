@@ -25,7 +25,6 @@ export function callRandomGeneService(
       one_cppn_per_frequency: oneCPPNPerFrequency
     };
     getClient( gRPCHost ).RandomGenome( payload, (err, response) => {
-console.log(response);
       if( err ) {
         reject( err );
       } else {

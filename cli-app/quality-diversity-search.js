@@ -570,7 +570,7 @@ async function mapElitesBatch(
   const isBeingSwitchedToFromAnotherMap = eliteMap.isBeingSwitchedToFromAnotherMap === true;
   const eliteMapShouldFit = eliteMap.shouldFit === true;
   const cellFeaturesPopulationConditionmet = isBeingSwitchedToFromAnotherMap || eliteMapShouldFit || isNotSeedRoundDuringUnsupervisedDiversityEvaluationAndCellFeaturesEmpty;
-  const shouldPopulateCellFeatures = cellFeaturesPopulationConditionmet && seedFeaturesAndScores.length > 0;
+  const shouldPopulateCellFeatures = cellFeaturesPopulationConditionmet && seedFeaturesAndScores && seedFeaturesAndScores.length > 0;
 
   // (ws) service endpoints form configuration
   // let featureExtractionEndpoint;
@@ -596,7 +596,7 @@ async function mapElitesBatch(
     // seed rounds are over, we're doing unsupervised diversity evaluation, but we haven't yet projected the features:
     // - so far they have been collected: let's project the whole collection
     searchPromises = new Array( seedFeaturesAndScores.length );
-    const seedFeatureClassKeys = await getClassKeysFromSeedFeatures(
+    const seedFeatureClassKeys = await getClassKeysFromSeedFeatures( // this call trains the projection
       seedFeaturesAndScores, _evaluationProjectionServers[0]+projectionEndpoint, evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap
     );
     for( let i=0; i < seedFeaturesAndScores.length; i++ ) {
@@ -691,7 +691,8 @@ async function mapElitesBatch(
           if( geneEvaluationProtocol === "grpc" || geneEvaluationProtocol === "websocket" ) {
             try {
               newGenomeString = await callRandomGeneService(
-                evolutionRunId, eliteMap.generationNumber, evolutionaryHyperparameters,
+                evolutionRunId, eliteMap.generationNumber, 
+                evolutionaryHyperparameters,
                 geneVariationServerHost,
                 oneCPPNPerFrequency
               );
@@ -784,7 +785,7 @@ async function mapElitesBatch(
                     evolutionaryHyperparameters,
                     patchFitnessTestDuration,
                     geneVariationServerHost
-                  );  
+                  );
                 } catch (e) {
                   console.error("Error from callGeneVariationService", e);
                   clearServiceConnectionList(geneVariationServerHost);
@@ -873,7 +874,9 @@ async function mapElitesBatch(
                   }
                 }
               }
-              resolve({genomeId, newGenomeString, seedFeaturesAndScores}); // really just used to increment eliteMap.genertionNumber in the Promise.all iterations below
+              resolve({
+                genomeId, newGenomeString
+              }); // really just used to increment eliteMap.genertionNumber in the Promise.all iterations below
 
             } else {
 
@@ -1072,7 +1075,8 @@ async function mapElitesBatch(
 
 
     // use this to ensure we're only handling and saving one copy of the same genome
-    let genomeIdToGenome = {};
+    // let genomeIdToGenome = {};
+    let savedGenomeIds = {};
 
     let classToBatchEliteCandidates = {};
     let cellKeyToExistingEliteGenomeId = {};
@@ -1080,8 +1084,7 @@ async function mapElitesBatch(
     for( let batchResultIdx = 0; batchResultIdx < batchIterationResults.length; batchResultIdx++ ) {
 
       const {
-        genomeId, randomClassKey, newGenomeClassScores, parentGenomes,
-        seedFeaturesAndScores
+        genomeId, randomClassKey, newGenomeClassScores, parentGenomes
       } = batchIterationResults[batchResultIdx];
       let { newGenomeString } = batchIterationResults[batchResultIdx];
       if( ! newGenomeString ) {
@@ -1099,6 +1102,7 @@ async function mapElitesBatch(
           eliteClassKeys = getDummyClassKeysWhereScoresAreElite( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
         } else {
           eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap, eliteWinsOnlyOneCell, classRestriction );
+          // TODO: why was this done?: Object.keys(newGenomeClassScores);
         }
         const getClassKeysWhereScoresAreEliteEndTime = performance.now();
         console.log("getClassKeysWhereScoresAreElite duration", getClassKeysWhereScoresAreEliteEndTime - getClassKeysWhereScoresAreEliteStartTime);
@@ -1110,16 +1114,7 @@ async function mapElitesBatch(
           // console.log("classScoresSD", classScoresSD);
           eliteMap.newEliteCount = eliteClassKeys.length;
 
-          let newGenome;
-          if( genomeIdToGenome[genomeId] === undefined ) {
-            const getGenomeFromGenomeStringStartTime = performance.now();
-            newGenome = await getGenomeFromGenomeString( newGenomeString );
-            genomeIdToGenome[genomeId] = newGenome;
-            const getGenomeFromGenomeStringEndTime = performance.now();
-            console.log("getGenomeFromGenomeString duration", getGenomeFromGenomeStringEndTime - getGenomeFromGenomeStringStartTime);
-          } else {
-            newGenome = genomeIdToGenome[genomeId];
-          }
+          let newGenome = await getGenomeFromGenomeString( newGenomeString );
 
           if( ! newGenome.tags ) newGenome.tags = [];
           newGenome.parentGenomes = parentGenomes.length ? parentGenomes : undefined;
@@ -1172,6 +1167,10 @@ async function mapElitesBatch(
           if( randomClassKey ) {
             eliteMap.cells[randomClassKey].uBC = 10;
           }
+          if( ! savedGenomeIds[genomeId] ) {
+            await saveGenomeToDisk( newGenome, evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
+            savedGenomeIds[genomeId] = true;
+          }
           if( renderElitesToWavFiles ) {
             const oneClassScore = newGenomeClassScores[eliteClassKeys[0]].score;
             renderEliteGenomeToWavFile(
@@ -1185,20 +1184,11 @@ async function mapElitesBatch(
           eliteMap.cells[randomClassKey].uBC -= 1; // TODO should stop at zero?
         }
 
-      } else if( seedFeaturesAndScores !== undefined && seedFeaturesAndScores.length ) { // if( newGenomeClassScores !== undefined ) {
-        // we have scores and features from a seed round
-        // eliteMap.generationNumber++;
-      }
+      } 
 
     } // for( let oneBatchIterationResult of batchIterationResults ) {
 
-    for( let oneGenomeId in genomeIdToGenome ) {
-      const saveGenomeToDiskStartTime = performance.now();
-      await saveGenomeToDisk( genomeIdToGenome[oneGenomeId], evolutionRunId, oneGenomeId, evoRunDirPath, addGenomesToGit );
-      const saveGenomeToDiskEndTime = performance.now();
-      console.log("saveGenomeToDisk duration", saveGenomeToDiskEndTime - saveGenomeToDiskStartTime);
-    }
-    genomeIdToGenome = undefined; // attempt to free up memory
+    savedGenomeIds = undefined; // attempt to free up memory
 
     let batchEliteIndex = 0;
     for( let oneNewEliteClass in classToBatchEliteCandidates ) {
@@ -1279,7 +1269,10 @@ async function mapElitesBatch(
   eliteMap.generationNumber++;
 
   const shouldFit = getShouldFit(eliteMap.lastProjectionFitIndex, eliteMap.generationNumber*searchBatchSize); // eliteMap.generationNumber*searchBatchSize === iterationNumber
-  if( isUnsupervisedDiversityEvaluation && ! isSeedRound && shouldFit ) {
+  if( 
+    isUnsupervisedDiversityEvaluation && ! isSeedRound && shouldFit 
+    && Object.keys(cellFeatures).length > 3 // otherwise UMAP complains
+  ) {
     // TODO: letting getClassKeysFromSeedFeatures handle the retraining
     // await retrainProjectionModel( cellFeatures, eliteMap, _evaluationProjectionServers, evoRunDirPath );
     eliteMap.shouldFit = true;
@@ -1334,6 +1327,10 @@ async function renderEliteMapToWavFiles(
   //   if( cell.elts && cell.elts.length ) {
       let eliteGenomeId = cell.elts[0].g;
       genomeString = await readGenomeAndMetaFromDisk( evolutionRunId, eliteGenomeId, evoRunDirPath );
+      if( ! genomeString ) {
+        console.error("genomeString is undefined for elite genome", eliteGenomeId);
+        continue;
+      }
       genomeAndMeta = JSON.parse( genomeString );
       
       // let renderingServer = geneRenderingServerHosts[cellKeyIndex % geneRenderingServerHosts.length];
@@ -1540,7 +1537,7 @@ async function populateAndSaveCellFeatures(
     }
   }
   const terrainName = eliteMap.classConfigurations && eliteMap.classConfigurations.length ? eliteMap.classConfigurations[0].refSetName : undefined;
-  saveCellFeaturesToDisk( cellFeatures, eliteMap, evoRunDirPath, evolutionRunId, terrainName );
+  await saveCellFeaturesToDisk( cellFeatures, eliteMap, evoRunDirPath, evolutionRunId, terrainName );
 }
 
 async function getCellFitnessValues( eliteMap ) {
@@ -2071,11 +2068,17 @@ async function getFeaturesAndScoresForGenomeIds(
   for( let genomeId in genomeIdsToFeatures ) {
     const features = genomeIdsToFeatures[genomeId];
     const genomeString = await readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
+    if( ! genomeString ) {
+      console.error(`Error: genomeString is undefined for genomeId ${genomeId}`);
+      continue;
+    }
     const genomeAndMeta = JSON.parse( genomeString );
     let tagForCell;
     if( features.cellKey ) {
-      tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === features.cellKey );
-      if( undefined === tagForCell ) {
+      if( genomeAndMeta.genome.tags !== undefined ) {
+        tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === features.cellKey );
+      }      
+      if( undefined === tagForCell && genomeAndMeta.genome.tags !== undefined ) {
         // this genome has not been an elite in the current map, so let's use the last tag
         tagForCell = genomeAndMeta.genome.tags[genomeAndMeta.genome.tags.length - 1];
       }
@@ -2083,8 +2086,13 @@ async function getFeaturesAndScoresForGenomeIds(
       // let's use the last tag
       tagForCell = genomeAndMeta.genome.tags[genomeAndMeta.genome.tags.length - 1];
     }
-    
-    const { duration, noteDelta, velocity } = tagForCell;
+    // const { duration, noteDelta, velocity } = tagForCell;
+    let duration, noteDelta, velocity;
+    if( tagForCell !== undefined ) { // handling temporary condition during development, otherwise we should be able to destructure directly from tagForCell
+      duration = tagForCell.duration;
+      noteDelta = tagForCell.noteDelta;
+      velocity = tagForCell.velocity;
+    }
     // const classConfiguration = eliteMap.classConfigurations[eliteMap.eliteMapIndex];
     const { 
       qualityEvaluationEndpoint, 
@@ -2188,7 +2196,7 @@ async function getFeaturesAndScoresFromEliteMap(
 
 const projectionRetrainingLinearGapIncrement = 10;
 function getShouldFit( lastProjectionFitIndex, iterationNumber ) {
-  // T_n = n * k * (n + 1) / 2,
+  // T_n = n * k * (n + 1) / 2, formula for triangle numbers
   const nextProjectionFitIndex = lastProjectionFitIndex + 1;
   const nextFitIterationNumber = nextProjectionFitIndex * projectionRetrainingLinearGapIncrement * (nextProjectionFitIndex + 1) / 2;
   const shouldFit = iterationNumber >= nextFitIterationNumber;
@@ -2421,7 +2429,7 @@ function readEliteMapMetaFromDisk( evolutionRunId, evoRunDirPath) {
   return eliteMapMeta;
 }
 
-function saveCellFeaturesToDisk( cellFeatures, eliteMap, evoRunDirPath, evolutionRunId ) {
+async function saveCellFeaturesToDisk( cellFeatures, eliteMap, evoRunDirPath, evolutionRunId ) {
   const cellFeaturesDirPath = `${evoRunDirPath}cellFeatures/`;
   if( ! fs.existsSync(cellFeaturesDirPath) ) fs.mkdirSync( cellFeaturesDirPath, { recursive: true } );
   // for each cell key in cellFeatures, save the features to disk with the corresponding key
@@ -2441,8 +2449,12 @@ function saveCellFeaturesToDisk( cellFeatures, eliteMap, evoRunDirPath, evolutio
       const featuresKey = getFeaturesKey(evolutionRunId, genomeId);
       const cellFeaturesFileName = `${featuresKey}.json`;
       const cellFeaturesFilePath = `${cellFeaturesDirPath}${cellFeaturesFileName}`;
-      const cellFeaturesStringified = JSON.stringify(cellFeatures[cellKey], null, 2); // prettified to obtain the benefits (compression of git diffs)
-      fs.writeFileSync( cellFeaturesFilePath, cellFeaturesStringified );  
+      // using .stat instead of .existsSync in an effort to speed things up a bit: https://stackoverflow.com/a/67837194/169858
+      const exists = !!(await fs.promises.stat(cellFeaturesFilePath).catch(() => null));
+      if( ! exists ) {
+        const cellFeaturesStringified = JSON.stringify(cellFeatures[cellKey], null, 2); // prettified to obtain the benefits (compression of git diffs)
+        fs.writeFileSync( cellFeaturesFilePath, cellFeaturesStringified );  
+      }
     }
   }
 }

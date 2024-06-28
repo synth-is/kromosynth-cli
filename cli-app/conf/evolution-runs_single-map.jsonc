@@ -1,0 +1,44 @@
+{
+  "baseEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "evoConf_single-map_x100",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HZPBGPEDPRHJRV7007W6XD02_evoConf_single-map_x100"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_single-map_x100_noOsc_convolverAlwaysWithImpulseResponse",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01HZZN9WZ7XJW5M9SC9NRCYBM0_evoConf_single-map_x100_noOsc_convolverAlwaysWithImpulseResponse"
+        },
+        {
+          "id": "01J02861FF1E0PACVYKPNT81VM_evoConf_single-map_x100_noOsc_convolverAlwaysWithImpulseResponse"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_single-map_x100_noOsc_convolverAlwaysWithImpulseResponse_mfcc_pca",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01J047F46CQ8MSXQ4G05DYZKTV_evoConf_single-map_x100_noOsc_convolverAlwaysWithImpulseResponse_mfcc_pca"
+        },
+        {
+          "id": "01J07BSN3P6HZZ4D3BWARNTBXX_evoConf_single-map_x100_noOsc_convolverAlwaysWithImpulseResponse_mfcc_pca"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 2,
+  "currentEvolutionRunIteration": 1
+}
