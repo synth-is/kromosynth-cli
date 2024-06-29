@@ -1,0 +1,18 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/unsupervised/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "evRnCnf_nonOEE-guitar_1prnt_nonCollctve_x20",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/diffs/OEE/evRnCnf_nonOEE-guitar_1prnt_nonCollctve_x20.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HS1W1S55RA46VJEG4HBD77ZW_evRnCnf_nonOEE-guitar_1prnt_nonCollctve_x20"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

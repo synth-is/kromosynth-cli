@@ -1,0 +1,55 @@
+{
+  "evoRunsDirPath": "/fp/projects01/ec29/bthj/evoruns/oee/swtchFtnss/",
+  "batchSize": 20,
+  "maxNumberOfParents": 1,
+  "renderSampleRateForClassifier": 16000,
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+  "classScoringDurations": [4],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "classifiers": [
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "fitnessReed",
+          "refSetEmbedsPath": "/fp/projects01/ec29/bthj/embeddings/nsynth-valid/vggish/family-split/reed/embeds.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 16000
+        },
+        {
+          "refSetName": "fitnessMallet",
+          "refSetEmbedsPath": "/fp/projects01/ec29/bthj/embeddings/nsynth-valid/vggish/family-split/mallet/embeds.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 16000
+        }
+      ],
+      "classificationDimensions": [20, 20]
+    }
+  ],
+  "classifierIndex" : 0,
+  "measureCollectivePerformance": false, // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
+  "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
+  "mapSwitchingCondition": {
+    "switchEveryNGenerations": 500
+  },
+  "ckptDir": "/cluster/work/projects/ec29/bthj/checkpoints",
+
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-switch-fitness.jsonc-host-",
+  "gRpcServerCount": 1,
+  "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-switch-fitness.jsonc-host-",
+  "renderingSocketServerCount": 3,
+
+  "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-switch-fitness.jsonc-host-",
+  "evaluationFeatureSocketServerCount": 3,
+  "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-quality-socket-switch-fitness.jsonc-host-",
+  "evaluationQualitySocketServerCount": 3,
+  "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-projection-socket-switch-fitness.jsonc-host-",
+  "evaluationProjectionSocketServerCount": 2
+}

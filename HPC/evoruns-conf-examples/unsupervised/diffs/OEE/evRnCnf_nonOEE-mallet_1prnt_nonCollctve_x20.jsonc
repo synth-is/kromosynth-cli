@@ -1,0 +1,46 @@
+{
+  "evoRunsDirPath": "/fp/projects01/ec29/bthj/evoruns/oee/none/",
+  "batchSize": 20,
+  "maxNumberOfParents": 1,
+  "renderSampleRateForClassifier": 16000,
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+  "classScoringDurations": [4],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "classifiers": [
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "malletRef1",
+          "refSetEmbedsPath": "/fp/projects01/ec29/bthj/embeddings/nsynth-valid/vggish/family-split/mallet/embeds.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 16000
+        }
+      ],
+      "classificationDimensions": [20, 20]
+    }
+  ],
+  "classifierIndex" : 0,
+  "measureCollectivePerformance": false, // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
+  "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
+  "mapSwitchingCondition": {
+    "switchEveryNGenerations": 15000
+  },
+  "ckptDir": "/fp/projects01/ec29/bthj/checkpoints",
+
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-non-oee_mallet.jsonc-host-",
+  "gRpcServerCount": 1,
+  "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-non-oee_mallet.jsonc-host-",
+  "renderingSocketServerCount": 1,
+
+  "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-non-oee_mallet.jsonc-host-",
+  "evaluationFeatureSocketServerCount": 1,
+  "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-quality-socket-non-oee_mallet.jsonc-host-",
+  "evaluationQualitySocketServerCount": 1,
+  "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-projection-socket-non-oee_mallet.jsonc-host-",
+  "evaluationProjectionSocketServerCount": 1
+}

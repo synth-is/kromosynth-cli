@@ -1,0 +1,21 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/unsupervised/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "evolution-runs_mfcc_pca-quantised_quality-psychoacoustic_parents-max-1_rghnssScldByLdnss_clsscSynth",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/diffs/psychoacoustic/evolution-run-config_quality-psychoacoustic-max-1_rghnssScldByLdnss.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/unsupervised/diffs/psychoacoustic/evolutionary-hyperparameters_clsscSynth.jsonc",
+      "iterations": [
+        {
+          "id": "01HQR3JEK3A25M5GAS41EZ2MKY_evolution-runs_mfcc_pca-quantised_quality-psychoacoustic_parents-max-1_rghnssScldByLdnss_clsscSynth"
+        },
+        {
+          "id": "01HQZC9FZ8R5N122VDT5HPDBTA_evolution-runs_mfcc_pca-quantised_quality-psychoacoustic_parents-max-1_rghnssScldByLdnss_clsscSynth"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIteration": 0
+}

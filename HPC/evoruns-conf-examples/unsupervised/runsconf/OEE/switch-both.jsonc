@@ -1,0 +1,21 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/unsupervised/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "evRnCnf_swtchBoth_1prnt_nonCollctve_x20",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/diffs/OEE/evRnCnf_swtchBoth_1prnt_nonCollctve_x20.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HS1VSDKJ0VA15WR7G77W5RXJ_evRnCnf_swtchBoth_1prnt_nonCollctve_x20"
+        },
+        {
+          "id": "01HS3W2JSB9SE33QZX66MCXP30_evRnCnf_swtchBoth_1prnt_nonCollctve_x20"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 1
+}
