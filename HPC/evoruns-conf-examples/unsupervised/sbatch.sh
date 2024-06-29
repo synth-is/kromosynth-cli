@@ -88,6 +88,22 @@ for (( iteration=1; iteration<=$batch_count; iteration++ )); do
 #SBATCH --dependency=singleton
 #SBATCH --time=03:00:30
 
+
+## cast model files to all nodes
+srun mkdir -p \${SCRATCH}/models
+cd /fp/projects01/ec29/bthj/kromosynth-evaluate/measurements/models/
+for FILE in *; do
+  echo "Casting model file: \$FILE"
+  sbcast \$FILE \${SCRATCH}/models/\$FILE
+done
+srun mkdir -p \${SCRATCH}/tfjs-model_yamnet_tfjs_1
+cd /fp/projects01/ec29/bthj/tfjs-model_yamnet_tfjs_1/
+for FILE in *; do
+  echo "Casting model file: \$FILE"
+  sbcast \$FILE \${SCRATCH}/tfjs-model_yamnet_tfjs_1/\$FILE
+done
+
+
 # Declare an associative array
 declare -A pids
 
@@ -98,7 +114,7 @@ for ((i=1; i<=${variation_server_count}; i++)); do
   key="var_\${i}"
 
   rm /fp/projects01/ec29/bthj/gRPC-hosts/grpc-${file_name}-host-\$i
-  apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' /fp/projects01/ec29/bthj/kromosynth-runner-CPU.sif node index.js --max-old-space-size=8192 --modelUrl file:///fp/projects01/ec29/bthj/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-evaluation --hostInfoFilePath /fp/projects01/ec29/bthj/gRPC-hosts/grpc-${file_name}-host-\$i &
+  apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' /fp/projects01/ec29/bthj/kromosynth-runner-CPU.sif node index.js --max-old-space-size=8192 --modelUrl file:///localscratch/<job-ID>/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-evaluation --hostInfoFilePath /fp/projects01/ec29/bthj/gRPC-hosts/grpc-${file_name}-host-\$i &
 
   # Assign a value to the associative array using the unique key
   pids[\$key]="\$!"
