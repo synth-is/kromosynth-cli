@@ -2174,9 +2174,13 @@ function readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRunId, eli
       const cellFeaturesFileName = `${featuresKey}.json`;
       const cellFeaturesFilePath = `${evoRunDirPath}cellFeatures/${cellFeaturesFileName}`;
       if( fs.existsSync(cellFeaturesFilePath) ) {
-        const cellFeaturesJSONString = fs.readFileSync( cellFeaturesFilePath, 'utf8' );
-        const cellFeaturesJSON = JSON.parse( cellFeaturesJSONString );
-        cellFeatures[cellKey] = cellFeaturesJSON;
+        try {
+          const cellFeaturesJSONString = fs.readFileSync( cellFeaturesFilePath, 'utf8' );
+          const cellFeaturesJSON = JSON.parse( cellFeaturesJSONString );
+          cellFeatures[cellKey] = cellFeaturesJSON;
+        } catch( err ) {
+          console.error("readCellFeaturesFromDiskForEliteMap: ", err);
+        }
       }
     }
   }
