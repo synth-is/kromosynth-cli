@@ -1,5 +1,6 @@
 {
   "algorithm": "mapElites_with_uBC", // uBC = unproductive bias count
+  "evoRunsGroup": "generalTestEvoruns", // for grouping runs, e.g. in a UI
   // "algorithm": "Deep-Grid-MAP-Elites",
   "seedEvals": 50,
   // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution, 
@@ -9,7 +10,7 @@
   "batchSize": 50,
   "maxNumberOfParents": 1,
   "terminationCondition": {
-    "numberOfEvals": 200000
+    "numberOfEvals": 300000
   //  or
   //  "averageFitnessInMap": 0.1
   // or

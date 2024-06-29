@@ -75,6 +75,7 @@ export async function qdSearch(
 ) {
   const {
     algorithm: algorithmKey,
+    evoRunsGroup,
     seedEvals, 
     eliteWinsOnlyOneCell, classRestriction,
     maxNumberOfParents,
@@ -981,7 +982,7 @@ async function mapElitesBatch(
                   for( const oneVelocity of classScoringVelocities ) {
                     geneEvaluationServerHost = _geneEvaluationServers[ (batchIteration + iterationIncrement) % _geneEvaluationServers.length ];
                     // const oneClassRestriction = [`${oneDuration},${oneNoteDelta},${oneVelocity}`];
-                    const oneClassKeySuffix = `_${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
+                    const oneClassKeySuffix = `-${oneDuration}_${oneNoteDelta}_${oneVelocity}`;
                     const oneCombinationClassScores = await getGenomeClassScores(
                       newGenomeString,
                       [oneDuration],
@@ -1102,8 +1103,13 @@ async function mapElitesBatch(
           eliteClassKeys = getDummyClassKeysWhereScoresAreElite( Object.keys(eliteMap.cells), eliteMap.generationNumber, dummyRun.iterations );
         } else {
           eliteClassKeys = getClassKeysWhereScoresAreElite( newGenomeClassScores, eliteMap, eliteWinsOnlyOneCell, classRestriction );
-          // TODO: why was this done?: Object.keys(newGenomeClassScores);
+          // eliteClassKeys = Object.keys(newGenomeClassScores);
         }
+
+        // TODO temporary:
+        // pick random 50 elements from eliteClassKeys
+        // eliteClassKeys = chance.pickset(eliteClassKeys, 1);
+
         const getClassKeysWhereScoresAreEliteEndTime = performance.now();
         console.log("getClassKeysWhereScoresAreElite duration", getClassKeysWhereScoresAreEliteEndTime - getClassKeysWhereScoresAreEliteStartTime);
         if( eliteClassKeys.length > 0 ) {
@@ -1147,7 +1153,7 @@ async function mapElitesBatch(
             eliteMap.cells[classKey].eltAddCnt = eliteMap.cells[classKey].eltAddCnt ? eliteMap.cells[classKey].eltAddCnt + 1 : 1;
 
             const { features, featuresType, embedding } = newGenomeClassScores[classKey];
-            if( ! featuresType ) {
+            if( ! featuresType && isUnsupervisedDiversityEvaluation ) {
               console.error("featuresType is undefined");
             }
             if( ! cellFeatures[classKey] ) {
@@ -1173,8 +1179,10 @@ async function mapElitesBatch(
           }
           if( renderElitesToWavFiles ) {
             const oneClassScore = newGenomeClassScores[eliteClassKeys[0]].score;
+            // class keys string, maximum 100 characters
+            const classKeysString = eliteClassKeys.join("__").substring(0, 100);
             renderEliteGenomeToWavFile(
-              newGenome, genomeId, eliteClassKeys.join("__"), eliteMap.generationNumber, oneClassScore, evoRenderDirPath,
+              newGenome, genomeId, classKeysString, eliteMap.generationNumber, oneClassScore, evoRenderDirPath,
               classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs
             );
           }
@@ -1279,11 +1287,12 @@ async function mapElitesBatch(
   }
 
   if( shouldRenderWaveFiles ) {
-    await renderEliteMapToWavFiles(
-      eliteMap, evolutionRunId, evoRunDirPath, evoRenderDirPath, eliteMap.generationNumber,
-      classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
-      _geneRenderingServers, renderSampleRateForClassifier
-    );
+    // TODO this seems to get stuck in a loop
+    // await renderEliteMapToWavFiles(
+    //   eliteMap, evolutionRunId, evoRunDirPath, evoRenderDirPath, eliteMap.generationNumber,
+    //   classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+    //   _geneRenderingServers, renderSampleRateForClassifier
+    // );
   }
 
   eliteMap.searchBatchSize = searchBatchSize;
@@ -1402,14 +1411,16 @@ async function renderEliteGenomeToWavFile(
     useGPU, // useGPU
     antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs
   );
-  if( !fs.existsSync(evoRenderDirPath) ) fs.mkdirSync(evoRenderDirPath, {recursive: true});
-  // replace commas in classKey with underscores (AudioStellar doesn't like commas in file names)
-  let classKeySansCommas = classKey.replace(/,/g, "_");
-  let filePath = path.join(evoRenderDirPath, `${Math.round(score*100)}_${iteration}_${classKeySansCommas}_${eliteGenomeId}.wav`);
-  console.log("writing wav file to", filePath, "for elite genome", eliteGenomeId);
-  let wav = toWav(audioBuffer);
-  let wavBuffer = Buffer.from(new Uint8Array(wav));
-  fs.writeFileSync( filePath, wavBuffer );
+  if( audioBuffer ) {
+    if( !fs.existsSync(evoRenderDirPath) ) fs.mkdirSync(evoRenderDirPath, {recursive: true});
+    // replace commas in classKey with underscores (AudioStellar doesn't like commas in file names)
+    let classKeySansCommas = classKey.replace(/,/g, "_");
+    let filePath = path.join(evoRenderDirPath, `${Math.round(score*100)}_${iteration}_${classKeySansCommas}_${eliteGenomeId}.wav`);
+    console.log("writing wav file to", filePath, "for elite genome", eliteGenomeId);
+    let wav = toWav(audioBuffer);
+    let wavBuffer = Buffer.from(new Uint8Array(wav));
+    fs.writeFileSync( filePath, wavBuffer ); 
+  }
 }
 
 async function getGenomeClassScores(

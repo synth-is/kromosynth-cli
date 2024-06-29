@@ -69,8 +69,7 @@
       "addAudioBufferSourceWavetableChance": 0.3,
       "addAudioBufferSourceAdditiveChance": 0.4,
 
-      // "includeNoise": true,
-      "includeNoise": false,
+      "includeNoise": true,
       
       // initial node chances must add up to 1
       "initialOscillatorChance": 0.5,

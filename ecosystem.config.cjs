@@ -8,7 +8,7 @@ module.exports = {
         instances : 1,
         exec_mode : "cluster",
         max_memory_restart: '700M',
-        cron_restart: '*/30 * * * *',
+        // cron_restart: '*/30 * * * *',
         increment_var : 'PORT',
         env: {
           "PORT": 50051,
@@ -22,7 +22,7 @@ module.exports = {
         instances : 3,
         exec_mode : "cluster",
         max_memory_restart: '700M',
-        cron_restart: '*/30 * * * *',
+        // cron_restart: '*/30 * * * *',
         increment_var : 'PORT',
         env: {
           "PORT": 30051,
@@ -31,12 +31,12 @@ module.exports = {
       },
       { // see the `kromosynth-evaluate` repository
         name   : "kromosynth-evaluation-socket-server",
-        script : "/Users/bjornpjo/Developer/apps/kromosynth-evaluate/YAMNet-socket/index.js",
-        args: "--processTitle kromosynth-evaluation-socket-server",
+        script : "/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/supervised/YAMNet-socket/index.js",
+        args: "--processTitle kromosynth-evaluation-socket-server --modelUrl file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json --useGPU true",
         instances : 3,
         exec_mode : "cluster",
         max_memory_restart: '700M',
-        cron_restart: '*/30 * * * *',
+        // cron_restart: '*/30 * * * *',
         increment_var : 'PORT',
         env: {
           "PORT": 40051,
@@ -47,11 +47,11 @@ module.exports = {
       {
         name   : "kromosynth-controller",
         script : "cli-app/kromosynth.js",
-        args: "evolution-runs --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs.jsonc",
+        args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs.jsonc",
         instances : 1,
         exec_mode : "fork",
         max_memory_restart: '4G',
-        cron_restart: '*/30 * * * *'
+        // cron_restart: '0 */2 * * *' // every 2 hours
       }
     ]
   }
