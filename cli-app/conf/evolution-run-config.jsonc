@@ -1,16 +1,16 @@
 {
   "algorithm": "mapElites_with_uBC", // uBC = unproductive bias count
+  "evoRunsGroup": "generalTestEvoruns", // for grouping runs, e.g. in a UI
   // "algorithm": "Deep-Grid-MAP-Elites",
   "seedEvals": 50,
   // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution, 
   // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
   "eliteWinsOnlyOneCell": false,
   "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
-  "batchSize": 200,
-  // "batchSize": 50,
+  "batchSize": 50,
   "maxNumberOfParents": 1,
   "terminationCondition": {
-    "numberOfEvals": 200000
+    "numberOfEvals": 300000
   //  or
   //  "averageFitnessInMap": 0.1
   // or
@@ -150,19 +150,50 @@
         }
       ],
       "classificationDimensions": [100, 100]
+    },
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "customRef1",
+          "featureExtractionEndpoint": "/wav2vec",
+          "featureExtractionType": "wav2vec",
+          "qualityEvaluationEndpoint": "/cosine?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=wav2vec",
+          "qualityFromFeatures": true,
+          "usingQueryEmbeddings": false, // e.g. for a FAD reference set
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 16000
+        },
+        {
+          "refSetName": "customRef2",
+          "featureExtractionEndpoint": "/manual?features=spectral_centroid,spectral_flatness",
+          "featureExtractionType": "spectral_centroid,spectral_flatness",
+          "qualityEvaluationEndpoint": "/cosine?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=manual-spectral_centroid,manual-spectral_flatness",
+          "qualityFromFeatures": true,
+          "usingQueryEmbeddings": false, // e.g. for a FAD reference set
+          "projectionEndpoint": "/umap",
+          "sampleRate": 16000
+        }
+      ],
+      "classificationDimensions": [100, 100]
     }
   ],
   "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
   "mapSwitchingCondition": {
-    "switchEveryNGenerations": 500,
+    // a subset of those conditions can be set at a time:
+    // - for the gradient thresholds, the gradientWindowSize should be set to the number of generations to consider
+    "switchEveryNGenerations": 10,
     "coverageWithoutIncreaseGenerations": 10,
-    "qdScoreWithoutIncreaseGenerations": 10
+    "qdScoreWithoutIncreaseGenerations": 10,
+    "coverageGradientThreshold": 0.6, // 0.01,
+    "qdScoreGradientThreshold": 0.6, // 0.01,
+    "gradientWindowSize": 10
   }, 
   "classifierIndex" : 6,
   "ckptDir": "/Users/bjornpjo/.cache/torch/hub/checkpoints",
   "yamnetModelUrl": "file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json",
 
-  "measureCollectivePerformance": true, // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
+  "measureCollectivePerformance": false, // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
 
   "useGpuForTensorflow": true,
   "renderSampleRateForClassifier": 16000,
@@ -208,8 +239,8 @@
   ],
   "geneRenderingServers": [
     "ws://127.0.0.1:30051",
-    "ws://127.0.0.1:30052",
-    "ws://127.0.0.1:30053"
+    // "ws://127.0.0.1:30052",
+    // "ws://127.0.0.1:30053"
   ],
 
   // it's either geneEvaluationServers or evaluationFeatureServers, evaluationQualityServers and evaluationProjectionServers
@@ -224,18 +255,18 @@
 
   "evaluationFeatureServers": [ // feature extraction
     "ws://127.0.0.1:31051",
-    "ws://127.0.0.1:31052",
-    "ws://127.0.0.1:31053"
+    // "ws://127.0.0.1:31052",
+    // "ws://127.0.0.1:31053"
   ],
   "evaluationQualityServers": [ // quality evaluation
     "ws://127.0.0.1:32051",
-    "ws://127.0.0.1:32052",
-    "ws://127.0.0.1:32053"
+    // "ws://127.0.0.1:32052",
+    // "ws://127.0.0.1:32053"
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
-    "ws://127.0.0.1:33052",
-    "ws://127.0.0.1:33053"
+    // "ws://127.0.0.1:33052",
+    // "ws://127.0.0.1:33053"
     // "ws://127.0.0.1:33054",
     // "ws://127.0.0.1:33055"
   ]

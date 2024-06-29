@@ -99,8 +99,39 @@
           "id": null
         }
       ]
+    },
+    {
+      "label": "oee-switch-both-oneCPPNPerFrequency",
+      "diffEvolutionRunConfigFile": null,
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HTA0NJNBKJKJZYZP3C88FBZ1_oee-switch-both-oneCPPNPerFrequency"
+        },
+        {
+          "id": "01HTA1YY25HFHWC0MFK0ZYV8SN_oee-switch-both-oneCPPNPerFrequency"
+        },
+        {
+          "id": "01HTCS7EMK4GCND6XQWWH7Z5VN_oee-switch-both-oneCPPNPerFrequency"
+        },
+        {
+          "id": "01HTYPE8ZPTX195DN8CG422R8P_oee-switch-both-oneCPPNPerFrequency"
+        },
+        {
+          "id": "01HTYR46AEG6TE34685DT4CWTD_oee-switch-both-oneCPPNPerFrequency"
+        },
+        {
+          "id": "01HTZCBAY2JRV6515HG8FHP3YX_oee-switch-both-oneCPPNPerFrequency"
+        },
+        {
+          "id": "01HVBX9JVQ7XFHCS6HBPWABWAP_oee-switch-both-oneCPPNPerFrequency"
+        },
+        {
+          "id": "01HVCKTME41HAAJ8DFSVR8R9QS_oee-switch-both-oneCPPNPerFrequency"
+        }
+      ]
     }
   ],
-  "currentEvolutionRunIndex": 6,
-  "currentEvolutionRunIteration": 2
+  "currentEvolutionRunIndex": 8,
+  "currentEvolutionRunIteration": 7
 }

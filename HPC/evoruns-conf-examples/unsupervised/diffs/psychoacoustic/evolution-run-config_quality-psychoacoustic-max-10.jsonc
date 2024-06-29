@@ -1,5 +1,5 @@
 {
-  "evoRunsDirPath": "/cluster/work/projects/ec29/bthj/kromosynth/evoruns/quality/psychoacoustic/",
+  "evoRunsDirPath": "/fp/projects01/ec29/bthj/evoruns/quality/psychoacoustic/",
 
   "maxNumberOfParents": 10,
 
@@ -18,9 +18,9 @@
   "renderingSocketServerCount": 8,
 
   "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-evolution-runs_mfcc_pca-quantised_quality-psychoacoustic_parents-max-10.jsonc-host-",
-  "evaluationFeatureSocketServerCount": 4,
+  "evaluationFeatureSocketServerCount": 8,
   "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-quality-socket-evolution-runs_mfcc_pca-quantised_quality-psychoacoustic_parents-max-10.jsonc-host-",
-  "evaluationQualitySocketServerCount": 4,
+  "evaluationQualitySocketServerCount": 32,
   "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-projection-socket-evolution-runs_mfcc_pca-quantised_quality-psychoacoustic_parents-max-10.jsonc-host-",
-  "evaluationProjectionSocketServerCount": 16
+  "evaluationProjectionSocketServerCount": 8
 }

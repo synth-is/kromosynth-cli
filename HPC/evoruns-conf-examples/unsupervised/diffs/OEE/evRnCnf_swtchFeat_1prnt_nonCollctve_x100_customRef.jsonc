@@ -1,0 +1,58 @@
+{
+  "terminationCondition": {
+    "numberOfEvals": 900000
+  },
+  "evoRunsDirPath": "/fp/projects01/ec29/bthj/evoruns/oee/swtchFeat/",
+  "batchSize": 200,
+  "maxNumberOfParents": 1,
+  "renderSampleRateForClassifier": 16000,
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+  "classScoringDurations": [4],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "classifiers": [
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "fitnessReedFeat1",
+          "refSetEmbedsPath": "/fp/projects01/ec29/bthj/embeddings/customRef1/embeds.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,2",
+          "sampleRate": 16000
+        },
+        {
+          "refSetName": "fitnessReedFeat2",
+          "refSetEmbedsPath": "/fp/projects01/ec29/bthj/embeddings/customRef2/embeds.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "1,3",
+          "sampleRate": 16000
+        }
+      ],
+      "classificationDimensions": [100, 100]
+    }
+  ],
+  "classifierIndex" : 0,
+  "measureCollectivePerformance": false, // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
+  "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
+  "mapSwitchingCondition": {
+    "switchEveryNGenerations": 500
+  },
+  "ckptDir": "/fp/projects01/ec29/bthj/checkpoints",
+
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-switch-features_x100_customRef.jsonc-host-",
+  "gRpcServerCount": 1,
+  "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-switch-features_x100_customRef.jsonc-host-",
+  "renderingSocketServerCount": 1,
+
+  "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-switch-features_x100_customRef.jsonc-host-",
+  "evaluationFeatureSocketServerCount": 1,
+  "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-quality-socket-switch-features_x100_customRef.jsonc-host-",
+  "evaluationQualitySocketServerCount": 1,
+  "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-projection-socket-switch-features_x100_customRef.jsonc-host-",
+  "evaluationProjectionSocketServerCount": 1
+}

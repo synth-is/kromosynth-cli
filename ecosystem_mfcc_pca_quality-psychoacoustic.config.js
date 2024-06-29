@@ -80,19 +80,19 @@ module.exports = {
           "PORT": 33051,
         }
       }
-      ,
-      {
-        name   : "kromosynth-controller",
-        script : "cli-app/kromosynth.js",
-        args: "evolution-runs --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_quality-psychoacoustic.jsonc",
-        instances : 1,
-        // exec_mode : "fork",
-        max_memory_restart: '4G',
-        // cron_restart: '0 */3 * * *' // every 3 hours
-        // cron_restart: '*/30 * * * *' // every 30 minutes
-        // cont restart every hour
-        // cron_restart: '0 * * * *'
-      }
+      // ,
+      // {
+      //   name   : "kromosynth-controller",
+      //   script : "cli-app/kromosynth.js",
+      //   args: "evolution-runs --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_quality-psychoacoustic.jsonc",
+      //   instances : 1,
+      //   // exec_mode : "fork",
+      //   max_memory_restart: '4G',
+      //   // cron_restart: '0 */3 * * *' // every 3 hours
+      //   // cron_restart: '*/30 * * * *' // every 30 minutes
+      //   // cont restart every hour
+      //   // cron_restart: '0 * * * *'
+      // }
     ]
   }
   

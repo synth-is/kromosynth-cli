@@ -455,3 +455,29 @@ export function invertedLogarithmicRamp(i, n) {
 
   return proportion;
 }
+
+// the linear regression slope calculation:
+// - operates on an array of numeric values and calculates the slope of the linear trend in the last windowSize values.
+// - based on the least squares method to fit a line to the points inside the window.
+export function getGradient(values, windowSize = 5, measurementType) {
+  if (values.length < windowSize) {
+      throw new Error("The array is shorter than the specified window size.");
+  }
+
+  // Take the last 'windowSize' points for the regression
+  const y = values.slice(-windowSize);
+  const x = [...Array(windowSize).keys()].map(i => i + values.length - windowSize);
+
+  // Perform the linear regression using the least squares method
+  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  for (let i = 0; i < windowSize; i++) {
+      sumX += x[i];
+      sumY += y[i];
+      sumXY += x[i] * y[i];
+      sumXX += x[i] * x[i];
+  }
+
+  const slope = (windowSize * sumXY - sumX * sumY) / (windowSize * sumXX - sumX * sumX);
+  console.log('slope:', slope, "measurementType:", measurementType);
+  return slope;
+}

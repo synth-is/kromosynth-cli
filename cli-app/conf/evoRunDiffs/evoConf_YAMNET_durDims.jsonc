@@ -1,0 +1,32 @@
+{
+  "evoRunsGroup": "YAMNet_durDims", // for grouping runs, e.g. in a UI
+  "maxNumberOfParents": 1,
+  "classifiers": [
+    "yamnet"
+  ],
+  "classifierIndex" : 0,
+  "classScoringVariationsAsContainerDimensions": true,
+
+  "classScoringDurations": [0.5, 1, 2, 5, 10],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "geneVariationServers": [
+    "127.0.0.1:50051"
+  ],
+  "geneEvaluationServers": [
+    "ws://127.0.0.1:40051",
+    "ws://127.0.0.1:40052",
+    "ws://127.0.0.1:40053"
+  ],
+  "geneRenderingServers": [
+    "ws://127.0.0.1:30051",
+    "ws://127.0.0.1:30052",
+    "ws://127.0.0.1:30053"
+  ],
+
+  // disable UnsupervisedDiversityEvaluation:
+  "evaluationFeatureServers": [], // feature extraction
+  "evaluationQualityServers": [], // quality evaluation
+  "evaluationProjectionServers": [] // projection
+}

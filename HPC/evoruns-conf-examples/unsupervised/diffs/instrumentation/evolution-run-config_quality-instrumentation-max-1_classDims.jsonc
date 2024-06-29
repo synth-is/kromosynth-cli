@@ -1,4 +1,10 @@
 {
+  "batchSize": 128,
+
+  "terminationCondition": {
+    "numberOfEvals": 900000
+  },
+  
   "classifiers": [
     "yamnet",
     [50, 50], // feature map to project the bahaviour space to, e.g. with dimensionality reduction
@@ -8,7 +14,7 @@
   ],
   "classifierIndex" : 3,
 
-  "evoRunsDirPath": "/fp/projects01/ec29/bthj/QD/evoruns/quality/instrumentation/",
+  "evoRunsDirPath": "/fp/projects01/ec29/bthj/evoruns/quality/instrumentation/",
   
   "maxNumberOfParents": 1,
 
@@ -24,14 +30,14 @@
   "antiAliasing": false,
 
   "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_classDims.jsonc-host-",
-  "gRpcServerCount": 4,
+  "gRpcServerCount": 2,
   "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_classDims.jsonc-host-",
-  "renderingSocketServerCount": 16,
+  "renderingSocketServerCount": 4,
 
   "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_classDims.jsonc-host-",
-  "evaluationFeatureSocketServerCount": 16,
+  "evaluationFeatureSocketServerCount": 4,
   "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-quality-socket-evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_classDims.jsonc-host-",
   "evaluationQualitySocketServerCount": 16,
   "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-projection-socket-evolution-runs_mfcc_pca-quantised_quality-instrumentation_parents-max-1_classDims.jsonc-host-",
-  "evaluationProjectionSocketServerCount": 16
+  "evaluationProjectionSocketServerCount": 4
 }

@@ -1,0 +1,44 @@
+{
+  "maxNumberOfParents": 1,
+
+  "classifiers": [
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "customRef1",
+          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef1/embeds.npy",
+          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/acoustic/embeds.npy",
+          "featureExtractionEndpoint": "/wav2vec",
+          "featureExtractionType": "wav2vec",
+          "qualityEvaluationEndpoint": "/cosine?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=wav2vec",
+          "qualityFromFeatures": true,
+          "usingQueryEmbeddings": false, // e.g. for a FAD reference set
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 16000
+        },
+        {
+          "refSetName": "customRef2",
+          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
+          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
+          "featureExtractionEndpoint": "/manual?features=spectral_centroid,spectral_flatness",
+          "featureExtractionType": "spectral_centroid,spectral_flatness",
+          "qualityEvaluationEndpoint": "/cosine?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=manual-spectral_centroid,manual-spectral_flatness",
+          "qualityFromFeatures": true,
+          "usingQueryEmbeddings": false, // e.g. for a FAD reference set
+          "projectionEndpoint": "/umap",
+          // "pcaComponents": "1,3",
+          "sampleRate": 16000
+        }
+      ],
+      "classificationDimensions": [10, 10]
+    }
+  ],
+  "classifierIndex" : 0,
+  "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
+  "mapSwitchingCondition": {
+    // "coverageGradientThreshold": 0.01,
+    "qdScoreGradientThreshold": 0.01,
+    "gradientWindowSize": 10
+  }
+}

@@ -11,35 +11,28 @@
           "id": "01HNQHH41K6JB0F2S64W292RMV"
         }
       ]
+    },
+    {
+      "label": "YAMNet-durDims",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_YAMNET_durDims.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01J1FSK3N6KWJ7N2A5RZZQ55JZ_YAMNet-durDims"
+        }
+      ]
+    },
+    {
+      "label": "YAMNet-durDims_noOsc",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_YAMNET_durDims.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01J1JD4VQADMB2VJA9688Z3FZ8_YAMNet-durDims_noOsc"
+        }
+      ]
     }
-    // {
-    //   "label": "5dur-1ndelt-1vel",
-    //   "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_5dur-1ndelt-1vel.jsonc",
-    //   "diffEvolutionaryHyperparametersFile": null,
-    //   "iterations": [
-    //     {
-    //       "id": "01HG4DFR8N3Z21MXQ0JCFK296Z_5dur-1ndelt-1vel"
-    //     }
-    //   ]
-    // }
-    // ,
-    // {
-    //   "label": "4dur-7ndelt-4vel",
-    //   "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolution-run-config_4dur-7ndelt-4vel.jsonc",
-    //   "diffEvolutionaryHyperparametersFile": null,
-    //   "iterations": [
-    //     {
-    //       "id": "01GX9022W00JDCB7VGJD61B4PM_4dur-7ndelt-4vel_additive-bias"
-    //     },
-    //     {
-    //       "id": "01GYQ5430670QATP2PMZ2J272S_4dur-7ndelt-4vel"
-    //     },
-    //     {
-    //       "id": null
-    //     }
-    //   ]
-    // }
   ],
-  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIndex": 2,
   "currentEvolutionRunIteration": 0
 }

@@ -1,0 +1,29 @@
+{
+  "batchSize": 4,
+
+  "terminationCondition": {
+    "numberOfEvals": 900000
+  },
+  
+  "classifiers": [
+    "yamnet",
+    [50, 50], // feature map to project the bahaviour space to, e.g. with dimensionality reduction
+    [100, 100],
+    // classes as a third dimension:
+    [50, 50, ["mallet", "string", "reed", "guitar", "synth_lead", "vocal", "bass", "flute", "keyboard", "brass", "organ"]]
+  ],
+  "classifierIndex" : 3,
+  
+  "maxNumberOfParents": 1,
+
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+
+  "classScoringDurations": [4],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+  "classScoringVariationsAsContainerDimensions": false,
+
+  "renderSampleRateForClassifier": 16000,
+
+  "antiAliasing": false
+}

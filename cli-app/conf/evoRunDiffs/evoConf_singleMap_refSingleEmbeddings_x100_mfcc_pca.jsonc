@@ -1,0 +1,61 @@
+{
+  "seedEvals": 512,
+  "batchSize": 64, // 625, // 0,0625 * 10000 (32/512)
+  "maxNumberOfParents": 1,
+
+  "oneCPPNPerFrequency": false,
+
+  "classifiers": [
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "customRef1",
+          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
+          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
+          "featureExtractionEndpoint": "/mfcc",
+          "featureExtractionType": "mfcc",
+          "qualityEvaluationEndpoint": "/cosine?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=mfcc",
+          "qualityFromFeatures": true,
+          "usingQueryEmbeddings": false, // e.g. for a FAD reference set
+          "projectionEndpoint": "/pca",
+          "sampleRate": 16000
+        }
+      ],
+      "classificationDimensions": [100, 100]
+    }
+  ],
+  "classifierIndex" : 0,
+  "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
+  "mapSwitchingCondition": {
+    // "coverageGradientThreshold": 0.01,
+    "qdScoreGradientThreshold": 0.01,
+    "gradientWindowSize": 10
+  },
+
+  "geneVariationServers": [
+    "127.0.0.1:50051",
+    // "127.0.0.1:50052",
+    // "127.0.0.1:50053"
+  ],
+  "geneRenderingServers": [
+    "ws://127.0.0.1:30051",
+    "ws://127.0.0.1:30052",
+    "ws://127.0.0.1:30053"
+  ],
+
+  "evaluationFeatureServers": [ // feature extraction
+    "ws://127.0.0.1:31051",
+    "ws://127.0.0.1:31052",
+    "ws://127.0.0.1:31053"
+  ],
+  "evaluationQualityServers": [ // quality evaluation
+    "ws://127.0.0.1:32051",
+    "ws://127.0.0.1:32052",
+    "ws://127.0.0.1:32053"
+  ],
+  "evaluationProjectionServers": [ // projection
+    "ws://127.0.0.1:33051",
+    "ws://127.0.0.1:33052",
+    "ws://127.0.0.1:33053"
+  ]
+}
