@@ -29,6 +29,10 @@ export async function renderAndEvaluateGenomesViaWebsockets(
               frequencyUpdatesApplyToAllPathcNetworkOutputs,
               geneRenderingWebsocketServerHost, renderSampleRateForClassifier,
             );
+            // if audioBufferChannelData is not an instance of Float32Array, then it is an error message
+            if( !(audioBufferChannelData instanceof Float32Array) ) {
+              console.error('audioBufferChannelData error:', audioBufferChannelData);
+            }
             if( audioBufferChannelData ) {
               const predictions = await getAudioClassPredictionsFromWebsocket(
                 audioBufferChannelData,
