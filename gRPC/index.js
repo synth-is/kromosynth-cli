@@ -187,6 +187,14 @@ async function main() {
     port = argv.port || process.env.PORT || '50051';
   }
   modelUrl = argv.modelUrl;
+  // if modelUrl contains the string "localscratch/<job-ID>", replace the ID with the SLURM job ID
+  if( modelUrl && modelUrl.includes("localscratch") ) {
+    // get the job-ID from from the environment variable SLURM_JOB_ID
+    const jobId = process.env.SLURM_JOB_ID;
+    console.log("Replacing localscratch/<job-ID> with localscratch/"+jobId+" in modelUrl");
+    modelUrl = modelUrl.replace("localscratch/<job-ID>", `localscratch/${jobId}`);
+  }
+  console.log("modelUrl:",modelUrl);
   const processTitle = argv.processTitle || 'kromosynth-gRPC';
   process.title = processTitle;
   process.on('SIGINT', () => process.exit(1)); // so it can be stopped with Ctrl-C
