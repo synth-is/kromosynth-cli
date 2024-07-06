@@ -7,7 +7,11 @@ import Chance from 'chance';
 import sample from "lodash-es/sample.js";
 import toWav from 'audiobuffer-to-wav';
 import { getAudioGraphMutationParams } from "./kromosynth.js";
-import { yamnetTags } from 'kromosynth/workers/audio-classification/classificationTags.js';
+import { 
+  yamnetTags, 
+  nsynthTags,
+  mtgJamendoInstrumentTags
+} from 'kromosynth/workers/audio-classification/classificationTags.js';
 import {
   getGenomeFromGenomeString, getNewAudioSynthesisGenomeByMutation,
   getAudioBufferFromGenomeAndMeta
@@ -2585,15 +2589,28 @@ function getClassifierTags( graphModel, dummyRun ) {
   if( dummyRun && dummyRun.cellCount ) {
     return getDummyLabels(dummyRun.cellCount);
   } else {
-    // if graphModel is an array, we'll assume it's a list defining the dimensions of a grid to project the behaviour space onto
+    // if graphModel is an array, where each element is an integer, we'll assume it's a list defining the dimensions of a grid to project the behaviour space onto
     if( Array.isArray(graphModel) ) {
-      return createNDimensionalKeys(graphModel);
+      if( graphModel.every( el => typeof el === "number" ) ) {
+        return createNDimensionalKeys(graphModel);
+      } else {
+        // the array elements are strings, then interpret as classifier names, from which the tags should be joined
+        const tagsAggregate = [];
+        for( const oneTag of graphModel ) {
+          tagsAggregate.push(...getClassifierTags(oneTag));
+        }
+        return tagsAggregate;
+      }
     } else {
       switch (graphModel) {
         case "yamnet":
-          return yamnetTags;
+          return yamnetTags.map( t => `YAM_${t.tag}` );
+        case "nsynth":
+          return nsynthTags.map( t => `NSY_${t.tag}` );
+        case "mtg_jamendo_instrument":
+          return mtgJamendoInstrumentTags.map( t => `MTG_${t.tag}` );
         default:
-          return yamnetTags;
+          return yamnetTags.map( t => `YAM_${t.tag}` );
       }
     }
   }

@@ -42,7 +42,7 @@ export async function renderAndEvaluateGenomesViaWebsockets(
                 for( const classKey in predictions.taggedPredictions ) {
                   let isCurrentBestClassCandidate = false;
                   if( !predictionsAggregate[classKey] || 
-                      predictionsAggregate[classKey].score < predictions.taggedPredictions[classKey].score 
+                      predictionsAggregate[classKey].score < predictions.taggedPredictions[classKey] 
                   ) {
                     isCurrentBestClassCandidate = true;
                   }

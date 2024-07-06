@@ -43,6 +43,7 @@
   "classScoringVariationsAsContainerDimensions": false,
   "classifiers": [
     "yamnet",
+    ["nsynth","yamnet","mtg_jamendo_instrument"],
     [50, 50], // feature map to project the bahaviour space to, e.g. with dimensionality reduction
     [100, 100],
     // classes as a third dimension, depends on classifier returning the top class and its score, like { 'top_score': 0.9, 'top_score_class': 'mallet' }
@@ -251,6 +252,9 @@
     // "ws://127.0.0.1:40051"
     // "ws://127.0.0.1:40052",
     // "ws://127.0.0.1:40053"
+
+    // Python based, multi-model classification:
+    // "ws://localhost:8080?classifiers=nsynth,yamnet,mtg_jamendo_instrument"
   ],
 
   "evaluationFeatureServers": [ // feature extraction
