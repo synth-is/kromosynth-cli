@@ -1,6 +1,11 @@
 {
   "evoRunsGroup": "YAMNet_durDims", // for grouping runs, e.g. in a UI
   "maxNumberOfParents": 1,
+  "terminationCondition": {
+  // "coverageGradientThreshold": 0.01
+  //  or
+    "qdScoreGradientThreshold": 0.01
+  },
   "classifiers": [
     "yamnet"
   ],
