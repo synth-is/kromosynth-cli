@@ -83,7 +83,7 @@ export async function qdSearch(
     seedEvals, 
     eliteWinsOnlyOneCell, classRestriction,
     maxNumberOfParents,
-    terminationCondition, scoreProportionalToNumberOfEvalsTerminationCondition,
+    terminationCondition, gradientWindowSize, scoreProportionalToNumberOfEvalsTerminationCondition,
     evoRunsDirPath, evoRendersDirPath,
     populationSize, gridDepth,
     geneEvaluationProtocol, childProcessBatchSize, 
@@ -300,7 +300,7 @@ export async function qdSearch(
   let seedFeaturesAndScores = [];
 
   while( 
-      ! shouldTerminate(terminationCondition, eliteMap, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun)
+      ! shouldTerminate(terminationCondition, gradientWindowSize, eliteMap, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun)
       &&
       ! ( batchDurationMs && batchDurationMs < Date.now() - startTimeMs )
   ) {
@@ -2648,7 +2648,7 @@ function getClassScoresStandardDeviation( genomeClassScores ) {
  * or
  * {percentageOfMapFilledWithFitnessThreshold: {percentage: x, minimumCellFitness: x}}
  */
-function shouldTerminate( terminationCondition, eliteMap, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun ) {
+function shouldTerminate( terminationCondition, gradientWindowSize, eliteMap, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun ) {
   let condition;
   let shouldTerminate = false;
 
@@ -2706,7 +2706,12 @@ function shouldTerminate( terminationCondition, eliteMap, classificationGraphMod
       });
       const cellsWithFitnessOverThresholdPercentage = cellsWithFitnessOverThresholdCount / cellCount;
       shouldTerminate = ( percentage <= cellsWithFitnessOverThresholdPercentage );
+    } else if( condition = terminationCondition["coverageGradientThreshold"] ) {
+      shouldTerminate = getGradient( eliteMap.projectionSizes, gradientWindowSize, "projectionSizes" ) < condition;
+    } else if( condition = terminationCondition["qdScoreGradientThreshold"] ) {
+      shouldTerminate = getGradient( eliteMap.qdScores, gradientWindowSize, "qdScores" ) < condition;
     }
+
 
     if( ! shouldTerminate ) {
       break;

@@ -10,14 +10,19 @@
   "batchSize": 50,
   "maxNumberOfParents": 1,
   "terminationCondition": {
-    "numberOfEvals": 300000
+    // "numberOfEvals": 300000
   //  or
+  // "coverageGradientThreshold": 0.01
+  //  or
+   "qdScoreGradientThreshold": 0.01
+  // or
   //  "averageFitnessInMap": 0.1
   // or
-  // "medianFitnessInMap": 0.1
-  //  or
+  //  "medianFitnessInMap": 0.1
+  // or
   //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
   },
+  "gradientWindowSize": 10,
   "scoreProportionalToNumberOfEvalsTerminationCondition": false,
   // Deep-Grid MAP-Elites specific:
   "populationSize": 20,
