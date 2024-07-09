@@ -10,7 +10,10 @@ import { getAudioGraphMutationParams } from "./kromosynth.js";
 import { 
   yamnetTags, 
   nsynthTags,
-  mtgJamendoInstrumentTags
+  mtgJamendoInstrumentTags,
+  musicLoopInstrumentRoleClassLabels,
+  moodAcousticClassLabels, moodElectronicClassLabels, voiceInstrumentalClassLabels, voiceGenderClassLabels,
+  timbreClassLabels, nsynthAcousticElectronicClassLabels, nsynthBrightDarkClassLabels, nsynthReverbClassLabels,
 } from 'kromosynth/workers/audio-classification/classificationTags.js';
 import {
   getGenomeFromGenomeString, getNewAudioSynthesisGenomeByMutation,
@@ -2603,14 +2606,33 @@ function getClassifierTags( graphModel, dummyRun ) {
       }
     } else {
       switch (graphModel) {
+        // prefixes reflection those in quality_instrumentation.py in the kromosynth-evaluate repo
         case "yamnet":
-          return yamnetTags.map( t => `YAM_${t.tag}` );
+          return yamnetTags.map( t => `YAM_${t}` );
         case "nsynth":
-          return nsynthTags.map( t => `NSY_${t.tag}` );
+          return nsynthTags.map( t => `NSY_${t}` );
         case "mtg_jamendo_instrument":
-          return mtgJamendoInstrumentTags.map( t => `MTG_${t.tag}` );
+          return mtgJamendoInstrumentTags.map( t => `MTG_${t}` );
+        case "musicLoopInstrumentRoleClassLabels":
+          return musicLoopInstrumentRoleClassLabels.map( t => `MLIR_${t}` );
+        case "moodAcousticClassLabels":
+          return moodAcousticClassLabels.map( t => `MA_${t}` );
+        case "moodElectronicClassLabels":
+          return moodElectronicClassLabels.map( t => `ME_${t}` );
+        case "voiceInstrumentalClassLabels":
+          return voiceInstrumentalClassLabels.map( t => `VI_${t}` );
+        case "voiceGenderClassLabels":
+          return voiceGenderClassLabels.map( t => `VG_${t}` );
+        case "timbreClassLabels":
+          return timbreClassLabels.map( t => `TIM_${t}` );
+        case "nsynthAcousticElectronicClassLabels":
+          return nsynthAcousticElectronicClassLabels.map( t => `NAE_${t}` );
+        case "nsynthBrightDarkClassLabels":
+          return nsynthBrightDarkClassLabels.map( t => `NBD_${t}` );
+        case "nsynthReverbClassLabels":
+          return nsynthReverbClassLabels.map( t => `NRV_${t}` );
         default:
-          return yamnetTags.map( t => `YAM_${t.tag}` );
+          return yamnetTags.map( t => `YAM_${t}` );
       }
     }
   }
@@ -2706,9 +2728,15 @@ function shouldTerminate( terminationCondition, gradientWindowSize, eliteMap, cl
       });
       const cellsWithFitnessOverThresholdPercentage = cellsWithFitnessOverThresholdCount / cellCount;
       shouldTerminate = ( percentage <= cellsWithFitnessOverThresholdPercentage );
-    } else if( condition = terminationCondition["coverageGradientThreshold"] ) {
+    } else if( 
+      eliteMap.projectionSizes.length > gradientWindowSize &&
+      ( condition = terminationCondition["coverageGradientThreshold"] )
+    ) {
       shouldTerminate = getGradient( eliteMap.projectionSizes, gradientWindowSize, "projectionSizes" ) < condition;
-    } else if( condition = terminationCondition["qdScoreGradientThreshold"] ) {
+    } else if( 
+      eliteMap.projectionSizes.length > gradientWindowSize &&
+      ( condition = terminationCondition["qdScoreGradientThreshold"] )
+    ) {
       shouldTerminate = getGradient( eliteMap.qdScores, gradientWindowSize, "qdScores" ) < condition;
     }
 
