@@ -14,7 +14,7 @@ import {
   musicLoopInstrumentRoleClassLabels,
   moodAcousticClassLabels, moodElectronicClassLabels, voiceInstrumentalClassLabels, voiceGenderClassLabels,
   timbreClassLabels, nsynthAcousticElectronicClassLabels, nsynthBrightDarkClassLabels, nsynthReverbClassLabels,
-} from 'kromosynth/workers/audio-classification/classificationTags.js';
+} from './util/classificationTags.js';
 import {
   getGenomeFromGenomeString, getNewAudioSynthesisGenomeByMutation,
   getAudioBufferFromGenomeAndMeta
