@@ -2613,23 +2613,23 @@ function getClassifierTags( graphModel, dummyRun ) {
           return nsynthTags.map( t => `NSY_${t}` );
         case "mtg_jamendo_instrument":
           return mtgJamendoInstrumentTags.map( t => `MTG_${t}` );
-        case "musicLoopInstrumentRoleClassLabels":
+        case "music_loop_instrument_role":
           return musicLoopInstrumentRoleClassLabels.map( t => `MLIR_${t}` );
-        case "moodAcousticClassLabels":
+        case "mood_acoustic":
           return moodAcousticClassLabels.map( t => `MA_${t}` );
-        case "moodElectronicClassLabels":
+        case "mood_electronic":
           return moodElectronicClassLabels.map( t => `ME_${t}` );
-        case "voiceInstrumentalClassLabels":
+        case "voice_instrumental":
           return voiceInstrumentalClassLabels.map( t => `VI_${t}` );
-        case "voiceGenderClassLabels":
+        case "voice_gender":
           return voiceGenderClassLabels.map( t => `VG_${t}` );
-        case "timbreClassLabels":
+        case "timbre":
           return timbreClassLabels.map( t => `TIM_${t}` );
-        case "nsynthAcousticElectronicClassLabels":
+        case "nsynth_acoustic_electronic":
           return nsynthAcousticElectronicClassLabels.map( t => `NAE_${t}` );
-        case "nsynthBrightDarkClassLabels":
+        case "nsynth_bright_dark":
           return nsynthBrightDarkClassLabels.map( t => `NBD_${t}` );
-        case "nsynthReverbClassLabels":
+        case "nsynth_reverb":
           return nsynthReverbClassLabels.map( t => `NRV_${t}` );
         default:
           return yamnetTags.map( t => `YAM_${t}` );
