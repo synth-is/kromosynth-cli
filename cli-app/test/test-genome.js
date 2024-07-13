@@ -61,7 +61,7 @@ do {
 } while (
   // genomeString.indexOf(genomeOccurenceString) === -1
   // 10 occurrences of genomeOccurenceString
-  ! genomeStringMatches || genomeStringMatches.length < 3
+  ! genomeStringMatches || genomeStringMatches.length < 1
   // || 
   // genomeString.indexOf('GainNode') === -1
   //  mutationCount < 100
