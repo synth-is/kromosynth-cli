@@ -8,7 +8,9 @@ function getHnswIndexWithFeatures( spaceName, featureType, pathToTree, numberOfF
   const indexPath = pathToTree + "/" + indexFileName;
   const indexToKeyPath = pathToTree + "/" + indexToKeyFileName;
   if( fs.existsSync( indexPath ) ) {
-    index = new HierarchicalNSW(spaceName, 39);
+    const queryFeature = getFirstFeatureFromFileTree( featureType, pathToTree );
+    const numDimensions = queryFeature.length;
+    index = new HierarchicalNSW(spaceName, numDimensions);
     index.readIndexSync( indexPath );
     indexToKey = JSON.parse( fs.readFileSync( indexToKeyPath, 'utf8' ) );
   } else {
@@ -91,3 +93,5 @@ console.log("Query feature key:", indexToKey[0] );
 // print result keys
 const resultKeys = result.neighbors.map( r => indexToKey[r] );
 console.log( "Result keys:", resultKeys );
+
+console.log("Number of items in index:", index.getCurrentCount() );

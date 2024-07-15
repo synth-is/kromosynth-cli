@@ -66,7 +66,7 @@ function findAudioFiles(dir, audioFiles = []) {
   return audioFiles;
 }
 
-async function readAndProcessAudio(fullPath, datasetPath, featureFilePath, ckptDir, sampleRate, featureExtractionServerHost) {
+async function readAndProcessAudio(fullPath, datasetPath, featureFilePath, ckptDir, sampleRate, featureExtractionServerHost, featureTypesFilter) {
   try {
     const featureFileName = fullPath
       .replace(datasetPath, featureFilePath)
@@ -76,7 +76,7 @@ async function readAndProcessAudio(fullPath, datasetPath, featureFilePath, ckptD
       // Read file into a buffer synchronously
       const data = await readWavFile(fullPath);
       // Pass the buffer to another function for processing synchronously
-      await extractFeatures(data, fullPath, datasetPath, featureFilePath, ckptDir, sampleRate, featureExtractionServerHost);
+      await extractFeatures(data, fullPath, datasetPath, featureFilePath, ckptDir, sampleRate, featureExtractionServerHost, featureTypesFilter);
     } else {
       console.log('skipping:', fullPath);
     }
@@ -85,7 +85,7 @@ async function readAndProcessAudio(fullPath, datasetPath, featureFilePath, ckptD
   }
 }
 
-async function extractFeatures(audioDataBuffer, wavFilename, datasetPath, featureFilePath, ckptDir, sampleRate, featureExtractionServerHost) {
+async function extractFeatures(audioDataBuffer, wavFilename, datasetPath, featureFilePath, ckptDir, sampleRate, featureExtractionServerHost, featureTypesFilter) {
   // Placeholder for processing the audio data buffer
   console.log(`Processing file: ${wavFilename}, size: ${audioDataBuffer.length} bytes`);
   // Implement the audio data processing here...
@@ -187,7 +187,13 @@ async function extractFeatures(audioDataBuffer, wavFilename, datasetPath, featur
 
   // save features to a corresponding file path, except with the featureFilePathPrefix 
   // e.g. /path/to/audio/file.wav -> featureFilePathPrefix/to/audio/file_mfcc.json
-  for( const featureType of featureTypes) {
+  let featureTypesToProcess;
+  if( featureTypesFilter ) {
+    featureTypesToProcess = featureTypes.filter( (featureType) => featureTypesFilter.includes(featureType));
+  } else {
+    featureTypesToProcess = featureTypes;
+  }
+  for( const featureType of featureTypesToProcess) {
     if( features[featureType] && features[featureType].length > 0 ) {
       // skip if already extracted
       continue;
@@ -256,7 +262,7 @@ async function extractFeatures(audioDataBuffer, wavFilename, datasetPath, featur
   fs.writeFileSync(timeFileName, JSON.stringify(time));
 }
 
-export async function extractFeaturesFromAllAudioFiles(datasetPath, featureFilePath, sampleRate, ckptDir, featureExtractionServerHost, suffixesFilter) {
+export async function extractFeaturesFromAllAudioFiles(datasetPath, featureFilePath, sampleRate, ckptDir, featureExtractionServerHost, suffixesFilter, featureTypesFilterString) {
   try {
       let audioFiles = findAudioFiles(datasetPath);
 
@@ -294,8 +300,12 @@ export async function extractFeaturesFromAllAudioFiles(datasetPath, featureFileP
       // audioFiles = audioFiles.concat(audioFilePathsLessThan10);
 
       // Process each audio file by reading its data, then passing it to the processAudioFile function
+      let featureTypesFilter;
+      if( featureTypesFilterString ) {
+        featureTypesFilter = featureTypesFilterString.split(',');
+      }
       for( const filePath of audioFiles) {
-          await readAndProcessAudio(filePath, datasetPath, featureFilePath, ckptDir, sampleRate, featureExtractionServerHost);
+          await readAndProcessAudio(filePath, datasetPath, featureFilePath, ckptDir, sampleRate, featureExtractionServerHost, featureTypesFilter);
       };
   } catch (error) {
       console.error('Error:', error);

@@ -250,6 +250,7 @@ const cli = meow(`
 		--ckpt-dir	Path to the directory containing model checkpoints
 		--feature-extraction-server-host	Host of the feature extraction server
 		--suffixes-filter	Array of file suffixes to filter the dataset folder by; e.g. '"020.wav,030.wav,040.wav,050.wav,060.wav,070.wav,080.wav,090.wav,100.wav"
+		--feature-types-filter Array of feature types to extract; e.g. '"mfcc,vggish"'
 
 	Examples
 		$ kromosynth new-genome [--write-to-file]
@@ -295,7 +296,7 @@ const cli = meow(`
 
 		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-generation 100 --owerwrite-existing-files true --score-in-file-name true
 
-		$ kromosynth extract-features --dataset-folder /Users/bjornpjo/Downloads/OneBillionWav --write-to-folder /Users/bjornpjo/Downloads/OneBillionWav_features --sample-rate 44100 --ckpt-dir /Users/bjornpjo/.cache/torch/hub/checkpoints --feature-extraction-server-host 'ws://localhost:31051' --suffixes-filter "020.wav,030.wav,040.wav,050.wav,060.wav,070.wav,080.wav,090.wav,100.wav"
+		$ kromosynth extract-features --dataset-folder /Users/bjornpjo/Downloads/OneBillionWav --write-to-folder /Users/bjornpjo/Downloads/OneBillionWav_features --sample-rate 44100 --ckpt-dir /Users/bjornpjo/.cache/torch/hub/checkpoints --feature-extraction-server-host 'ws://localhost:31051' --suffixes-filter "020.wav,030.wav,040.wav,050.wav,060.wav,070.wav,080.wav,090.wav,100.wav" --feature-types-filter "mfcc,vggish"
 
 		TODO see saveRenderedSoundsToFilesWorker onwards
 
@@ -518,6 +519,9 @@ const cli = meow(`
 		featureExtractionServerHost: {
 			type: 'string',
 			default: 'ws://localhost:31051'
+		},
+		featureTypesFilter: {
+			type: 'string'
 		},
 	}
 });
@@ -972,9 +976,9 @@ async function renderEvorun() {
 
 async function extractFeatures() {
 	const { 
-		datasetFolder, writeToFolder, suffixesFilter, sampleRate, ckptDir, featureExtractionServerHost
+		datasetFolder, writeToFolder, suffixesFilter, sampleRate, ckptDir, featureExtractionServerHost, featureTypesFilter
 	} = cli.flags;
-	await extractFeaturesFromAllAudioFiles( datasetFolder, writeToFolder, sampleRate, ckptDir, featureExtractionServerHost, suffixesFilter );
+	await extractFeaturesFromAllAudioFiles( datasetFolder, writeToFolder, sampleRate, ckptDir, featureExtractionServerHost, suffixesFilter, featureTypesFilter );
 }
 
 async function getEvoruns( evorunsRestServerUrl ) {
