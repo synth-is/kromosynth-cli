@@ -1,0 +1,30 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "single-class_Mandolin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evoRunDiffs/evolution-run-config_class-Mandolin.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        // {
+        //   "id": "01HBT1S4QDQPVZQC2XQSWTVBG7_single-class_Mandolin"
+        // },
+        // {
+        //   "id": "01HCCS1QBJD46H6HKXMRADCW18_single-class_Mandolin"
+        // },
+        {
+          "id": "01HD69QV6H9KRJTVBP2BETBKD7_single-class_Mandolin"
+        },
+        {
+          "id": "01HD9J96QHYRJJ1A8WS23A6AXX_single-class_Mandolin"
+        },
+        {
+          "id": "01HDA0YVPYKRB9ZEGR8HKY54NQ_single-class_Mandolin"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

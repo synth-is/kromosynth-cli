@@ -1,0 +1,16 @@
+{
+  "waveNetwork": {
+    "neatParameters": { // see kromosynth > cppn-neat > network-evolution.js
+      "pMutateAddConnection": 0.10,
+      "pMutateAddNode": 0.05,
+      "pMutateDeleteSimpleNeuron": 0.00,
+      "pMutateDeleteConnection": 0.00,
+      "pMutateConnectionWeights": 0.72,
+      "pMutateChangeActivations": 0.02,
+
+      "pNodeMutateActivationRate": 0.2,
+      "connectionWeightRange": 3.0,
+      "disallowRecurrence": true
+    }
+  }
+}

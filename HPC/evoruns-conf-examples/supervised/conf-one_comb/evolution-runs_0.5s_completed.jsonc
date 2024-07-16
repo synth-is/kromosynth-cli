@@ -1,0 +1,43 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb/evolution-run-config_normal-partition.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "one_comb-dur_0.5",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.10-pDeleteNeuron-0.06_pDeleteConnection-0.06.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HA26QRQ499623ZDREAVQR6CS_one_comb-dur_0.5",
+          "percentCompleted": 1.0000233333333333
+        },
+        {
+          "id": "01HANYY74Q06990PNMRH9CTY6N_one_comb-dur_0.5",
+          "percentCompleted": 1.00009
+        },
+        {
+          "id": "01HAN4VA5RBC2Z2TBB81BKZP0R_one_comb-dur_0.5",
+          "percentCompleted": 1.00001
+        },
+        {
+          "id": "01HAN4VA5REA07R9V35PS7BHAZ_one_comb-dur_0.5",
+          "percentCompleted": 1.00009
+        },
+        {
+          "id": "01HAN4VA5RPS54HAC2JGYSPHBS_one_comb-dur_0.5",
+          "percentCompleted": 1.0000766666666667
+        },
+        {
+          "id": "01HAN4VA5R38JXCC8SPQ3V4CMP_one_comb-dur_0.5",
+          "percentCompleted": 1.00008
+        },
+        {
+          "id": "01HAP445X9SY7BDBKBQYEXQK20_one_comb-dur_0.5",
+          "percentCompleted": 1.0001033333333333
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIteration": 0
+}

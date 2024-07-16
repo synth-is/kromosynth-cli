@@ -1,0 +1,24 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "single-class_Choir",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evoRunDiffs/evolution-run-config_class-Choir.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HD9J96Q8Y08A3AERA7KWVYEH_single-class_Choir"
+        },
+        {
+          "id": "01HDAGJQXT53XFGHHNR1RGG9TA_single-class_Choir"
+        },
+        {
+          "id": "01HDAX7V4Y1P1F1ZWQG6WZFM0Y_single-class_Choir"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIteration": 0
+}

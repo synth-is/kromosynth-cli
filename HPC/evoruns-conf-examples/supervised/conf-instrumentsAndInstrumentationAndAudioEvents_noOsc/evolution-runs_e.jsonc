@@ -1,0 +1,18 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/supervised/conf-instrumentsAndInstrumentationAndAudioEvents_noOsc/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/supervised/conf-instrumentsAndInstrumentationAndAudioEvents_noOsc/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "instrumentsAndInstrumentationAndAudioEvents_noOsc",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/supervised/conf-instrumentsAndInstrumentationAndAudioEvents_noOsc/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel__evolution-runs_e__.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/supervised/conf-instrumentsAndInstrumentationAndAudioEvents_noOsc/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": null
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

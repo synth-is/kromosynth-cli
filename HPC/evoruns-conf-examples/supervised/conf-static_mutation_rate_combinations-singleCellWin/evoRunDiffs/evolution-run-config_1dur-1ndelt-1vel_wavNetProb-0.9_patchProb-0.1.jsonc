@@ -1,0 +1,10 @@
+{
+  "terminationCondition": {
+    "numberOfEvals": 100000
+  },
+  "probabilityMutatingWaveNetwork": 0.9,
+  "probabilityMutatingPatch": 0.1,
+  "classScoringDurations": [1],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1]
+}

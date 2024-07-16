@@ -1,0 +1,8 @@
+{
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-conf-instrumentsAndInstrumentationAndAudioEvents_noOsc-evolution-runs_d.jsonc-host-",
+  "gRpcServerCount": 4,
+  "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-conf-instrumentsAndInstrumentationAndAudioEvents_noOsc-evolution-runs_d.jsonc-host-",
+  "renderingSocketServerCount": 8,
+  "evaluationSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-socket-conf-instrumentsAndInstrumentationAndAudioEvents_noOsc-evolution-runs_d.jsonc-host-",
+  "evaluationSocketServerCount": 16
+}

@@ -1,0 +1,51 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-CPPN_only/evolution-run-config_normal-partition.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-CPPN_only/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "one_comb-dur_0.5",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-CPPN_only/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.10-pDeleteNeuron-0.06_pDeleteConnection-0.06.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HAPJG3G2V0RY03B99VGV8YM7_one_comb-dur_0.5",
+          "percentCompleted": 1.0001
+        },
+        {
+          "id": "01HAPGRE6XQWGAQAX2PDEAR6HA_one_comb-dur_0.5",
+          "percentCompleted": 1.00004
+        },
+        {
+          "id": "01HAPGRE70XSCPHG9BQ4DYCSSE_one_comb-dur_0.5",
+          "percentCompleted": 1.0000566666666666
+        },
+        {
+          "id": "01HAPGRE6W0530CM7ZRKSQY4G8_one_comb-dur_0.5",
+          "percentCompleted": 1.00003
+        },
+        {
+          "id": "01HAPGRE6V5GMYMMDG83BDPXKK_one_comb-dur_0.5",
+          "percentCompleted": 1.0000633333333333
+        },
+        {
+          "id": "01HAPGRE6YAGTVVS2KXV0B0858_one_comb-dur_0.5",
+          "percentCompleted": 1.0000066666666667
+        },
+        {
+          "id": "01HAPGRE6XV0SQAAYS9DRYHKM4_one_comb-dur_0.5",
+          "percentCompleted": 1.00003
+        },
+        {
+          "id": "01HAPGRE6ZZNEHHR676T1178YX_one_comb-dur_0.5",
+          "percentCompleted": 1.00004
+        },
+        {
+          "id": "01HAPGRE6V5T0G7T43YWPMD0CT_one_comb-dur_0.5",
+          "percentCompleted": 1.0000833333333334
+        },
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 1
+}

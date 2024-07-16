@@ -1,0 +1,33 @@
+{
+  "defaultParameters": {
+    "connectionMutationRate": [0.05, 0.8],
+
+    "nodeMutationRate": [0.05, 0.8],
+
+    // percentage of addOscillatorMutations will
+    // generate a node for fm, as opposed to strict audio output
+    "addOscillatorFMMutationRate": 0.1,
+
+    // Percentage of addConnectionMutation will generate a connection
+    // for fm, as opposed to a strict audio connection
+    "addConnectionFMMutationRate": 0.5,
+
+    // Chance between an Oscillator node or a (CPPN) network output node, when "addOscillator"
+    "addOscillatorNetworkOutputVsOscillatorNodeRate": 0.5,
+
+    // Rate between audio buffer source node, a wavetable node or additive synthesis node
+    // addAudioBufferSource?Chances must add up to 1
+    // "addAudioBufferSourceProperChance": 0.3,
+    // "addAudioBufferSourceWavetableChance": 0.3,
+    // "addAudioBufferSourceAdditiveChance": 0.4,
+    "addAudioBufferSourceProperChance": 0.7,
+    "addAudioBufferSourceWavetableChance": 0.1,
+    "addAudioBufferSourceAdditiveChance": 0.2,
+
+    "includeNoise": true,
+
+    // initial node chances must add up to 1
+    "initialOscillatorChance": 0.5,
+    "initialAudioBufferSourceChance": 0.5
+  }
+}

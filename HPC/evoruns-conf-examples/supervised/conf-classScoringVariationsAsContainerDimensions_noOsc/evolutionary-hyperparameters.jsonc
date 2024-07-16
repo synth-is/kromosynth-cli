@@ -1,0 +1,79 @@
+{
+  "waveNetwork": {
+    "neatParameters": { // see kromosynth > cppn-neat > network-evolution.js
+      "pMutateAddConnection": 0.13,
+      "pMutateAddNode": 0.13,
+      "pMutateDeleteSimpleNeuron": 0.00,
+      "pMutateDeleteConnection": 0.00,
+      "pMutateConnectionWeights": 0.72,
+      "pMutateChangeActivations": 0.02,
+
+      "pNodeMutateActivationRate": 0.2,
+      "connectionWeightRange": 3.0,
+      "disallowRecurrence": true
+    },
+    "iecOptions": {
+      "initialMutationCount": 5,
+      "postMutationCount": 5  // AKA mutationsOnCreation
+    },
+    "activationFunctionProbabilities": {
+      "triangle": 0.25,
+      "sawtooth": 0.25,
+      "StepFunction": 0.25,
+      "Sine": 0.25,
+      "Sine2": 0.25, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=sin(2*x)&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1.1&yGrid=1&gwidth=290&gheight=130
+
+      "cos": 0,
+      "arctan": 0,
+      "spike": 0,
+
+      "BipolarSigmoid": 0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=(2.0+%2F+(1.0+%2B+exp(-4.9+*+x)))+-+1.0&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+      "PlainSigmoid": 0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=1.0%2F(1.0%2B(exp(-x)))&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+      "Gaussian": 0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=2+*+exp(-(x*2.5)%5E2)+-+1&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+      "Linear": 0, // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=abs(x)&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+      "NullFn": 0 // https://www.intmath.com/functions-and-graphs/graphs-using-svg.php?function1=0&function2=&xMin=-5&xMax=5&xGrid=2&yMin=-1&yMax=1&yGrid=1&gwidth=450&gheight=250
+    }
+  },
+  "audioGraph": { // aka asNEAT
+    "mutationParams": {
+      "mutationDistance": 0.5,
+
+      // Chances must add up to 1.0
+      "splitMutationChance": 0.2,
+      "addOscillatorChance": 0.1,
+      "addAudioBufferSourceChance": 0.1,
+      "addPartialAndEnvelopeChance": 0.0,
+      "addConnectionChance": 0.2,
+      "mutateConnectionWeightsChance": 0.2, // 0.25,
+      "mutateNodeParametersChance": 0.2 // 0.25
+    },
+    "defaultParameters": {
+      "connectionMutationRate": [0.05, 0.8],
+
+      "nodeMutationRate": [0.05, 0.8],
+
+      // percentage of addOscillatorMutations will
+      // generate a node for fm, as opposed to strict audio output
+      "addOscillatorFMMutationRate": 0.1,
+
+      // Percentage of addConnectionMutation will generate a connection
+      // for fm, as opposed to a strict audio connection
+      "addConnectionFMMutationRate": 0.5,
+
+      // Chance between an Oscillator node or a (CPPN) network output node, when "addOscillator"
+      "addOscillatorNetworkOutputVsOscillatorNodeRate": 0.5,
+
+      // Rate between audio buffer source node, a wavetable node or additive synthesis node
+      // addAudioBufferSource?Chances must add up to 1
+      "addAudioBufferSourceProperChance": 0.3,
+      "addAudioBufferSourceWavetableChance": 0.4,
+      "addAudioBufferSourceAdditiveChance": 0.3,
+
+      "includeNoise": true,
+
+      // initial node chances must add up to 1
+      "initialOscillatorChance": 0.5,
+      "initialAudioBufferSourceChance": 0.5
+    }
+  }
+}

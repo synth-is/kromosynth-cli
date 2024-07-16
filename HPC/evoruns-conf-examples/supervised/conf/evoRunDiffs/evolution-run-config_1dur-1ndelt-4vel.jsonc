@@ -1,0 +1,8 @@
+{
+  "terminationCondition": {
+    "numberOfEvals": 100000
+  },
+  "classScoringDurations": [1],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [0.25, 0.5, 0.75, 1]
+}

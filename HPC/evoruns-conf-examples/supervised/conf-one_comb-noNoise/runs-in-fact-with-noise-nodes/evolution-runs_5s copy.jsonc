@@ -1,0 +1,45 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "one_comb-dur_5.0",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb/evoRunDiffs/evolutionary-hyperparameters_CPPN-dur-5s-pMutateAddConnection-0.10_pMutateAddNode-0.10-pDeleteNeuron-0.06_pDeleteConnection-0.06.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HA32B2Q96FD2XRBA5JDQFFQN_one_comb-dur_5.0"
+        },
+        {
+          "id": null
+        },
+        {
+          "id": null
+        },
+        {
+          "id": null
+        },
+        {
+          "id": null
+        },
+        {
+          "id": null
+        },
+        {
+          "id": null
+        },
+        {
+          "id": null
+        },
+        {
+          "id": null
+        },
+        {
+          "id": null
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

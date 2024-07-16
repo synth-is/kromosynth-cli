@@ -1,0 +1,30 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "single-class_Whistling",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evoRunDiffs/evolution-run-config_class-Whistling.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        // {
+        //   "id": "01HBT1S4QGSZDAG1227WRHR6X4_single-class_Whistling"
+        // },
+        // {
+        //   "id": "01HCCS2A1CZ0HXRCJJ1WNPG48A_single-class_Whistling"
+        // },
+        {
+          "id": "01HD9J96Q6YCWEK7SGC0B3DT95_single-class_Whistling"
+        },
+        {
+          "id": "01HDANX2HZH2EGG5QTHRX46GRV_single-class_Whistling"
+        },
+        {
+          "id": "01HDB507VHZDGVN1DNK4VPNMCM_single-class_Whistling"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

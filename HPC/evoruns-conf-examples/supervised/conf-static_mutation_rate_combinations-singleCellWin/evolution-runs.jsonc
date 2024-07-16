@@ -1,0 +1,268 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "1dur-1ndelt-1vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1EM8PS1HN0C2SFJ6R5KNQJB_1dur-1ndelt-1vel"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_wavNetProb-0.9_patchProb-0.1-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel_wavNetProb-0.9_patchProb-0.1.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1ENR2ZCCDT66K2RGQA43XJS_1dur-1ndelt-1vel_wavNetProb-0.9_patchProb-0.1-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_wavNetProb-0.7_patchProb-0.3-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel_wavNetProb-0.7_patchProb-0.3.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1ENR3B96BE10VQR6K3THTE3_1dur-1ndelt-1vel_wavNetProb-0.7_patchProb-0.3-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_wavNetProb-0.3_patchProb-0.7-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel_wavNetProb-0.3_patchProb-0.7.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1EPM949QDR427CNW0K0CD67_1dur-1ndelt-1vel_wavNetProb-0.3_patchProb-0.7-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_wavNetProb-0.1_patchProb-0.9-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel_wavNetProb-0.1_patchProb-0.9.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1EQ791D2TFAXA7S9C50AZ6P_1dur-1ndelt-1vel_wavNetProb-0.1_patchProb-0.9-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-0.13_pMutateAddNode-0.13_default-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.13_pMutateAddNode-0.13_default.jsonc",
+      "iterations": [
+        {
+          "id": "01H1ET4F714D0FHXCPMBHECKMY_1dur-1ndelt-1vel_CPPN-0.13_pMutateAddNode-0.13_default-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.13-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.13.jsonc",
+      "iterations": [
+        {
+          "id": "01H1ET62SYDDZP4YNACV7EM5DB_1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.13-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.10-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.10.jsonc",
+      "iterations": [
+        {
+          "id": "01H1EV0SNTSA60YC9D5YG7GQTG_1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.10-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_0.4_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.05-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.05.jsonc",
+      "iterations": [
+        {
+          "id": "01H1EV2F6VFAK21SCDHHVR1MXY_1dur-1ndelt-1vel_0.4_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.05-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.01-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.01.jsonc",
+      "iterations": [
+        {
+          "id": "01H1EVYPXXKYE8FXV29H118YKS_1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.01-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.13-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.13.jsonc",
+      "iterations": [
+        {
+          "id": "01H1EW2XR9XJKJ11966NXSM8D7_1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.13-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.10-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.10.jsonc",
+      "iterations": [
+        {
+          "id": "01H1EP87WGPSB5A6RVJZ8HCQ15_1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.10-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.05-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.05.jsonc",
+      "iterations": [
+        {
+          "id": "01H1EQ8DM9451DYYHZ01XQVB0X_1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.05-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.01-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.01.jsonc",
+      "iterations": [
+        {
+          "id": "01H1ESFVE5Y97R5QZCTWJ6SS85_1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.05_pMutateAddNode-0.01-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.13-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.13.jsonc",
+      "iterations": [
+        {
+          "id": "01H1ESRTGTH8KCEE2QDJ319N5J_1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.13-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.10-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.10.jsonc",
+      "iterations": [
+        {
+          "id": "01H1ETRP4CRQHPYZBQQRWHCW35_1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.10-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.05-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.05.jsonc",
+      "iterations": [
+        {
+          "id": "01H1FP0YNPYMS0TC213ZE8G5SY_1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.05-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.01-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.01.jsonc",
+      "iterations": [
+        {
+          "id": "01H1H2R8VF6STSS5M7MG4TFRK5_1dur-1ndelt-1vel_CPPN-pMutateAddConnection-0.01_pMutateAddNode-0.01-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_addAudioBufferSource_proper-0.0_wavetable-0.0_additive-1.0-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_addAudioBufferSource_proper-0.0_wavetable-0.0_additive-1.0.jsonc",
+      "iterations": [
+        {
+          "id": "01H1H3M9443A5V918K67DJ0B06_1dur-1ndelt-1vel_addAudioBufferSource_proper-0.0_wavetable-0.0_additive-1.0-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_addAudioBufferSource_proper-0.0_wavetable-1.0_additive-0.0-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_addAudioBufferSource_proper-0.0_wavetable-1.0_additive-0.0.jsonc",
+      "iterations": [
+        {
+          "id": "01H1H43CZRP7M99VJ2VZQWF2VB_1dur-1ndelt-1vel_addAudioBufferSource_proper-0.0_wavetable-1.0_additive-0.0-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_addAudioBufferSource_proper-0.1_wavetable-0.7_additive-0.2-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_addAudioBufferSource_proper-0.1_wavetable-0.7_additive-0.2.jsonc",
+      "iterations": [
+        {
+          "id": "01H1H47SWA560X52FMPBMDZ70A_1dur-1ndelt-1vel_addAudioBufferSource_proper-0.1_wavetable-0.7_additive-0.2-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_addAudioBufferSource_proper-0.2_wavetable-0.1_additive-0.7-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_addAudioBufferSource_proper-0.2_wavetable-0.1_additive-0.7.jsonc",
+      "iterations": [
+        {
+          "id": "01H1H51G6H3QX3HG7B8WBE04D1_1dur-1ndelt-1vel_addAudioBufferSource_proper-0.2_wavetable-0.1_additive-0.7-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_addAudioBufferSource_proper-0.2_wavetable-0.5_additive-0.3-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_addAudioBufferSource_proper-0.2_wavetable-0.5_additive-0.3.jsonc",
+      "iterations": [
+        {
+          "id": "01H1H53XJ0ATWTB84N5SKMATR0_1dur-1ndelt-1vel_addAudioBufferSource_proper-0.2_wavetable-0.5_additive-0.3-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_addAudioBufferSource_proper-0.5_wavetable-0.2_additive-0.3-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_addAudioBufferSource_proper-0.5_wavetable-0.2_additive-0.3.jsonc",
+      "iterations": [
+        {
+          "id": "01H1H5XSZG8M8F2744EYXR1A73_1dur-1ndelt-1vel_addAudioBufferSource_proper-0.5_wavetable-0.2_additive-0.3-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_addAudioBufferSource_proper-0.7_wavetable-0.1_additive-0.2-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_addAudioBufferSource_proper-0.7_wavetable-0.1_additive-0.2.jsonc",
+      "iterations": [
+        {
+          "id": "01H1H664ATMQM18VHRA9Y9GRXP_1dur-1ndelt-1vel_addAudioBufferSource_proper-0.7_wavetable-0.1_additive-0.2-singleCellWin"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_addAudioBufferSource_proper-1.0_wavetable-0.0_additive-0.0-singleCellWin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_addAudioBufferSource_proper-1.0_wavetable-0.0_additive-0.0.jsonc",
+      "iterations": [
+        {
+          "id": "01H1H6T5J0F8GAH2FBGWCC05AK_1dur-1ndelt-1vel_addAudioBufferSource_proper-1.0_wavetable-0.0_additive-0.0-singleCellWin"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 8,
+  "currentEvolutionRunIteration": 0
+}

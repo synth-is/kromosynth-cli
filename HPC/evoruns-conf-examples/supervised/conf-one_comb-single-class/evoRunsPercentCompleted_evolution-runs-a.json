@@ -1,0 +1,28 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "single-class_Aircraft",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evoRunDiffs/evolution-run-config_class-Aircraft.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HD69QV66XGY4WB3KX8JFS8J8_single-class_Aircraft",
+          "percentCompleted": 2.05033
+        },
+        {
+          "id": "01HD9J96QD3Y5H8AYBHHYA315A_single-class_Aircraft",
+          "percentCompleted": 1.00005
+        },
+        {
+          "id": "01HDA3V4Q9EV4RE9J71432VDS5_single-class_Aircraft",
+          "percentCompleted": 1.00002
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIteration": 0,
+  "totalPercentCompleted": 1.3501333333333334
+}

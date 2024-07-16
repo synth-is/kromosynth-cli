@@ -1,0 +1,30 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "single-class_Beatboxing",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evoRunDiffs/evolution-run-config_class-Beatboxing.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        // {
+        //   "id": "01HC9NX23W82E19QP11D6737MB_single-class_Beatboxing"
+        // },
+        // {
+        //   "id": "01HCCS0HT8Y3WB54HSB8YDWYB3_single-class_Beatboxing"
+        // },
+        {
+          "id": "01HD9J96PZX4MWCJHTPDK7JYGQ_single-class_Beatboxing"
+        },
+        {
+          "id": "01HDANR118MHJF3CG79S5YJRND_single-class_Beatboxing"
+        },
+        {
+          "id": "01HDB6DZC04K1D58BVH4R7AQ0D_single-class_Beatboxing"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

@@ -1,0 +1,72 @@
+{
+  "algorithm": "mapElites_with_uBC", // uBC = unproductive bias count
+  "evoRunsGroup": "YAMNet_durDims", // for grouping runs, e.g. in a UI
+  "maxNumberOfParents": 1,
+  "seedEvals": 50,
+  // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution, 
+  // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
+  "eliteWinsOnlyOneCell": false,
+  "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
+  "batchSize": 32,
+  "terminationCondition": {
+   "numberOfEvals": 300000,
+  //  or
+  //  "averageFitnessInMap": 0.1
+  // or
+  // "medianFitnessInMap": 0.1
+  //  or
+  //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
+  },
+  // Deep-Grid MAP-Elites specific:
+  "populationSize": 20,
+  "gridDepth": 50,
+  "evoRunsDirPath": "/fp/projects01/ec29/bthj/evoruns/conf-classScoringVariationsAsContainerDimensions_noOsc/",
+  "favoritesDirPath": "/Users/bjornpjo/iCloud/Documents/synth.is/favoriteGenomes",
+  "geneEvaluationProtocol": "websocket", // grpc, websocket or worker
+  "childProcessBatchSize": 1,
+  "evaluationCandidateWavFilesDirPath": null, // "/Users/bjornpjo/Documents/synth.is/evaluationCandidates",
+  "probabilityMutatingWaveNetwork": 0.5,
+  "probabilityMutatingPatch": 0.5,
+  // "classScoringDurations": [0.5, 1, 2, 5],
+  // "classScoringNoteDeltas": [-36, -24, -12, 0, 12, 24, 36],
+  // "classScoringVelocities": [0.25, 0.5, 0.75, 1],
+  "classScoringDurations": [0.5, 1, 2, 5, 10],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+  "classScoringVariationsAsContainerDimensions": true,
+  "classifiers": ["yamnet"],
+  "classifierIndex" : 0,
+  "renderSampleRateForClassifier": 16000,
+  "yamnetModelUrl": "file:///fp/projects01/ec29/bthj/tfjs-model_yamnet_tfjs_1/model.json",
+  "useGpuForTensorflow": true,
+  // "batchDurationMs": 60000,
+
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-conf-classScoringVariationsAsContainerDimensions_noOsc-host-",
+  "gRpcServerCount": 2,
+  "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-conf-classScoringVariationsAsContainerDimensions_noOsc-host-",
+  "renderingSocketServerCount": 5,
+  "evaluationSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-socket-conf-classScoringVariationsAsContainerDimensions_noOsc-host-",
+  "evaluationSocketServerCount": 5,
+  
+  // "geneVariationServerPaths": [
+  //   "/tmp/grpc1.txt"
+  // ],
+  // "geneEvaluationServerPaths": [
+  //   "/tmp/grpc1.txt"
+  // ],
+  "geneVariationServers": [
+    // "localhost:50051"
+  ],
+  "geneRenderingServers": [
+    // "ws://localhost:30051"
+  ],
+  "geneEvaluationServers": [
+    // "ws://localhost:40051"
+  ]
+  // ,
+  // "dummyRun": { // generate dummy data without evaluations
+  //   "cellCount": 10000,
+  //   "iterations": 10000,
+  //   "searchBatchSize": 499
+  // }
+}

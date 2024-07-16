@@ -1,0 +1,88 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec12/bthj/kromosynth/QD/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec12/bthj/kromosynth/QD/conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "4dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec12/bthj/kromosynth/QD/conf/evoRunDiffs/evolution-run-config_4dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01GZVTB4EA112SEB3JMNXNHQ7R_4dur-7ndelt-4vel"
+        }
+      ]
+    },
+    {
+      "label": "3dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec12/bthj/kromosynth/QD/conf/evoRunDiffs/evolution-run-config_3dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H0QSWWFC59ZDC15R15J3SM00_3dur-7ndelt-4vel"
+        }
+      ]
+    },
+    {
+      "label": "2dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec12/bthj/kromosynth/QD/conf/evoRunDiffs/evolution-run-config_2dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H0QSWWR60V35TFP5J7TP7J5Y_2dur-7ndelt-4vel"
+        }
+      ]
+    },
+    {
+      "label": "1dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec12/bthj/kromosynth/QD/conf/evoRunDiffs/evolution-run-config_1dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H0QSWWWGSG1M1QHR5NQKRKF6_1dur-7ndelt-4vel"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec12/bthj/kromosynth/QD/conf/evoRunDiffs/evolution-run-config_1dur-1ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H0QSWX0KTEYTHPNG1RHNPCQK_1dur-1ndelt-4vel"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec12/bthj/kromosynth/QD/conf/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H0QSWX4SXDGJHDNDTWEZ1WBP_1dur-1ndelt-1vel"
+        }
+      ]
+    },
+    {
+      "label": "4dur-1ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec12/bthj/kromosynth/QD/conf/evoRunDiffs/evolution-run-config_4dur-1ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H0QSWX9CZW0VDJKBAHHH2ERQ_4dur-1ndelt-4vel"
+        }
+      ]
+    },
+    {
+      "label": "4dur-1ndelt-1vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec12/bthj/kromosynth/QD/conf/evoRunDiffs/evolution-run-config_4dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H0QSWXDWEAMST5DS6ZNNEXX1_4dur-1ndelt-1vel"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}
