@@ -26,6 +26,7 @@
     "figlet": "^1.5.2",
     "fs-extra": "^11.1.1",
     "glob": "^10.3.4",
+    "hnswlib-node": "^3.0.0",
     "jsonc-parser": "^3.2.0",
     "jszip": "^3.10.1",
     "kromosynth": "^1.0.29",

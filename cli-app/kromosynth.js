@@ -57,6 +57,7 @@ import {
 	getEliteMap, getEliteMaps, 
 	getClassLabelsWithElitesFromEliteMap
 } from './util/qd-common.js';
+import { extractFeaturesFromAllAudioFiles } from './extract-audio-features-from-dataset.js';
 import { mean, median, variance, std } from 'mathjs'
 import { sample } from 'lodash-es';
 
@@ -163,6 +164,10 @@ const cli = meow(`
 		render-evorun
 			Render all elites in the elite map, for one evolution run, to audio (WAV) files
 
+		extract-features
+			Extract audio features from a dataset of audio files
+			- several features types, such as MFCC, Chroma, etc.
+
 	Options
 		Commands: <new-genome, mutate-genome, render-audio or classify-genome>
 		--read-from-file, -r  Gene file to read from
@@ -238,6 +243,15 @@ const cli = meow(`
 		--use-gpu, --sample-rate, 
 		--gene-metadata-override
 
+		Command <extract-features>
+		--dataset-folder	Path to the folder containing the audio files to extract features from
+		--write-to-folder	Folder to write the extracted features to; current folder by default
+		--sample-rate	Sample rate to use for feature extraction; should match the sample rate of the audio files in the dataset folder
+		--ckpt-dir	Path to the directory containing model checkpoints
+		--feature-extraction-server-host	Host of the feature extraction server
+		--suffixes-filter	Array of file suffixes to filter the dataset folder by; e.g. '"020.wav,030.wav,040.wav,050.wav,060.wav,070.wav,080.wav,090.wav,100.wav"
+		--feature-types-filter Array of feature types to extract; e.g. '"mfcc,vggish"'
+
 	Examples
 		$ kromosynth new-genome [--write-to-file]
 		$ kromosynth mutate-genome [--read-from-file | --read-from-input] [--write-to-file | --write-to-output]
@@ -282,6 +296,8 @@ const cli = meow(`
 
 		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-generation 100 --owerwrite-existing-files true --score-in-file-name true
 
+		$ kromosynth extract-features --dataset-folder /Users/bjornpjo/Downloads/OneBillionWav --write-to-folder /Users/bjornpjo/Downloads/OneBillionWav_features --sample-rate 44100 --ckpt-dir /Users/bjornpjo/.cache/torch/hub/checkpoints --feature-extraction-server-host 'ws://localhost:31051' --suffixes-filter "020.wav,030.wav,040.wav,050.wav,060.wav,070.wav,080.wav,090.wav,100.wav" --feature-types-filter "mfcc,vggish"
+
 		TODO see saveRenderedSoundsToFilesWorker onwards
 
 		$ kromosynth render-virtual-instrument [--read-from-file | --read-from-input] \
@@ -307,6 +323,13 @@ const cli = meow(`
 		writeToFolder: {
 			type: 'string',
 			default: './'
+		},
+		datasetFolder: {
+			type: 'string',
+		},
+		suffixesFilter: {
+			type: 'string',
+			default: ''
 		},
 		scoreInFileName: {
 			type: 'boolean',
@@ -369,7 +392,7 @@ const cli = meow(`
 		},
 		everyNthGeneration: {
 			type: 'number',
-			default: 10000
+			default: Number.MAX_SAFE_INTEGER
 		},
 
 		mutationCount: {
@@ -493,6 +516,13 @@ const cli = meow(`
 			type: 'string',
 			default: 'https://evoruns.synth.is'
 		},
+		featureExtractionServerHost: {
+			type: 'string',
+			default: 'ws://localhost:31051'
+		},
+		featureTypesFilter: {
+			type: 'string'
+		},
 	}
 });
 
@@ -615,6 +645,9 @@ async function executeEvolutionTask() {
 			break;
 		case "render-evorun":
 			renderEvorun();
+			break;
+		case "extract-features":
+			extractFeatures();
 			break;
     default:
       cli.showHelp();
@@ -858,81 +891,94 @@ async function renderEvorun() {
 	}
 	const evoRunId = evoRunDirPath.substring(0,evoRunDirPath.length).split('/').pop();
 	const generationCount = getCommitCount( evoRunDirPath, true );
-	if( everyNthGeneration >= generationCount ) {
-		everyNthGeneration = generationCount - 1;
-	}
-	
-	for( let iteration = everyNthGeneration; iteration < generationCount; iteration = (iteration + everyNthGeneration) > generationCount && iteration !== generationCount-1 ? generationCount-1 : iteration + everyNthGeneration ) {
-		const eliteMaps = await getEliteMaps( evoRunDirPath, iteration );
-		for( let eliteMap of eliteMaps) {
-			const classes = await getClassLabelsWithElitesFromEliteMap( eliteMap );
-			for( let oneClass of classes ) {
-				let terrainSuffix;
-				if( eliteMaps.length > 1 ) { // assume last part of file name is the terrain suffix
-					terrainSuffix = eliteMap._id.split("_").pop();
-				}
-				const classElites = eliteMap.cells[oneClass].elts;
-				if( classElites && classElites.length ) {
-					const genomeId = classElites[0].g;
-					const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
-					// await getGenomeString( evoRunDirPath, oneClass, iteration );
-					const genomeAndMeta = JSON.parse( genomeString );
-					const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === oneClass);
-					const { duration, noteDelta, velocity, score } = tagForCell;
-					let _duration = durationParam || duration;
-					let _noteDelta = noteDeltaParam || noteDelta;
-					let _velocity = velocityParam || velocity;
-					if( geneMetadataOverride ) {
-						_duration = durationParam;
-						_noteDelta = noteDeltaParam;
-						_velocity = velocityParam;
-					} else {
-						_duration = duration;
-						_noteDelta = noteDelta;
-						_velocity = velocity;
+	if( generationCount > 1 ) {
+		if( ! everyNthGeneration || everyNthGeneration >= generationCount ) {
+			everyNthGeneration = generationCount - 1;
+		}
+		
+		for( let iteration = everyNthGeneration; iteration < generationCount; iteration = (iteration + everyNthGeneration) > generationCount && iteration !== generationCount-1 ? generationCount-1 : iteration + everyNthGeneration ) {
+			const eliteMaps = await getEliteMaps( evoRunDirPath, iteration );
+			for( let eliteMap of eliteMaps) {
+				const classes = await getClassLabelsWithElitesFromEliteMap( eliteMap );
+				for( let oneClass of classes ) {
+					let terrainSuffix;
+					if( eliteMaps.length > 1 ) { // assume last part of file name is the terrain suffix
+						terrainSuffix = eliteMap._id.split("_").pop();
 					}
+					const classElites = eliteMap.cells[oneClass].elts;
+					if( classElites && classElites.length ) {
+						const genomeId = classElites[0].g;
+						const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+						// await getGenomeString( evoRunDirPath, oneClass, iteration );
+						const genomeAndMeta = JSON.parse( genomeString );
+						const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === oneClass);
+						const { duration, noteDelta, velocity, score } = tagForCell;
+						let _duration = durationParam || duration;
+						let _noteDelta = noteDeltaParam || noteDelta;
+						let _velocity = velocityParam || velocity;
+						if( geneMetadataOverride ) {
+							_duration = durationParam;
+							_noteDelta = noteDeltaParam;
+							_velocity = velocityParam;
+						} else {
+							_duration = duration;
+							_noteDelta = noteDelta;
+							_velocity = velocity;
+						}
+		
+						let fileNamePrefix = "";
+						if( scoreInFileName ) {
+							const scorePercentRoundedAndPadded = Math.round(score*100).toString().padStart(3, '0');
+							fileNamePrefix = `${scorePercentRoundedAndPadded}_`;
+						}
+		
+						const oneClassFileNameFriendly = fileNamePrefix + oneClass.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+						const subFolder = writeToFolder + "/" + evoRunId + "/" + (iteration === generationCount - 1 ? ""/*write to the root of this evoruns folder*/ : iteration + "_" + _duration + "/") + (terrainSuffix ? terrainSuffix + "/" : "");
+		
+						const wavFileName = `${fileNamePrefix}${oneClassFileNameFriendly}_${genomeId}_${iteration}.wav`;
 	
-					let fileNamePrefix = "";
-					if( scoreInFileName ) {
-						const scorePercentRoundedAndPadded = Math.round(score*100).toString().padStart(3, '0');
-						fileNamePrefix = `${scorePercentRoundedAndPadded}_`;
-					}
 	
-					const oneClassFileNameFriendly = fileNamePrefix + oneClass.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-					const subFolder = writeToFolder + "/" + evoRunId + "/" + iteration + "_" + _duration + "/" + (terrainSuffix ? terrainSuffix + "/" : "");
 	
-					const wavFileName = `${fileNamePrefix}${oneClassFileNameFriendly}_${genomeId}_${iteration}.wav`;
-					if( fs.existsSync( subFolder + wavFileName ) && ! overwriteExistingFiles) {
-						console.log("File exists, not rendering:", subFolder + wavFileName);
-						continue;
-					}
-	
-					console.log("Rendering evoRun", evoRunId, ", iteration ", iteration, ", class", oneClassFileNameFriendly, "from genomeId", genomeId);
-					try {
-						const audioBuffer = await getAudioBufferFromGenomeAndMeta(
-							genomeAndMeta,
-							_duration, _noteDelta, _velocity, reverse,
-							false, // asDataArray
-							getNewOfflineAudioContext( _duration, sampleRate ),
-							getAudioContext( sampleRate ),
-							useOvertoneInharmonicityFactors,
-							useGpu,
-							antiAliasing,
-							frequencyUpdatesApplyToAllPathcNetworkOutputs
-						);
-						console.log("Audio buffer length", audioBuffer.length);
-						const wav = toWav(audioBuffer);
-						// console.log("Wav", wav);
-						
-						writeToFile( Buffer.from(new Uint8Array(wav)), subFolder, genomeId, `${oneClassFileNameFriendly}_`, `_${iteration}.wav`, false );
-					} catch (error) {
-						console.error("Error rendering", evoRunId, iteration, oneClassFileNameFriendly, genomeId, error);
+						if( fs.existsSync( subFolder + wavFileName ) && ! overwriteExistingFiles) {
+							console.log("File exists, not rendering:", subFolder + wavFileName);
+							continue;
+						}
+		
+						console.log("Rendering evoRun", evoRunId, ", iteration ", iteration, ", class", oneClassFileNameFriendly, "from genomeId", genomeId);
+						try {
+							const audioBuffer = await getAudioBufferFromGenomeAndMeta(
+								genomeAndMeta,
+								_duration, _noteDelta, _velocity, reverse,
+								false, // asDataArray
+								getNewOfflineAudioContext( _duration, sampleRate ),
+								getAudioContext( sampleRate ),
+								useOvertoneInharmonicityFactors,
+								useGpu,
+								antiAliasing,
+								frequencyUpdatesApplyToAllPathcNetworkOutputs
+							);
+							console.log("Audio buffer length", audioBuffer.length);
+							const wav = toWav(audioBuffer);
+							// console.log("Wav", wav);
+							
+							writeToFile( Buffer.from(new Uint8Array(wav)), subFolder, genomeId, `${oneClassFileNameFriendly}_`, `_${iteration}.wav`, false );
+						} catch (error) {
+							console.error("Error rendering", evoRunId, iteration, oneClassFileNameFriendly, genomeId, error);
+						}
 					}
 				}
 			}
 		}
 	}
+
 	process.exit();
+}
+
+async function extractFeatures() {
+	const { 
+		datasetFolder, writeToFolder, suffixesFilter, sampleRate, ckptDir, featureExtractionServerHost, featureTypesFilter
+	} = cli.flags;
+	await extractFeaturesFromAllAudioFiles( datasetFolder, writeToFolder, sampleRate, ckptDir, featureExtractionServerHost, suffixesFilter, featureTypesFilter );
 }
 
 async function getEvoruns( evorunsRestServerUrl ) {
