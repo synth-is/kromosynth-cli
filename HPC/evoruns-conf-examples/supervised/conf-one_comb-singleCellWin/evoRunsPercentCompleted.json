@@ -1,0 +1,115 @@
+{
+  "baseEvolutionRunConfigFile": "/Users/bthj/QD/conf-duration_delta_pitch_combinations/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bthj/QD/conf-duration_delta_pitch_combinations/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "4dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/Users/bthj/QD/conf-duration_delta_pitch_combinations/evoRunDiffs/evolution-run-config_4dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01GWT7XQS6NW752VVKFP3M7NYY_4dur-7ndelt-4vel",
+          "percentCompleted": 1.50001
+        },
+        {
+          "id": "01GXCEN2H6RRCKC5CSG0AESA1A_4dur-7ndelt-4vel",
+          "percentCompleted": 1
+        },
+        {
+          "id": "01GXVJ70BEATFCA7C61CXAEY52_4dur-7ndelt-4vel",
+          "percentCompleted": 1.00005
+        }
+      ]
+    },
+    {
+      "label": "3dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/Users/bthj/QD/conf-duration_delta_pitch_combinations/evoRunDiffs/evolution-run-config_3dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01GX0MWR8DTJY8A3TPN0ZG00KC_3dur-7ndelt-4vel",
+          "percentCompleted": 1.00001
+        },
+        {
+          "id": "01GY9XV9ZAG6F0DAS1DBS2QWJT_3dur-7ndelt-4vel",
+          "percentCompleted": 1.00003
+        },
+        {
+          "id": "01GYDKB5AKZA59SZMNBG4F7XQZ_3dur-7ndelt-4vel",
+          "percentCompleted": 1
+        },
+        {
+          "id": "01GYTG73QP6DX7T4XFAZY2SHP6_3dur-7ndelt-4vel",
+          "percentCompleted": 0.50627
+        }
+      ]
+    },
+    {
+      "label": "2dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/Users/bthj/QD/conf-duration_delta_pitch_combinations/evoRunDiffs/evolution-run-config_2dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01GX1TNY2ZZWGN9YJD5E49M8YJ_2dur-7ndelt-4vel",
+          "percentCompleted": 0.50008
+        }
+      ]
+    },
+    {
+      "label": "1dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/Users/bthj/QD/conf-duration_delta_pitch_combinations/evoRunDiffs/evolution-run-config_1dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01GX2MQ3JK89SDCA5QKW7WRZMC_1dur-7ndelt-4vel",
+          "percentCompleted": 0.50011
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/Users/bthj/QD/conf-duration_delta_pitch_combinations/evoRunDiffs/evolution-run-config_1dur-1ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01GX30E3HV2PZDFQ0K7HHZJTB2_1dur-1ndelt-4vel",
+          "percentCompleted": 0.50011
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel",
+      "diffEvolutionRunConfigFile": "/Users/bthj/QD/conf-duration_delta_pitch_combinations/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01GX38GF87JMPQER62CJ0NEFG1_1dur-1ndelt-1vel",
+          "percentCompleted": 0.50006
+        }
+      ]
+    },
+    {
+      "label": "4dur-1ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/Users/bthj/QD/conf-duration_delta_pitch_combinations/evoRunDiffs/evolution-run-config_4dur-1ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": null
+        }
+      ]
+    },
+    {
+      "label": "4dur-1ndelt-1vel",
+      "diffEvolutionRunConfigFile": "/Users/bthj/QD/conf-duration_delta_pitch_combinations/evoRunDiffs/evolution-run-config_4dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": null
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIteration": 3,
+  "totalPercentCompleted": 0.6928253846153846
+}

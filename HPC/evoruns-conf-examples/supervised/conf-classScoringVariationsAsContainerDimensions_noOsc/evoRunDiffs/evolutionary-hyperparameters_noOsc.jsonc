@@ -1,0 +1,8 @@
+{
+  "audioGraph": { // aka asNEAT
+    "defaultParameters": {
+      // Chance between an Oscillator node or a (CPPN) network output node, when "addOscillator"
+      "addOscillatorNetworkOutputVsOscillatorNodeRate": 1.0
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "single-class_Fusillade",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evoRunDiffs/evolution-run-config_class-Fusillade.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HD66FN1FW8TSD94TPHW8A7QK_single-class_Fusillade",
+          "percentCompleted": 1.91321
+        },
+        {
+          "id": "01HD9J96PW6DMJHF9FNMG2XBR4_single-class_Fusillade",
+          "percentCompleted": 1.00004
+        },
+        {
+          "id": "01HD9TJVD6GYMHP6BZ3EF8MF84_single-class_Fusillade",
+          "percentCompleted": 1.00007
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIteration": 0,
+  "totalPercentCompleted": 1.30444
+}

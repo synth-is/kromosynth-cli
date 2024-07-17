@@ -1,0 +1,20 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-classScoringVariationsAsContainerDimensions/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-classScoringVariationsAsContainerDimensions/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "classScoringVariationsAsContainerDimensions_5dur-1ndelt-1vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-classScoringVariationsAsContainerDimensions/evoRunDiffs/evolution-run-config_5dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HG8KGW481DMWSVRP9GCGWGNB_classScoringVariationsAsContainerDimensions_5dur-1ndelt-1vel",
+          "percentCompleted": 0.9947366666666667
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0,
+  "totalPercentCompleted": 0.9947366666666667
+}

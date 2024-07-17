@@ -1,0 +1,48 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations_-_delete_rates-singleCellWin/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations_-_delete_rates-singleCellWin/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pDeleteNeuron-0.06_pDeleteConnection-0.0",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations_-_delete_rates-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations_-_delete_rates-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pDeleteNeuron-0.06_pDeleteConnection-0.0.jsonc",
+      "iterations": [
+        {
+          "id": "01H1FN66Y86NJV44Q48RHKJF9Z_1dur-1ndelt-1vel_CPPN-pDeleteNeuron-0.06_pDeleteConnection-0.0"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pDeleteNeuron-0.06_pDeleteConnection-0.06",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations_-_delete_rates-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations_-_delete_rates-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pDeleteNeuron-0.06_pDeleteConnection-0.06.jsonc",
+      "iterations": [
+        {
+          "id": "01H1FP46HM6MS0E3M0DKWMMHST_1dur-1ndelt-1vel_CPPN-pDeleteNeuron-0.06_pDeleteConnection-0.06"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pDelNrn-0.01_pDelConn-0.01_pAddConn-0.23_pAddNode-0.23",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations_-_delete_rates-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations_-_delete_rates-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pDelNrn-0.01_pDelConn-0.01_pAddConn-0.23_pAddNode-0.23.jsonc",
+      "iterations": [
+        {
+          "id": "01H1FQ2FF3080CG66CFVTS63AT_1dur-1ndelt-1vel_CPPN-pDelNrn-0.01_pDelConn-0.01_pAddConn-0.23_pAddNode-0.23"
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel_CPPN-pDelNrn-0.01_pDelConn-0.01_pAddConn-0.23_pAddNode-0.23_initMut-50_postMut-1",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations_-_delete_rates-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-static_mutation_rate_combinations_-_delete_rates-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pDelNrn-0.01_pDelConn-0.01_pAddConn-0.23_pAddNode-0.23_initMut-50_postMut-1.jsonc",
+      "iterations": [
+        {
+          "id": "01H1FR61VT6VA4A3T5MX8RJ8HZ_1dur-1ndelt-1vel_CPPN-pDelNrn-0.01_pDelConn-0.01_pAddConn-0.23_pAddNode-0.23_initMut-50_postMut-1"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 4,
+  "currentEvolutionRunIteration": 0
+}

@@ -1,0 +1,28 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "single-class_Banjo",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evoRunDiffs/evolution-run-config_class-Banjo.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HD8JCRG01P4P9TCAC1WNX822_single-class_Banjo",
+          "percentCompleted": 1.00005
+        },
+        {
+          "id": "01HDA66CR0ZJW9A02J77KH5XDJ_single-class_Banjo",
+          "percentCompleted": 1.00004
+        },
+        {
+          "id": "01HDB7PDJ5Y3TKSHJQ0ASX6QRH_single-class_Banjo",
+          "percentCompleted": 1.00003
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIteration": 0,
+  "totalPercentCompleted": 1.00004
+}

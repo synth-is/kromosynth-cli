@@ -1,0 +1,30 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "single-class_Synthetic-singing",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evoRunDiffs/evolution-run-config_class-Synthetic-singing.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        // {
+        //   "id": "01HBT1S4QGVS6SYSM6PHB0V0KK_single-class_Synthetic-singing"
+        // },
+        // {
+        //   "id": "01HCCS1QCGTRPAY93WS7CWNJ5R_single-class_Synthetic-singing"
+        // },
+        {
+          "id": "01HD9J96Q4A8T8P9WMAAX9DA53_single-class_Synthetic-singing"
+        },
+        {
+          "id": "01HDADBDMTAGB5JTBGF6SM25RS_single-class_Synthetic-singing"
+        },
+        {
+          "id": "01HDB6RC815EW5V028Z2A1YGE1_single-class_Synthetic-singing"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 2
+}

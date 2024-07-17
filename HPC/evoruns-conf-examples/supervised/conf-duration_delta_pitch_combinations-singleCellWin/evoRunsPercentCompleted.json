@@ -1,0 +1,97 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-duration_delta_pitch_combinations-singleCellWin/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-duration_delta_pitch_combinations-singleCellWin/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "4dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-duration_delta_pitch_combinations-singleCellWin/evoRunDiffs/evolution-run-config_4dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H128QRBDTRHRP49HYFZPGYM6_4dur-7ndelt-4vel",
+          "percentCompleted": 1.00017
+        }
+      ]
+    },
+    {
+      "label": "3dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-duration_delta_pitch_combinations-singleCellWin/evoRunDiffs/evolution-run-config_3dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1Z2GQYWQEXAY7J2YE6AYN6J_3dur-7ndelt-4vel",
+          "percentCompleted": 1.00002
+        }
+      ]
+    },
+    {
+      "label": "2dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-duration_delta_pitch_combinations-singleCellWin/evoRunDiffs/evolution-run-config_2dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1Z3YBT55G0GGP0BX04ESH3Z_2dur-7ndelt-4vel",
+          "percentCompleted": 1.00007
+        }
+      ]
+    },
+    {
+      "label": "1dur-7ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-duration_delta_pitch_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-7ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1Z4KVE68M6X8RHH41XS2KW1_1dur-7ndelt-4vel",
+          "percentCompleted": 1.00024
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-duration_delta_pitch_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1Z6B8GQT2FYRBSTC445ADBD_1dur-1ndelt-4vel",
+          "percentCompleted": 1.00016
+        }
+      ]
+    },
+    {
+      "label": "1dur-1ndelt-1vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-duration_delta_pitch_combinations-singleCellWin/evoRunDiffs/evolution-run-config_1dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1860P2V9D99WC1TWX36Z56A_1dur-1ndelt-1vel",
+          "percentCompleted": 1.00016
+        }
+      ]
+    },
+    {
+      "label": "4dur-1ndelt-4vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-duration_delta_pitch_combinations-singleCellWin/evoRunDiffs/evolution-run-config_4dur-1ndelt-4vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1Z9T59VWZGZ9P91F2D7RF7Q_4dur-1ndelt-4vel",
+          "percentCompleted": 1.00018
+        }
+      ]
+    },
+    {
+      "label": "4dur-1ndelt-1vel",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-duration_delta_pitch_combinations-singleCellWin/evoRunDiffs/evolution-run-config_4dur-1ndelt-1vel.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H1ZBE4PDX7ZWARWTXMDKQBZZ_4dur-1ndelt-1vel",
+          "percentCompleted": 1.00023
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 8,
+  "currentEvolutionRunIteration": 0,
+  "totalPercentCompleted": 1.00015375
+}

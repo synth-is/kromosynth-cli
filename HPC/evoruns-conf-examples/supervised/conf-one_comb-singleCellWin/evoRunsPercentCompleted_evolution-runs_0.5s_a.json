@@ -1,0 +1,24 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-singleCellWin/evolution-run-config_normal-partition.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-singleCellWin/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "one_comb-dur_0.5",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-singleCellWin/evoRunDiffs/evolutionary-hyperparameters_CPPN-pMutateAddConnection-0.10_pMutateAddNode-0.10-pDeleteNeuron-0.06_pDeleteConnection-0.06.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01HAPFHNX7NWXETRJHMP55CVGC_one_comb-dur_0.5",
+          "percentCompleted": 1.0000366666666667
+        },
+        {
+          "id": "01HBR7VK6R5JNPY2R71B99MF1H_one_comb-dur_0.5",
+          "percentCompleted": 1.00002
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIteration": 0,
+  "totalPercentCompleted": 1.0000283333333333
+}

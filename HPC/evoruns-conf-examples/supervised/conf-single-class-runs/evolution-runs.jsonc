@@ -1,0 +1,308 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "single-class_Aircraft",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Aircraft.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H28H5YMJ7QVDCYABPYX1K9YN_single-class_Aircraft"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Banjo",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Banjo.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H28XVZSJR0VRH1P1Q0YRH75N_single-class_Banjo"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Beatboxing",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Beatboxing.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H29J9TS5P2ZE4JG4E48YV6Q1_single-class_Beatboxing"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Boom",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Boom.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2BVVS5HPW7TP9NN4GRH4FB7_single-class_Boom"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Choir",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Choir.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2D4K3NN1VA0WMFQFFZHW8ND_single-class_Choir"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Dubstep",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Dubstep.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2DP151E6CB09BM3BRB13HQ4_single-class_Dubstep"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Fusillade",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Fusillade.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2GNVEGH0ACEM6J1RMEMWNMW_single-class_Fusillade"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Mandolin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Mandolin.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2H29J3EKRXQ5XX28TNR7MPK_single-class_Mandolin"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Synthetic-singing",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Synthetic-singing.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2HTX10VE5Y7SMJXH379YE2P_single-class_Synthetic-singing"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Whistling",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Whistling.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2KVTP577VNDMH9JQ79AG9BZ_single-class_Whistling"
+        }
+      ]
+    },
+    {
+      "label": "single-class_New-age-music",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-New-age-music.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2MEHF77BP6VGN6Y0TEQVRG8_single-class_New-age-music"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Violin",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Violin.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2NDVXHEGJB20RHC4C9XDXFG_single-class_Violin"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Cello",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Cello.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2PX9ZE0ZSDNYA0NM2W9KT5S_single-class_Cello"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Frog",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Frog.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2QQA6WXGGWMA5GCVZZ8BJTZ_single-class_Frog"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Singing",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Singing.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2R35RBB5FRTS6VZTN6HADCW_single-class_Singing"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Video-game-music",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Video-game-music.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2RGGK46AJAYG2BB25T2M6MJ_single-class_Video-game-music"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Music-of-Latin-America.",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Music-of-Latin-America.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2RX22WMGR21TMY55EKNDB17_single-class_Music-of-Latin-America."
+        }
+      ]
+    },
+    {
+      "label": "single-class_Drum_and_bass",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Drum_and_bass.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2SK8Q02HMFC380P2E91YRJ0_single-class_Drum_and_bass"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Techno",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Techno.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2T91DYKGA04WZVVWEVC1G48_single-class_Techno"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Hip-hop-music",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Hip-hop-music.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2TT83RY7YWRSWJ4SF2XNAZC_single-class_Hip-hop-music"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Electronic_music",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Electronic_music.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2VFS1YEDPHFQH4YE6261Z4S_single-class_Electronic_music"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Disco",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Disco.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2WC8M6XF5V03CHAYFB6GWJ5_single-class_Disco"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Didgeridoo",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Didgeridoo.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2WVJVVDZ9DKXY0K76PFMT4P_single-class_Didgeridoo"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Double_bass",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Double_bass.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2Y58WH4GN7H6GM63F3MWMC1_single-class_Double_bass"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Trombone",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Trombone.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H2YX944F8B8NWVP1ZV34H58E_single-class_Trombone"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Organ",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Organ.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H30ANAB7T7ZQS7SXEVRDD8XJ_single-class_Organ"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Tender_music",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Tender_music.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H31GRBVP45JSD1D0FYXE3E48_single-class_Tender_music"
+        }
+      ]
+    },
+    {
+      "label": "single-class_House_music",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-House_music.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H33169BTNC5584NVJE0NDQK2_single-class_House_music"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Gospel_music",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Gospel_music.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H3A80R60VQMTGHA915XE3FTH_single-class_Gospel_music"
+        }
+      ]
+    },
+    {
+      "label": "single-class_Lullaby",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-single-class-runs/evoRunDiffs/evolution-run-config_class-Lullaby.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01H3ATQ99SJK1V1ZH1CVRAAKNE_single-class_Lullaby"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 30,
+  "currentEvolutionRunIteration": 0
+}

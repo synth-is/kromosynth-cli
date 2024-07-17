@@ -1,0 +1,15 @@
+{
+  "terminationCondition": {
+    "numberOfEvals": 300000
+  },
+  "classScoringDurations": [0.5, 1, 2, 5, 10],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-conf-classScoringVariationsAsContainerDimensions_noOsc-evolution-runs_h.jsonc-host-",
+  "gRpcServerCount": 2,
+  "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-conf-classScoringVariationsAsContainerDimensions_noOsc-evolution-runs_h.jsonc-host-",
+  "renderingSocketServerCount": 5,
+  "evaluationSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-socket-conf-classScoringVariationsAsContainerDimensions_noOsc-evolution-runs_h.jsonc-host-",
+  "evaluationSocketServerCount": 5,
+}

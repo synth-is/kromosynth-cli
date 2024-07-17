@@ -1,0 +1,52 @@
+{
+  "algorithm": "mapElites_with_uBC",
+  "seedEvals": 50,
+  // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution,
+  // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
+  "eliteWinsOnlyOneCell": false,
+  "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
+  "terminationCondition": {
+   "numberOfEvals": 300000
+  //  or
+  //  "averageFitnessInMap": 0.1
+  // or
+  // "medianFitnessInMap": 0.1
+  //  or
+  //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
+  },
+  "evoRunsDirPath": "/fp/projects01/ec29/bthj/QD/evoruns/conf-one_comb/",
+  "favoritesDirPath": "/Users/bthj/iCloud/Documents/synth.is/favoriteGenomes",
+
+  "geneEvaluationProtocol": "grpc", // grpc or worker
+  "childProcessBatchSize": 1,
+  "batchMultiplicationFactor": 1, // batch size is numberOfServers * batchMultiplicationFactor
+  "evaluationCandidateWavFilesDirPath": null, // "/Users/bjornpjo/Documents/synth.is/evaluationCandidates",
+
+  "probabilityMutatingWaveNetwork": 0.5,
+  "probabilityMutatingPatch": 0.5,
+  "classScoringDurations": [0.5],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+  "classifiers": ["yamnet"],
+  "useGpuForTensorflow": true,
+  "eliteMapSnapshotEvery": 100000,
+  "batchDurationMs": 1800000 , // 30 min
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-conf-one_comb-CPU-host-",
+  "gRpcServerCount": 32,
+  // "geneVariationServerPaths": [
+  //   "/tmp/grpc1.txt"
+  // ],
+  // "geneEvaluationServerPaths": [
+  //   "/tmp/grpc1.txt"
+  // ],
+  "geneVariationServers": [
+  ],
+  "geneEvaluationServers": [
+  ]
+  // ,
+  // "dummyRun": { // generate dummy data without evaluations
+  //   "cellCount": 10000,
+  //   "iterations": 10000,
+  //   "searchBatchSize": 499
+  // }
+}

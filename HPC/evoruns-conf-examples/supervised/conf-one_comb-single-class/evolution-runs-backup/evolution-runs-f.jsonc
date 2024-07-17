@@ -1,0 +1,30 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "single-class_Dubstep",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/conf-one_comb-single-class/evoRunDiffs/evolution-run-config_class-Dubstep.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        // {
+        //   "id": "01HBT1S4QHM2SX9R1222P403TW_single-class_Dubstep"
+        // },
+        // {
+        //   "id": "01HCCS148YAN0DD2QZNMR9TCFJ_single-class_Dubstep"
+        // },
+        {
+          "id": "01HD9J96QD955CPVERYQYMJJXW_single-class_Dubstep"
+        },
+        {
+          "id": "01HDA1N4XR272DNNMP7B4KBXBW_single-class_Dubstep"
+        },
+        {
+          "id": "01HDAZCBCT9S16RE9RKXDR70MK_single-class_Dubstep"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

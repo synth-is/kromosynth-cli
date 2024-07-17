@@ -1,0 +1,66 @@
+{
+  "algorithm": "mapElites",
+  "seedEvals": 2,
+  "terminationCondition": {
+   "numberOfEvals": 10000
+  //  or
+  //  "averageFitnessInMap": 0.1
+  // or
+  // "medianFitnessInMap": 0.1
+  //  or
+  //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
+  },
+  "evoRunsDirPath": "/fp/projects01/ec12/bthj/kromosynth/evoruns/",
+  "favoritesDirPath": "/fp/projects01/ec12/bthj/kromosynth/evoruns/favoriteGenomes",
+  "geneEvaluationProtocol": "grpc", // grpc or worker
+  "childProcessBatchSize": 1,
+  "evaluationCandidateWavFilesDirPath": null, // "/Users/bjornpjo/Documents/synth.is/evaluationCandidates",
+  "probabilityMutatingWaveNetwork": 0.5,
+  "probabilityMutatingPatch": 0.5,
+  "classScoringDurations": [0.5, 1, 2, 5],
+  "classScoringNoteDeltas": [-36, -24, -12, 0, 12, 24, 36],
+  "classScoringVelocities": [0.25, 0.5, 0.75, 1],
+  "classifiers": ["yamnet"],
+  "yamnetModelUrl": "file:///fp/projects01/ec12/bthj/kromosynth/tfjs-model_yamnet_tfjs_1/model.json",
+  "useGpuForTensorflow": true,
+  "eliteMapSnapshotEvery": 100000,
+  "batchDurationMs": 900000,
+  // "batchDurationMs": 60000,
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-",
+  "gRpcServerCount": 1,
+  // "geneVariationServerPaths": [
+  //   "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-1"
+  // ],
+  // "geneEvaluationServerPaths": [
+  //   "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-1"
+  // ],
+  "geneVariationServers": [
+//    "gpu-6:50051","gpu-6:50052"
+//    ,
+//    "localhost:50052",
+//    "localhost:50053", "localhost:50054",
+//    "localhost:50055", "localhost:50056", "localhost:50057", "localhost:50058"
+    // "localhost:50052"
+  ],
+  "geneEvaluationServers": [
+//    "gpu-6:50051","gpu-6:50052"
+//"localhost:50062", "localhost:50063", "localhost:50064",
+//    "localhost:50065", "localhost:50066"
+// , "localhost:50067", "localhost:50068",
+
+    // MBP 2021
+//    "192.168.10.102:50061", "192.168.10.102:50062", "192.168.10.102:50063", "192.168.10.102:50064",
+//    "192.168.10.102:50065", "192.168.10.102:50066", "192.168.10.102:50067", "192.168.10.102:50068"
+
+    // MBP 2019
+//    "192.168.10.175:50061", "192.168.10.175:50062", "192.168.10.175:50063", "192.168.10.175:50064"
+    // , "192.168.10.175:50065", "192.168.10.175:50066"
+
+  ]
+  // ,
+  // "dummyRun": { // generate dummy data without evaluations
+  //   "cellCount": 10000,
+  //   "iterations": 10000,
+  //   "searchBatchSize": 499
+  // }
+}
