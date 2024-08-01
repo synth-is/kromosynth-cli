@@ -132,8 +132,13 @@ export function getAudioClassPredictionsFromWebsocket(
       ws.send( audioBufferChannelData );
     });
     ws.on('message', (message) => {
-      const predictions = JSON.parse( message );
-      resolve( predictions );
+      try {
+        const predictions = JSON.parse( message );
+        resolve( predictions );
+      } catch( error ) {
+        console.error("getAudioClassPredictionsFromWebsocket: could not parse message: " + message, error);
+        resolve( {} );
+      }
     });
     ws.on('error', (error) => {
       delete clients[geneEvaluationWebsocketServerHost];
