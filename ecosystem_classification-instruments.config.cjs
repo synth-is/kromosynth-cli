@@ -8,7 +8,7 @@ module.exports = {
         instances : 1,
         exec_mode : "cluster",
         max_memory_restart: '700M',
-        cron_restart: '0 * * * *',
+        // cron_restart: '0 * * * *',
         increment_var : 'PORT',
         env: {
           "PORT": 50051,
@@ -22,7 +22,7 @@ module.exports = {
         instances : 3,
         exec_mode : "cluster",
         max_memory_restart: '700M',
-        cron_restart: '0 * * * *',
+        // cron_restart: '0 * * * *',
         increment_var : 'PORT',
         env: {
           "PORT": 30051,
@@ -31,12 +31,14 @@ module.exports = {
       },
       { // see the `kromosynth-evaluate` repository
         name   : "kromosynth-evaluation-socket-server",
-        script : "/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/supervised/Node-socket/yamnet.js",
-        args: "--processTitle kromosynth-evaluation-socket-server --modelUrl file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json --useGPU true",
+        interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3',
+        cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/supervised',
+        script : "classification.py",
+        args: "--sample-rate 16000 --models-path /Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models",
         instances : 3,
-        exec_mode : "cluster",
-        max_memory_restart: '700M',
-        cron_restart: '0 * * * *',
+        exec_mode : "fork",
+        max_memory_restart: '2G',
+        // cron_restart: '0 * * * *',
         increment_var : 'PORT',
         env: {
           "PORT": 40051,
@@ -47,12 +49,11 @@ module.exports = {
       {
         name   : "kromosynth-controller",
         script : "cli-app/kromosynth.js",
-        args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs.jsonc",
+        args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_instruments_durDeltVelDims.jsonc",
         instances : 1,
         exec_mode : "fork",
         max_memory_restart: '4G',
-        // every 2 hours
-        cron_restart: '0 * * * *',
+        cron_restart: '0 */2 * * *',
       }
     ]
   }

@@ -10,7 +10,7 @@ export async function renderAndEvaluateGenomesViaWebsockets(
   antiAliasing,
   frequencyUpdatesApplyToAllPathcNetworkOutputs,
   geneRenderingWebsocketServerHost, renderSampleRateForClassifier,
-  geneEvaluationWebsocketServerHost
+  geneEvaluationWebsocketServerHost, featureExtractionHost, ckptDir
 ) {
   const predictionsAggregate = {};
   const evaluationPromises = [];
@@ -34,10 +34,27 @@ export async function renderAndEvaluateGenomesViaWebsockets(
               console.error('audioBufferChannelData error:', audioBufferChannelData);
             }
             if( audioBufferChannelData ) {
-              const predictions = await getAudioClassPredictionsFromWebsocket(
-                audioBufferChannelData,
-                geneEvaluationWebsocketServerHost
-              );
+
+              let predictions;
+              if( featureExtractionHost ) {
+                // since featureExtractionHost is configured, we will extract features from the audio buffer and send those to the geneEvaluationWebsocketServerHost
+                const { features } = await getFeaturesFromWebsocket(
+                  audioBufferChannelData,
+                  featureExtractionHost,
+                  ckptDir,
+                  renderSampleRateForClassifier
+                );
+                const featuresWsRequest = { features };
+                predictions = await getAudioClassPredictionsFromWebsocket(
+                  JSON.stringify( featuresWsRequest ),
+                  geneEvaluationWebsocketServerHost
+                );
+              } else {
+                predictions = await getAudioClassPredictionsFromWebsocket(
+                  audioBufferChannelData,
+                  geneEvaluationWebsocketServerHost
+                );
+              }
               if( predictions ) {
                 for( const classKey in predictions.taggedPredictions ) {
                   let isCurrentBestClassCandidate = false;
@@ -120,7 +137,7 @@ export function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
 
 // send websocket message to server, with audio buffer
 export function getAudioClassPredictionsFromWebsocket( 
-  audioBufferChannelData,
+  audioBufferChannelDataOrFeatureVector,
   geneEvaluationWebsocketServerHost
 ) {
 
@@ -129,7 +146,7 @@ export function getAudioClassPredictionsFromWebsocket(
   return new Promise((resolve, reject) => {
     const ws = getClient( geneEvaluationWebsocketServerHost );
     ws.on('open', () => {
-      ws.send( audioBufferChannelData );
+      ws.send( audioBufferChannelDataOrFeatureVector );
     });
     ws.on('message', (message) => {
       const predictions = JSON.parse( message );

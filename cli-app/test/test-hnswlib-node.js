@@ -26,6 +26,10 @@ function getHnswIndexWithFeatures( spaceName, featureType, pathToTree, numberOfF
         console.error( "Feature is not an array:", feature, ", key:", key );
         continue;
       }
+      if( feature.length !== numDimensions ) {
+        console.error( "Feature has wrong number of dimensions:", feature.length, ", expected:", numDimensions, ", key:", key );
+        continue;
+      }
       index.addPoint( feature, parseInt(i) );
       indexToKey[i] = key;
     }

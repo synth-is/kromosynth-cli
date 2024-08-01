@@ -17,7 +17,8 @@ import {
 } from './util/classificationTags.js';
 import {
   getGenomeFromGenomeString, getNewAudioSynthesisGenomeByMutation,
-  getAudioBufferFromGenomeAndMeta
+  getAudioBufferFromGenomeAndMeta,
+  getAudioClassPredictions
 } from 'kromosynth';
 // import { callRandomGeneService } from './service/gene-random-worker-client.js';
 import {
@@ -30,7 +31,8 @@ import {
   renderAndEvaluateGenomesViaWebsockets,
   getAudioBufferChannelDataForGenomeAndMetaFromWebsocet,
   getFeaturesFromWebsocket, getDiversityFromWebsocket, 
-  getQualityFromWebsocket, getQualityFromWebsocketForEmbedding, addToQualityQueryEmbeddigs
+  getQualityFromWebsocket, getQualityFromWebsocketForEmbedding, addToQualityQueryEmbeddigs,
+  getAudioClassPredictionsFromWebsocket
 } from './service/websocket/ws-gene-evaluation.js';
 import {
   runCmd, runCmdAsync, readGenomeAndMetaFromDisk, getGenomeKey, getFeaturesKey, calcStandardDeviation,
@@ -238,7 +240,7 @@ export async function qdSearch(
 
   eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName );
   if( ! eliteMap ) {
-    let eliteMapContainer = initializeGrid( 
+    let eliteMapContainer = await initializeGrid( 
       evolutionRunId, algorithmKey, evolutionRunConfig, evolutionaryHyperparameters
     );
 
@@ -666,6 +668,7 @@ async function mapElitesBatch(
       let geneVariationServerHost;
       let geneRenderingServerHost;
       let geneEvaluationServerHost;
+      let featureExtractionHost;
       if( dummyRun ) {
         geneVariationServerHost = _geneVariationServers[0];
         geneRenderingServerHost = _geneRenderingServers[0];
@@ -676,6 +679,11 @@ async function mapElitesBatch(
         if( _geneEvaluationServers && _geneEvaluationServers.length ) {
           // we're using a pre-trained classification for the diversity projection and quality evaluation
           geneEvaluationServerHost = _geneEvaluationServers[ batchIteration % _geneEvaluationServers.length ];
+          // TODO: the following server configuration was initially only intended for unsupervised mearurement definitions, 
+          // but when using a vector database (hnsw) for classification, we do need to extract features, so bit of inconsistency / reduncancy here:
+          if( _evaluationFeatureServers && _evaluationFeatureServers.length ) {
+            featureExtractionHost = _evaluationFeatureServers[ batchIteration % _evaluationFeatureServers.length ];
+          }
         } else if( isUnsupervisedDiversityEvaluation ) {
           // using feature extraction and dimensionality reduction for diversity projection and a separate quality evaluation service
           geneEvaluationServerHost = {
@@ -731,12 +739,15 @@ async function mapElitesBatch(
             if( classRestriction && classRestriction.length ) {
               console.log("classRestriction:", classRestriction);
               classKeys = classRestriction;
-            } else if( eliteWinsOnlyOneCell || isUnsupervisedDiversityEvaluation ) {
+            } else 
+              // if( eliteWinsOnlyOneCell || isUnsupervisedDiversityEvaluation ) 
+            {
               // select only cell keys where the elts attribute referes to a non-empty array
               classKeys = Object.keys(eliteMap.cells).filter( ck => eliteMap.cells[ck].elts.length > 0 );
-            } else {
-              classKeys = Object.keys(eliteMap.cells);
-            }
+            } 
+            // else {
+            //   classKeys = Object.keys(eliteMap.cells);
+            // }
             const classBiases = classKeys.map( ck =>
               undefined === eliteMap.cells[ck].uBC ? 10 : eliteMap.cells[ck].uBC
             );
@@ -1002,7 +1013,7 @@ async function mapElitesBatch(
                       yamnetModelUrl,
                       geneEvaluationProtocol,
                       geneRenderingServerHost, renderSampleRateForClassifier,
-                      geneEvaluationServerHost
+                      geneEvaluationServerHost, featureExtractionHost, ckptDir
                     );
                     for( const oneClassKey in oneCombinationClassScores ) {
                       const oneClassScores = oneCombinationClassScores[oneClassKey];
@@ -1025,7 +1036,7 @@ async function mapElitesBatch(
                 yamnetModelUrl,
                 geneEvaluationProtocol,
                 geneRenderingServerHost, renderSampleRateForClassifier,
-                geneEvaluationServerHost
+                geneEvaluationServerHost, featureExtractionHost, ckptDir
               );
             }
           }
@@ -1422,6 +1433,8 @@ async function renderEliteGenomeToWavFile(
     if( !fs.existsSync(evoRenderDirPath) ) fs.mkdirSync(evoRenderDirPath, {recursive: true});
     // replace commas in classKey with underscores (AudioStellar doesn't like commas in file names)
     let classKeySansCommas = classKey.replace(/,/g, "_");
+    // remove forward slashes from classKeySansCommas
+    classKeySansCommas = classKeySansCommas.replace(/\//g, "_-_");
     let filePath = path.join(evoRenderDirPath, `${Math.round(score*100)}_${iteration}_${classKeySansCommas}_${eliteGenomeId}.wav`);
     console.log("writing wav file to", filePath, "for elite genome", eliteGenomeId);
     let wav = toWav(audioBuffer);
@@ -1442,7 +1455,7 @@ async function getGenomeClassScores(
   yamnetModelUrl,
   geneEvaluationProtocol,
   geneRenderingServerHost, renderSampleRateForClassifier,
-  geneEvaluationServerHost
+  geneEvaluationServerHost, featureExtractionHost, ckptDir
 ) {
   let newGenomeClassScores;
   // in this case we'll render and evaluate all the rendered combinations in this stack (Node.js)
@@ -1476,7 +1489,7 @@ async function getGenomeClassScores(
       antiAliasing,
       frequencyUpdatesApplyToAllPathcNetworkOutputs,
       geneRenderingServerHost, renderSampleRateForClassifier,
-      geneEvaluationServerHost
+      geneEvaluationServerHost, featureExtractionHost, ckptDir
     ).catch(
       e => {
         console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
@@ -2290,7 +2303,7 @@ function getClassKeysWhereScoresAreElite( classScores, eliteMap, eliteWinsOnlyOn
   }
 }
 
-function initializeEliteMap(
+async function initializeEliteMap(
   evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationGraphModel, dummyRun,
   classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
   classConfigurations,
@@ -2317,7 +2330,7 @@ function initializeEliteMap(
     mapSwitchLog: [],
     eliteMapIndex
   };
-  const classifierTags = getClassifierTags(classificationGraphModel, dummyRun);
+  const classifierTags = await getClassifierTags(classificationGraphModel, dummyRun);
   if( classScoringVariationsAsContainerDimensions ) {
     for( const oneDuration of classScoringDurations ) {
       for( const oneNoteDelta of classScoringNoteDeltas ) {
@@ -2342,7 +2355,7 @@ function initializeEliteMap(
   return eliteMap;
 }
 
-function initializeGrid( 
+async function initializeGrid( 
     evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters
 ) {
   const { 
@@ -2359,7 +2372,7 @@ function initializeGrid(
       // an array of eliteMaps, with each map representing a classConfiguration
       eliteMap = [];
       for( const oneClassConfiguration of classConfigurations ) {
-        const oneEliteMap = initializeEliteMap(
+        const oneEliteMap = await initializeEliteMap(
           evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationDimensions, dummyRun,
           classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
           [oneClassConfiguration],
@@ -2370,7 +2383,7 @@ function initializeGrid(
       }
     } else {
       // only one map, but still using classConfigurations and classificationDimensions as the classificationGraphModel
-      const oneEliteMap = initializeEliteMap(
+      const oneEliteMap = await initializeEliteMap(
         evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationDimensions, dummyRun,
         classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
         classConfigurations,
@@ -2379,7 +2392,7 @@ function initializeGrid(
       eliteMap = oneEliteMap
     }
   } else {
-    const oneEliteMap = initializeEliteMap(
+    const oneEliteMap = await initializeEliteMap(
       evolutionRunId, algorithm, evolutionRunConfig, evolutionaryHyperparameters, classificationGraphModel, dummyRun,
       classScoringDurations, classScoringNoteDeltas, classScoringVelocities, classScoringVariationsAsContainerDimensions,
       undefined, // classConfigurations
@@ -2588,7 +2601,7 @@ function createNDimensionalKeys(dims) {
 }
 ///// end methods to obtain a list of n-dimensional coordinates for a grid of cells
 
-function getClassifierTags( graphModel, dummyRun ) {
+async function getClassifierTags( graphModel, dummyRun ) {
   if( dummyRun && dummyRun.cellCount ) {
     return getDummyLabels(dummyRun.cellCount);
   } else {
@@ -2605,34 +2618,44 @@ function getClassifierTags( graphModel, dummyRun ) {
         return tagsAggregate;
       }
     } else {
-      switch (graphModel) {
-        // prefixes reflection those in quality_instrumentation.py in the kromosynth-evaluate repo
-        case "yamnet":
-          return yamnetTags.map( t => `YAM_${t}` );
-        case "nsynth":
-          return nsynthTags.map( t => `NSY_${t}` );
-        case "mtg_jamendo_instrument":
-          return mtgJamendoInstrumentTags.map( t => `MTG_${t}` );
-        case "music_loop_instrument_role":
-          return musicLoopInstrumentRoleClassLabels.map( t => `MLIR_${t}` );
-        case "mood_acoustic":
-          return moodAcousticClassLabels.map( t => `MA_${t}` );
-        case "mood_electronic":
-          return moodElectronicClassLabels.map( t => `ME_${t}` );
-        case "voice_instrumental":
-          return voiceInstrumentalClassLabels.map( t => `VI_${t}` );
-        case "voice_gender":
-          return voiceGenderClassLabels.map( t => `VG_${t}` );
-        case "timbre":
-          return timbreClassLabels.map( t => `TIM_${t}` );
-        case "nsynth_acoustic_electronic":
-          return nsynthAcousticElectronicClassLabels.map( t => `NAE_${t}` );
-        case "nsynth_bright_dark":
-          return nsynthBrightDarkClassLabels.map( t => `NBD_${t}` );
-        case "nsynth_reverb":
-          return nsynthReverbClassLabels.map( t => `NRV_${t}` );
-        default:
-          return yamnetTags.map( t => `YAM_${t}` );
+      // if graphModel matches a websocket endpoint, we'll assume we can obtain the tags from the classifier
+      if( graphModel.startsWith("ws://") || graphModel.startsWith("wss://") ) {
+        const tagsWsRequest = { getKeys: true };
+        const classifierTags = await getAudioClassPredictionsFromWebsocket( // mis-/re-using this function to get the tags
+          JSON.stringify(tagsWsRequest),
+          graphModel, // geneEvaluationWebsocketServerHost
+        );
+        return classifierTags;
+      } else {
+        switch (graphModel) {
+          // prefixes reflection those in quality_instrumentation.py in the kromosynth-evaluate repo
+          case "yamnet":
+            return yamnetTags.map( t => `YAM_${t}` );
+          case "nsynth":
+            return nsynthTags.map( t => `NSY_${t}` );
+          case "mtg_jamendo_instrument":
+            return mtgJamendoInstrumentTags.map( t => `MTG_${t}` );
+          case "music_loop_instrument_role":
+            return musicLoopInstrumentRoleClassLabels.map( t => `MLIR_${t}` );
+          case "mood_acoustic":
+            return moodAcousticClassLabels.map( t => `MA_${t}` );
+          case "mood_electronic":
+            return moodElectronicClassLabels.map( t => `ME_${t}` );
+          case "voice_instrumental":
+            return voiceInstrumentalClassLabels.map( t => `VI_${t}` );
+          case "voice_gender":
+            return voiceGenderClassLabels.map( t => `VG_${t}` );
+          case "timbre":
+            return timbreClassLabels.map( t => `TIM_${t}` );
+          case "nsynth_acoustic_electronic":
+            return nsynthAcousticElectronicClassLabels.map( t => `NAE_${t}` );
+          case "nsynth_bright_dark":
+            return nsynthBrightDarkClassLabels.map( t => `NBD_${t}` );
+          case "nsynth_reverb":
+            return nsynthReverbClassLabels.map( t => `NRV_${t}` );
+          default:
+            return yamnetTags.map( t => `YAM_${t}` );
+        }
       }
     }
   }
