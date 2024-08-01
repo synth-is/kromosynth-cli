@@ -2,11 +2,11 @@ import fs from 'fs';
 import hnswPkg from 'hnswlib-node';
 const { HierarchicalNSW } = hnswPkg;
 
-function getHnswIndexWithFeatures( spaceName, featureType, pathToTree, numberOfFilePathPartsAsKey, indexFileName = 'hnswIndex.dat', indexToKeyFileName = 'indexToKey.json' ) {
+function getHnswIndexWithFeatures( spaceName, featureType, pathToTree, numberOfFilePathPartsAsKey, indexPersistencePath, indexFileName = 'hnswIndex.dat', indexToKeyFileName = 'indexToKey.json' ) {
   let index;
   let indexToKey;
-  const indexPath = pathToTree + "/" + indexFileName;
-  const indexToKeyPath = pathToTree + "/" + indexToKeyFileName;
+  const indexPath = indexPersistencePath + "/" + indexFileName;
+  const indexToKeyPath = indexPersistencePath + "/" + indexToKeyFileName;
   if( fs.existsSync( indexPath ) ) {
     const queryFeature = getFirstFeatureFromFileTree( featureType, pathToTree );
     const numDimensions = queryFeature.length;
@@ -22,8 +22,16 @@ function getHnswIndexWithFeatures( spaceName, featureType, pathToTree, numberOfF
     index.initIndex(maxElements);
     indexToKey = {};
     for( const [i, [key, feature]] of Object.entries(Object.entries( features )) ) { // https://stackoverflow.com/a/45254514/169858
+      if( ! Array.isArray( feature ) ) {
+        console.error( "Feature is not an array:", feature, ", key:", key );
+        continue;
+      }
       index.addPoint( feature, parseInt(i) );
       indexToKey[i] = key;
+    }
+    // if indexPersistencePath does not exist, create it
+    if( !fs.existsSync( indexPersistencePath ) ) {
+      fs.mkdirSync( indexPersistencePath, { recursive: true } );
     }
     index.writeIndexSync( indexPath );
     fs.writeFileSync( indexToKeyPath, JSON.stringify( indexToKey, null, 2 ) );
@@ -66,7 +74,7 @@ function findFiles( pathToTree, extension, maxFiles ) {
     const stats = fs.statSync( itemPath );
     if( stats.isDirectory() ) {
       const subFiles = findFiles( itemPath, extension, maxFiles );
-      files.push( ...subFiles );
+      subFiles.forEach( subFile => files.push( subFile ) );
     } else if( stats.isFile() && item.endsWith( extension ) ) {
       files.push( itemPath );
     }
@@ -79,12 +87,26 @@ function getFeaturesFromFile( featureType, file ) {
   return data[featureType];
 }
 
+// get featureType from command line argument
+const featureType = process.argv[2];
+if( !featureType ) {
+  console.error( "Please provide a feature type as argument" );
+  process.exit(1);
+}
+const pathToFeaturesTree = process.argv[3];
+if( !pathToFeaturesTree ) {
+  console.error( "Please provide a path to a tree of feature files as argument" );
+  process.exit(1);
+}
+const indexPersistencePath = process.argv[4] || pathToFeaturesTree;
+const numberOfFilePathPartsAsKey = parseInt( process.argv[5] ) || 1;
+
 // spaceName can be 'l2', 'ip, or 'cosine'
 // const {index, indexToKey} = getHnswIndexWithFeatures( 'cosine', 'mfcc', '/Users/bjornpjo/Downloads/nsynth-valid/family-split_features' );
-const {index, indexToKey} = getHnswIndexWithFeatures( 'cosine', 'mfcc', '/Users/bjornpjo/Downloads/OneBillionWav_features', 3 );
+const {index, indexToKey} = getHnswIndexWithFeatures( 'cosine', featureType, pathToFeaturesTree, numberOfFilePathPartsAsKey, indexPersistencePath );
 
 // test a query
-const queryFeature = getFirstFeatureFromFileTree( 'mfcc', '/Users/bjornpjo/Downloads/OneBillionWav_features' );
+const queryFeature = getFirstFeatureFromFileTree( featureType, pathToFeaturesTree );
 const numNeighbors = 5;
 const result = index.searchKnn( queryFeature, numNeighbors );
 console.table( result );
@@ -95,3 +117,6 @@ const resultKeys = result.neighbors.map( r => indexToKey[r] );
 console.log( "Result keys:", resultKeys );
 
 console.log("Number of items in index:", index.getCurrentCount() );
+
+// example command:
+// node test-hnswlib-node.js mfcc /Users/bjornpjo/Downloads/audio-features/OneBillionWav_features_filtered /Users/bjornpjo/Downloads/hnsw-indexes/OneBillionWav_features_filtered_mfcc 3
