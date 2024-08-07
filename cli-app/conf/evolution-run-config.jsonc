@@ -49,6 +49,7 @@
   "classifiers": [
     "yamnet",
     ["nsynth","yamnet","mtg_jamendo_instrument"],
+    "ws://127.0.0.1:40051",
     [50, 50], // feature map to project the bahaviour space to, e.g. with dimensionality reduction
     [100, 100],
     // classes as a third dimension, depends on classifier returning the top class and its score, like { 'top_score': 0.9, 'top_score_class': 'mallet' }
@@ -262,10 +263,12 @@
     // "ws://localhost:8080?classifiers=nsynth,yamnet,mtg_jamendo_instrument"
   ],
 
+  // evaluationFeatureServers are required when classifiers are the same as geneEvaluationServers (e.g. "ws://127.0.0.1:40051")
+
   "evaluationFeatureServers": [ // feature extraction
     "ws://127.0.0.1:31051",
     // "ws://127.0.0.1:31052",
-    // "ws://127.0.0.1:31053"
+    // "ws://127.0.0.1:31053",
   ],
   "evaluationQualityServers": [ // quality evaluation
     "ws://127.0.0.1:32051",
