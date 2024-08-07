@@ -457,11 +457,11 @@ async function getGenomeSetsWithRenderingVariationsAsContainerDimensionsForOneIt
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
   const renderingVariationKeys = new Set(
-    cellKeys.map( oneCellKey => oneCellKey.split("_")[1] )
+    cellKeys.map( oneCellKey => oneCellKey.split("-")[oneCellKey.split("-").length-1] )
   );
   const genomeSets = {};
   for( const oneRenderingVariationKey of renderingVariationKeys ) {
-    cellKeys.filter( oneCellKey => oneCellKey.split("_")[1] === oneRenderingVariationKey ).map( oneCellKey => {
+    cellKeys.filter( oneCellKey => oneCellKey.split("-")[oneCellKey.split("-").length-1] === oneRenderingVariationKey ).map( oneCellKey => {
       if( eliteMap.cells[oneCellKey].elts.length ) {
         const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
         if( !genomeSets[oneRenderingVariationKey] ) {
