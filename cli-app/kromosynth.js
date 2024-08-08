@@ -1656,6 +1656,76 @@ async function qdAnalysis_evoRuns() {
 				
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
+			if( oneAnalysisOperation === "genome-sets-through-rendering-variations" ) {
+				console.log("aggregating genome sets through rendering variations for evolution run #", currentEvolutionRunIndex, "...");
+				function calculateGenomeCountStatistics(data) {
+					// Extract all genomeCount arrays
+					const genomeCounts = data.map(item => item.genomeSetsThroughRenderingVariations.genomeCount);
+				
+					// Determine the number of positions in genomeCount
+					const numPositions = genomeCounts[0].length;
+				
+					// Initialize arrays to store statistics for each position
+					const positionStats = Array(numPositions).fill().map(() => ({
+						sums: {},
+						sumOfSquares: {},
+						counts: {}
+					}));
+				
+					// Iterate through all genomeCount arrays
+					genomeCounts.forEach(genomeCountArray => {
+						genomeCountArray.forEach((obj, position) => {
+							Object.entries(obj).forEach(([key, value]) => {
+								if (!positionStats[position].sums[key]) {
+									positionStats[position].sums[key] = 0;
+									positionStats[position].sumOfSquares[key] = 0;
+									positionStats[position].counts[key] = 0;
+								}
+								positionStats[position].sums[key] += value;
+								positionStats[position].sumOfSquares[key] += value * value;
+								positionStats[position].counts[key]++;
+							});
+						});
+					});
+				
+					// Calculate means, variances, and standard deviations for each position
+					const means = [];
+					const variances = [];
+					const stdDevs = [];
+				
+					positionStats.forEach((stats, position) => {
+						means[position] = {};
+						variances[position] = {};
+						stdDevs[position] = {};
+				
+						Object.keys(stats.sums).forEach(key => {
+							const mean = stats.sums[key] / stats.counts[key];
+							means[position][key] = mean;
+				
+							const variance = (stats.sumOfSquares[key] / stats.counts[key]) - (mean * mean);
+							variances[position][key] = variance;
+				
+							stdDevs[position][key] = Math.sqrt(variance);
+						});
+					});
+				
+					// Structure the results
+					return {
+						aggregates: {
+							genomeSetsThroughRenderingVariations: {
+								genomeCount: {
+									means,
+									variances,
+									stdDevs
+								}
+							}
+						}
+					};
+				}
+				const genomeSetsThroughRenderingVariations = calculateGenomeCountStatistics(evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations);
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSetsThroughRenderingVariations"] = genomeSetsThroughRenderingVariations.aggregates.genomeSetsThroughRenderingVariations;
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+			}
 			if( oneAnalysisOperation == "elites-energy" ) {
 				console.log("aggregating elites energy for evolution run #", currentEvolutionRunIndex, "...");
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"] = {};
