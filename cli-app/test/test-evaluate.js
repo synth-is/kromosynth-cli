@@ -3,7 +3,8 @@ import { getAudioContext } from '../util/rendering-common.js';
 import { readWavFile } from "../util/file-common.js";
 import { 
   generateRandomSoundBuffer, generateSoundBufferWithSpikesAndGaps, generateSoundBufferWithSineWave, generateSoundBufferWithSquareWave, generateSoundBufferWithTriangleWave, generateSoundBufferWithSawtoothWave, generateSoundBufferWithSilence,
-  callQualityEvaluationService, callQualityEvaluationServiceForEmbedding, callQualityEvaluationServiceForAddingEmbedding,
+  callQualityEvaluationService, callQualityEvaluationServiceForFeatureVectors,
+  callQualityEvaluationServiceForEmbedding, callQualityEvaluationServiceForAddingEmbedding,
   callFeatureExtractionService,
    getDiversityFromWebsocket
 } from "./test-common.js";
@@ -30,14 +31,16 @@ async function callDiversityEvaluationServiceWithFeatureVectorsAndFitnessValues(
 
     // const audioBuffer = await readWavFile('/Users/bjornpjo/Downloads/nsynth-valid/customRef/samples/customRef1/vocal_synthetic_003-038-100.wav');
     
-    // const featureResponse = await callFeatureExtractionService( audioBuffer );
-    // const { features, embedding } = featureResponse;
+    const featureResponse = await callFeatureExtractionService( audioBuffer );
+    const { features, embedding } = featureResponse;
     
     /// instruments, instrumentation and general sound events:
     // const fitnessValue = await callQualityEvaluationService( audioBuffer, "?classifiers=nsynth,yamnet,mtg_jamendo_instrument,music_loop_instrument_role,mood_acoustic,mood_electronic,voice_instrumental,voice_gender,timbre,nsynth_acoustic_electronic,nsynth_bright_dark,nsynth_reverb" );
     // const fitnessValue = await callQualityEvaluationService( audioBuffer, "?classifiers=nsynth,yamnet,mtg_jamendo_instrument,music_loop_instrument_role,nsynth_acoustic_electronic,nsynth_bright_dark,nsynth_reverb" );
     /// only instruments:
-    const fitnessValue = await callQualityEvaluationService( audioBuffer, "?classifiers=nsynth,mtg_jamendo_instrument" );
+    // const fitnessValue = await callQualityEvaluationService( audioBuffer, "?classifiers=nsynth,mtg_jamendo_instrument" );
+    
+    const fitnessValue = await callQualityEvaluationServiceForFeatureVectors( features );
     
     // const fitnessValue = await callQualityEvaluationServiceForEmbedding(
     //   embedding,

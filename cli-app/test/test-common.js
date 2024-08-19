@@ -134,7 +134,8 @@ export function generateSoundBufferWithSpikesAndGaps(length) {
 
 
 ///// feature extraction
-const featureExtractionServerHost = 'ws://localhost:31051';
+// const featureExtractionServerHost = 'ws://localhost:31051';
+const featureExtractionServerHost = 'ws://localhost:31052';
 
 export async function callFeatureExtractionService( audioBuffer ) {
   const _audioBuffer = audioBuffer || generateRandomSoundBuffer(SAMPLE_RATE);
@@ -150,13 +151,13 @@ function getFeaturesFromWebsocket(
 ) {
   // const webSocket = new WebSocket(featureExtractionServerHost);
   // const webSocket = new WebSocket(featureExtractionServerHost + "/mfcc");
-  // const webSocket = new WebSocket(featureExtractionServerHost + "/vggish?ckpt_dir=/Users/bjornpjo/.cache/torch/hub/checkpoints&sample_rate=16000");
+  const webSocket = new WebSocket(featureExtractionServerHost + "/vggish?ckpt_dir=/Users/bjornpjo/.cache/torch/hub/checkpoints&sample_rate=16000");
   // const webSocket = new WebSocket(featureExtractionServerHost + "/pann?ckpt_dir=/Users/bjornpjo/.cache/torch/hub/checkpoints&sample_rate=16000");
   // const webSocket = new WebSocket(featureExtractionServerHost + "/clap?ckpt_dir=/Users/bjornpjo/.cache/torch/hub/checkpoints&sample_rate=48000");
   // const webSocket = new WebSocket(featureExtractionServerHost + "/encodec?ckpt_dir=/Users/bjornpjo/.cache/torch/hub/checkpoints&sample_rate=24000");
   
   // const webSocket = new WebSocket(featureExtractionServerHost + "/manual?features=spectral_centroid,spectral_rolloff,zero_crossing_rate,chroma_stft,mel_spectrogram,rms,spectral_bandwidth,spectral_contrast,spectral_flatness,spectral_flux");
-  const webSocket = new WebSocket(featureExtractionServerHost + "/manual?features=spectral_centroid,spectral_flatness");
+  // const webSocket = new WebSocket(featureExtractionServerHost + "/manual?features=spectral_centroid,spectral_flatness");
   
   webSocket.binaryType = "arraybuffer"; // Set binary type for receiving array buffers
   return new Promise((resolve, reject) => {
@@ -210,11 +211,34 @@ export function getDiversityFromWebsocket(
 
 ///// quality evaluation
 
+const qualityEvaluationOfFeaturesServerHost = 'ws://127.0.0.1:40051';
+
+function getQualityFromWebsocketForFeatures(
+  features
+) {
+  const webSocket = new WebSocket(qualityEvaluationOfFeaturesServerHost);
+  return new Promise((resolve, reject) => {
+    webSocket.on("open", () => {
+      let featuresMessageObj = { features };
+      let featuresMessageString = JSON.stringify(featuresMessageObj);
+      webSocket.send(featuresMessageString);
+    });
+    webSocket.on("message", (message) => {
+      const quality = JSON.parse(message);
+      resolve(quality);
+    });
+    webSocket.on("error", (error) => {
+      reject(error);
+    });
+  });
+}
+
+
 const qualityEvaluationServerHost = 'ws://localhost:32051';
 
 // send websocket message to server, with audio buffer and receive quality
 function getQualityFromWebsocket(
-  audioBufferChannelData, urlQuery
+  audioBufferChannelDataOrFeatureVector, urlQuery
 ) {
   // const webSocket = new WebSocket(qualityEvaluationServerHost);
   // const webSocket = new WebSocket(qualityEvaluationServerHost + "/score?background_embds_path=");
@@ -222,7 +246,7 @@ function getQualityFromWebsocket(
   webSocket.binaryType = "arraybuffer"; // Set binary type for receiving array buffers
   return new Promise((resolve, reject) => {
     webSocket.on("open", () => {
-      webSocket.send(audioBufferChannelData);
+      webSocket.send(audioBufferChannelDataOrFeatureVector);
     });
     webSocket.on("message", (message) => {
       const quality = JSON.parse(message);
@@ -287,6 +311,14 @@ export async function callQualityEvaluationService( audioBuffer, urlQuery ) {
   // return quality.fitness;
   return quality;
 }
+
+
+export async function callQualityEvaluationServiceForFeatureVectors( featureVectors ) {
+  const quality = await getQualityFromWebsocketForFeatures( featureVectors );
+  console.log('features quality:', quality);
+  return quality;
+}
+
 
 export async function callQualityEvaluationServiceForEmbedding( embedding, refSetEmbedsPath, querySetEmbedsPath, measureCollectivePerformance, ckptDir ) {
   const quality = await getQualityFromWebsocketForEmbedding( embedding, refSetEmbedsPath, querySetEmbedsPath, measureCollectivePerformance, ckptDir );
