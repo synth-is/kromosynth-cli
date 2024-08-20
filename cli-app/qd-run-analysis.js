@@ -1277,7 +1277,8 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
           const genomeId = cell.elts[0].g;
           const score = cell.elts[0].s;
           const generation = cell.elts[0].gN;
-          if( lineageGraphDataObj[genomeId] === undefined ) {
+          const genomeIdClass = `${genomeId}_${oneCellKey}`; // the same genome could be an elite of more than one class
+          if( lineageGraphDataObj[genomeIdClass] === undefined ) {
             const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
             const genome = await getGenomeFromGenomeString(genomeString);
             let parentGenomes;
@@ -1286,10 +1287,11 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
             } else {
               parentGenomes = [];
             }
-            lineageGraphDataObj[genomeId] = { parentGenomes };
-            lineageGraphDataObj[genomeId]["eliteClass"] = oneCellKey;
-            lineageGraphDataObj[genomeId]["s"] = score;
-            lineageGraphDataObj[genomeId]["gN"] = generation;
+            lineageGraphDataObj[genomeIdClass] = { parentGenomes };
+            lineageGraphDataObj[genomeIdClass]["id"] = genomeId;
+            lineageGraphDataObj[genomeIdClass]["eliteClass"] = oneCellKey;
+            lineageGraphDataObj[genomeIdClass]["s"] = score;
+            lineageGraphDataObj[genomeIdClass]["gN"] = generation;
           }
         }
       }
@@ -1297,13 +1299,13 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
   }
   // convert lineageGraphDataObj to array with objects with the attributes id and parents
   const lineageGraphData = [];
-  for( const genomeId of Object.keys(lineageGraphDataObj) ) {
+  for( const genomeIdClass of Object.keys(lineageGraphDataObj) ) {
     lineageGraphData.push({
-      id: genomeId,
-      eliteClass: lineageGraphDataObj[genomeId].eliteClass,
-      s: lineageGraphDataObj[genomeId].s,
-      gN: lineageGraphDataObj[genomeId].gN,
-      parents: lineageGraphDataObj[genomeId].parentGenomes
+      id: lineageGraphDataObj[genomeIdClass].id,
+      eliteClass: lineageGraphDataObj[genomeIdClass].eliteClass,
+      s: lineageGraphDataObj[genomeIdClass].s,
+      gN: lineageGraphDataObj[genomeIdClass].gN,
+      parents: lineageGraphDataObj[genomeIdClass].parentGenomes
     });
   }
   return lineageGraphData;
