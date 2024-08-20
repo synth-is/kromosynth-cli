@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Phylogenetic Tree Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="phylogenetic-tree-interactive.js" type="module"></script>
+    <style>
+        #visualization-container {
+            width: 100%;
+            height: 800px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Interactive Phylogenetic Tree Visualization</h1>
+    <div id="visualization-container"></div>
+
+    <script type="module">
+        import { createInteractiveVisualization } from './phylogenetic-tree-interactive.js';
+
+        // Fetch the JSON data
+        fetch('evolution-run-analysis_lineage_step-1_1724164955286.json')
+            .then(response => response.json())
+            .then(data => {
+                // Create the visualization
+                createInteractiveVisualization(data, document.getElementById('visualization-container'));
+            })
+            .catch(error => console.error('Error loading data:', error));
+    </script>
+</body>
+</html>

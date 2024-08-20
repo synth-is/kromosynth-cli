@@ -5,13 +5,13 @@ async function main() {
     try {
         const data = JSON.parse(await fs.readFile('/Users/bjornpjo/QD/analysis/supervised/conf-classScoringVariationsAsContainerDimensions_noOsc/evolution-run-analysis_lineage_step-1_1723727836945.json', 'utf8'));
         const svgContent = generateSVG(data, {
-            width: 6000,
-            height: 6000,
+            width: 8000,
+            height: 8000,
             margin: 400,
             radiusScale: 0.8,
             fontScale: 2.0,
             lineageSpacing: 0.05,
-            maxDepth: 15,
+            maxDepth: 150,
             measureContextSwitches: true,
             suffixFilter: '-5'
           });
