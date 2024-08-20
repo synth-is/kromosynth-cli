@@ -1,22 +1,39 @@
 import { buildSimplifiedTree } from './phylogenetic-tree-common.js';
 
-// Interactive Web Version
 export function createInteractiveVisualization(data, container) {
+    // Customizable parameters
     const width = 1000;
     const height = 1000;
-    const radius = Math.min(width, height) / 2 - 100;
+    const marginRadius = 3000; // Adjust this to change overall tree size
+    const separationFactor = 3; // Adjust this to change space between nodes
+    const siblingSpacingFactor = 1.1; // Adjust this to change space between sibling nodes
+    const nodeRadius = 3; // Adjust this to change individual node size
+    const initialZoom = 0.8; // Adjust this to change initial zoom level
+
+    const radius = Math.min(width, height) / 2 - marginRadius;
 
     const tree = d3.tree()
         .size([2 * Math.PI, radius])
-        .separation((a, b) => (a.parent == b.parent ? 1 : 2) / a.depth);
+        .separation((a, b) => {
+            return (a.parent == b.parent ? 1 : 2) / a.depth * separationFactor;
+        });
 
-
-    const simplifiedRoot = buildSimplifiedTree(data, 
-        // maxDepth, measureContextSwitches, suffixFilter
-    );
-
+    const simplifiedRoot = buildSimplifiedTree(data);
     const root = d3.hierarchy(simplifiedRoot);
+
+    function adjustNodes(node, depth = 0) {
+        if (node.children) {
+            const siblings = node.children;
+            const spacing = 2 * Math.PI / Math.pow(siblings.length, siblingSpacingFactor);
+            siblings.forEach((child, i) => {
+                child.x = node.x + (i - (siblings.length - 1) / 2) * spacing / (depth + 1);
+                adjustNodes(child, depth + 1);
+            });
+        }
+    }
+
     tree(root);
+    adjustNodes(root);
 
     const svg = d3.select(container).append("svg")
         .attr("width", width)
@@ -46,26 +63,28 @@ export function createInteractiveVisualization(data, container) {
 
     node.append("circle")
         .attr("fill", d => d.data.s ? d3.interpolateViridis(d.data.s) : "#999")
-        .attr("r", 3);
+        .attr("r", nodeRadius);
 
     node.append("title")
         .text(d => `ID: ${d.data.name}\nScore: ${d.data.s}\nGeneration: ${d.data.gN}`);
 
-    // Add zooming functionality
     const zoom = d3.zoom()
         .scaleExtent([0.1, 10])
         .on("zoom", zoomed);
 
-    svg.call(zoom);
+    svg.call(zoom)
+       .call(zoom.transform, d3.zoomIdentity.scale(initialZoom));
 
     function zoomed(event) {
-        g.attr("transform", event.transform);
+        g.attr("transform", `translate(${width/2},${height/2}) ${event.transform}`);
     }
 
-    // Optional: Add a search function
     d3.select(container).append("input")
         .attr("type", "text")
         .attr("placeholder", "Search by ID...")
+        .style("position", "absolute")
+        .style("top", "10px")
+        .style("left", "10px")
         .on("input", function() {
             const searchTerm = this.value.toLowerCase();
             node.style("opacity", d => d.data.name.toLowerCase().includes(searchTerm) ? 1 : 0.1);
