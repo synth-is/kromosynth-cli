@@ -1288,6 +1288,16 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
               parentGenomes = [];
             }
             lineageGraphDataObj[genomeIdClass] = { parentGenomes };
+            // if genome contains a tags attribute, referencing an array, find an object with a tag attribute that is equal to oneCellKey:
+            // if found, add the duration, noteDelta, and velocity attributes to the object at genomeIdClass
+            if( genome.tags ) {
+              const tag = genome.tags.find( tag => tag.tag === oneCellKey );
+              if( tag ) {
+                lineageGraphDataObj[genomeIdClass].duration = tag.duration;
+                lineageGraphDataObj[genomeIdClass].noteDelta = tag.noteDelta;
+                lineageGraphDataObj[genomeIdClass].velocity = tag.velocity;
+              }
+            }
             lineageGraphDataObj[genomeIdClass]["id"] = genomeId;
             lineageGraphDataObj[genomeIdClass]["eliteClass"] = oneCellKey;
             lineageGraphDataObj[genomeIdClass]["s"] = score;
@@ -1305,6 +1315,9 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
       eliteClass: lineageGraphDataObj[genomeIdClass].eliteClass,
       s: lineageGraphDataObj[genomeIdClass].s,
       gN: lineageGraphDataObj[genomeIdClass].gN,
+      duration: lineageGraphDataObj[genomeIdClass].duration,
+      noteDelta: lineageGraphDataObj[genomeIdClass].noteDelta,
+      velocity: lineageGraphDataObj[genomeIdClass].velocity,
       parents: lineageGraphDataObj[genomeIdClass].parentGenomes
     });
   }
