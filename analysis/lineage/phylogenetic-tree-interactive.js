@@ -1,23 +1,28 @@
 import { buildSimplifiedTree } from './phylogenetic-tree-common.js';
 
-export function createInteractiveVisualization(data, container) {
+export function createInteractiveVisualization(data, container, options = {}) {
     // Customizable parameters
     const width = 1000;
     const height = 1000;
-    const separationFactor = 3; // Adjust this to change space between nodes
-    const siblingSpacingFactor = 1.1; // Adjust this to change space between sibling nodes
-    const nodeRadius = 3; // Adjust this to change individual node size
-    const initialZoom = 0.8; // Adjust this to change initial zoom level
+    const separationFactor = 3;
+    const siblingSpacingFactor = 1.1;
+    const nodeRadius = 6; // options.nodeRadius || 3;
+    const initialZoom = 0.8;
+    const linkStrokeWidth = 3; 
 
-    const simplifiedRoot = buildSimplifiedTree(data);
+    const maxDepth = Infinity; // options.maxDepth || Infinity;
+    const measureContextSwitches = options.measureContextSwitches || false;
+    const suffixFilter = options.suffixFilter || null;
+
+    const simplifiedRoot = buildSimplifiedTree(data, maxDepth, measureContextSwitches, suffixFilter);
     const root = d3.hierarchy(simplifiedRoot);
 
     // Calculate the maximum depth of the tree
-    const maxDepth = d3.max(root.descendants(), d => d.depth);
+    const maxMeasuredDepth = d3.max(root.descendants(), d => d.depth);
 
     // Dynamically calculate marginRadius based on tree depth
-    const marginRadius = Math.max(100, maxDepth * 20); // Adjust the multiplier (50) as needed
-    console.log(`Max depth: ${maxDepth}, Margin radius: ${marginRadius}`);
+    const marginRadius = Math.max(100, maxMeasuredDepth * 50); // Adjust the multiplier (50) as needed
+    console.log(`Max depth: ${maxMeasuredDepth}, Margin radius: ${marginRadius}`);
     const radius = Math.min(width, height) / 2 - marginRadius;
 
     const tree = d3.tree()
@@ -55,7 +60,7 @@ export function createInteractiveVisualization(data, container) {
         .attr("fill", "none")
         .attr("stroke", "#555")
         .attr("stroke-opacity", 0.4)
-        .attr("stroke-width", 1.5)
+        .attr("stroke-width", linkStrokeWidth)
         .attr("d", d3.linkRadial()
             .angle(d => d.x)
             .radius(d => d.y));
@@ -68,7 +73,8 @@ export function createInteractiveVisualization(data, container) {
 
     node.append("circle")
         .attr("fill", d => d.data.s ? d3.interpolateViridis(d.data.s) : "#999")
-        .attr("r", nodeRadius);
+        .attr("r", nodeRadius)
+        .attr("class", "node-circle");
 
     node.append("title")
         .text(d => `ID: ${d.data.name}\nScore: ${d.data.s}\nGeneration: ${d.data.gN}`);
@@ -82,6 +88,14 @@ export function createInteractiveVisualization(data, container) {
 
     function zoomed(event) {
         g.attr("transform", `translate(${width/2},${height/2}) ${event.transform}`);
+        
+        // Update circle sizes to maintain visual size during zoom
+        g.selectAll(".node-circle")
+            .attr("r", nodeRadius / event.transform.k);
+
+        // Update link stroke width to maintain visual thickness during zoom
+        g.selectAll(".link")
+            .attr("stroke-width", linkStrokeWidth / event.transform.k);
     }
 
     d3.select(container).append("input")
@@ -95,4 +109,25 @@ export function createInteractiveVisualization(data, container) {
             node.style("opacity", d => d.data.name.toLowerCase().includes(searchTerm) ? 1 : 0.1);
             link.style("opacity", d => d.target.data.name.toLowerCase().includes(searchTerm) ? 1 : 0.1);
         });
+
+    // Add event listeners for parameter changes
+    d3.select('#maxDepth').on('input', updateVisualization);
+    d3.select('#measureContextSwitches').on('change', updateVisualization);
+    d3.select('#suffixFilter').on('input', updateVisualization);
+
+    function updateVisualization() {
+        const newMaxDepth = parseInt(d3.select('#maxDepth').property('value'));
+        const newMeasureContextSwitches = d3.select('#measureContextSwitches').property('checked');
+        const newSuffixFilter = d3.select('#suffixFilter').property('value') || null;
+
+        // Clear existing visualization
+        d3.select(container).selectAll('*').remove();
+
+        // Recreate visualization with new parameters
+        createInteractiveVisualization(data, container, {
+            maxDepth: newMaxDepth,
+            measureContextSwitches: newMeasureContextSwitches,
+            suffixFilter: newSuffixFilter
+        });
+    }
 }

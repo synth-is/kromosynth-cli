@@ -1,5 +1,5 @@
 export const yamnetTags_musical = [
-    "Laughter", "Baby laughter", "Giggle", "Snicker", "Belly laugh", "Chuckle, chortle",
+    // "Laughter", "Baby laughter", "Giggle", "Snicker", "Belly laugh", "Chuckle, chortle",
     "Singing", "Choir", "Yodeling", "Chant", "Mantra", "Child singing",
     "Synthetic singing", "Rapping", "Humming", "Groan", "Grunt", "Whistling",
     "Music", "Musical instrument",
@@ -50,6 +50,8 @@ export const yamnetTags_musical = [
 ];
 
 export const yamnetTags_non_musical = [
+    "Laughter", "Baby laughter", "Giggle", "Snicker", "Belly laugh", "Chuckle, chortle",
+
     "Speech", "Child speech, kid speaking", "Conversation", "Narration, monologue",
     "Babbling", "Speech synthesizer", "Shout", "Bellow", "Whoop", "Yell",
     "Children shouting", "Screaming", "Whispering", "Crying, sobbing",
