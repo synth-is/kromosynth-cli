@@ -9,10 +9,10 @@ function isMusicalClass(className) {
   return yamnetTags_musical.some(tag => normalizedName.includes(tag));
 }
 
-function findLatestDescendantsByClass(data, suffixFilter = null) {
+function findLatestDescendantsByClass(data, suffixFilter = null, iteration = 0) {
   const classMap = new Map();
   
-  data.evoRuns[0].iterations[0].lineage.forEach(item => {
+  data.evoRuns[0].iterations[iteration].lineage.forEach(item => {
       const normalizedClass = normalizeClassName(item.eliteClass);
       if (
         (!classMap.has(normalizedClass) || item.gN > classMap.get(normalizedClass).gN)
@@ -25,10 +25,11 @@ function findLatestDescendantsByClass(data, suffixFilter = null) {
   console.log(`Total unique classes: ${classMap.size}`);
   console.log(`Musical classes: ${Array.from(classMap.values()).filter(item => isMusicalClass(item.eliteClass)).length}`);
 
-  return Array.from(classMap.values()).filter(item => isMusicalClass(item.eliteClass));
+  return Array.from(classMap.values())
+  // .filter(item => isMusicalClass(item.eliteClass));
 }
 
-function traceLineage(data, descendant, maxDepth = Infinity) {
+function traceLineage(data, descendant, maxDepth = Infinity, iteration = 0) {
   const lineage = [];
   let current = descendant;
   let depth = 0;
@@ -47,14 +48,19 @@ function traceLineage(data, descendant, maxDepth = Infinity) {
       const parentId = current.parents[0].genomeId;
       const parentEliteClass = current.parents[0].eliteClass;
       // compare eliteClass to ensure we're following the correct parent; the same genome could have won multiple classes, as an elite
-      current = data.evoRuns[0].iterations[0].lineage.find(item => item.id === parentId && item.eliteClass === parentEliteClass);
+      current = data.evoRuns[0].iterations[iteration].lineage.find(item => item.id === parentId && item.eliteClass === parentEliteClass);
       depth++;
   }
   
   return lineage.reverse();
 }
 
-export function buildSimplifiedTree(data, maxDepth = Infinity, measureContextSwitches = false, suffixFilter = null) {
+export function buildSimplifiedTree(
+    data, maxDepth = Infinity, 
+    measureContextSwitches = false, 
+    suffixFilter = null,
+    iteration = 0
+) {
 
   const nodeMap = new Map();
   let root = { name: "root", children: [], count: 0, s: 0, gN: 0 };
@@ -79,7 +85,7 @@ export function buildSimplifiedTree(data, maxDepth = Infinity, measureContextSwi
 
   latestDescendants.forEach((descendant, index) => {
     console.log(`Processing descendant ${index + 1} of ${latestDescendants.length}`);
-    const lineage = traceLineage(data, descendant, maxDepth);
+    const lineage = traceLineage(data, descendant, maxDepth, iteration);
 
     let prevNode = null;
     lineage.forEach(item => {
@@ -118,7 +124,7 @@ export function buildSimplifiedTree(data, maxDepth = Infinity, measureContextSwi
   return root;
 }
 
-function pruneTreeForContextSwitches(root) {
+export function pruneTreeForContextSwitches(root) {
   function pruneNode(node) {
     if (!node.children || node.children.length === 0) {
       return node;  // Always keep leaf nodes

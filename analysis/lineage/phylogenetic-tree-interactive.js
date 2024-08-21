@@ -1,6 +1,42 @@
-import { buildSimplifiedTree } from './phylogenetic-tree-common.js';
+import { buildSimplifiedTree, pruneTreeForContextSwitches } from './phylogenetic-tree-common.js';
 
-export function createInteractiveVisualization(data, container, options = {}) {
+function serializeTreeToJson(node) {
+return {
+    name: node.name,
+    id: node.id,
+    count: node.count,
+    s: node.s,
+    gN: node.gN,
+    class: node.class,
+    children: node.children ? node.children.map(serializeTreeToJson) : []
+};
+}
+
+function downloadTreeJson(root, data, iteration = 0) {
+    const iterationId = data.evoRuns[0].iterations[iteration].id;
+    const fileName = `tree_${iterationId}.json`;
+    const jsonTree = serializeTreeToJson(root);
+
+    const blob = new Blob([JSON.stringify(
+        jsonTree
+        // , null, 2
+    )], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+export function createInteractiveVisualization(
+        data, 
+        treeData,
+        container, options = {}
+) {
     // Customizable parameters
     const width = 1000;
     const height = 1000;
@@ -8,13 +44,32 @@ export function createInteractiveVisualization(data, container, options = {}) {
     const siblingSpacingFactor = 1.1;
     const nodeRadius = 6; // options.nodeRadius || 3;
     const initialZoom = 0.8;
-    const linkStrokeWidth = 3; 
+    const linkStrokeWidth = 3;
+    const iteration = options.iteration || 0;
 
     const maxDepth = Infinity; // options.maxDepth || Infinity;
     const measureContextSwitches = options.measureContextSwitches || false;
     const suffixFilter = options.suffixFilter || null;
 
-    const simplifiedRoot = buildSimplifiedTree(data, maxDepth, measureContextSwitches, suffixFilter);
+    let simplifiedRoot;
+    if( treeData ) {
+        if (measureContextSwitches) {
+            simplifiedRoot = pruneTreeForContextSwitches(treeData);
+        } else {
+            simplifiedRoot = treeData;
+        }
+    } else { // assume data is supplied
+        simplifiedRoot = buildSimplifiedTree(data, maxDepth, measureContextSwitches, suffixFilter, iteration);
+    }
+
+    // Add download button
+    const downloadButton = d3.select(container).append("button")
+        .text("Download Tree JSON")
+        .style("position", "absolute")
+        .style("top", "10px")
+        .style("right", "10px")
+        .on("click", () => downloadTreeJson(simplifiedRoot, data, iteration));
+
     const root = d3.hierarchy(simplifiedRoot);
 
     // Calculate the maximum depth of the tree
@@ -124,7 +179,7 @@ export function createInteractiveVisualization(data, container, options = {}) {
         d3.select(container).selectAll('*').remove();
 
         // Recreate visualization with new parameters
-        createInteractiveVisualization(data, container, {
+        createInteractiveVisualization(data, treeData, container, {
             maxDepth: newMaxDepth,
             measureContextSwitches: newMeasureContextSwitches,
             suffixFilter: newSuffixFilter
