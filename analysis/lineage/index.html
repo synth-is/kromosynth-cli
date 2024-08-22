@@ -5,30 +5,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Phylogenetic Tree Visualization</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="phylogenetic-tree-interactive.js" type="module"></script>
     <style>
         #visualization-container {
-            width: 100%;
+            width: 1000px;
             height: 1000px;
-            border: 1px solid #ccc;
+            margin: 0 auto;
+        }
+        #controls {
+            margin-bottom: 20px;
+        }
+        #controls label {
+            margin-right: 10px;
         }
     </style>
 </head>
 <body>
-    <h1>Interactive Phylogenetic Tree Visualization</h1>
+    <div id="controls">
+        <label for="maxDepth">Max Depth:</label>
+        <input type="number" id="maxDepth" value="150" min="1" step="1">
+        
+        <label for="measureContextSwitches">Measure Context Switches:</label>
+        <input type="checkbox" id="measureContextSwitches">
+        
+        <label for="suffixFilter">Suffix Filter:</label>
+        <input type="text" id="suffixFilter" placeholder="e.g., -5">
+
+        <label for="iteration">Iteration:</label>
+        <input type="number" id="iteration" value="0" min="0" step="1">
+    </div>
+
     <div id="visualization-container"></div>
 
     <script type="module">
         import { createInteractiveVisualization } from './phylogenetic-tree-interactive.js';
 
-        // Fetch the JSON data
-        fetch('evolution-run-analysis_lineage_step-1_1724164955286.json')
-            .then(response => response.json())
-            .then(data => {
-                // Create the visualization
-                createInteractiveVisualization(data, document.getElementById('visualization-container'));
-            })
-            .catch(error => console.error('Error loading data:', error));
+        const lineageTrees = {
+            "classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel": [
+                "lineageTrees/tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json",
+                "lineageTrees/tree_01J36CJ9VWKHFBHDBKMF33V8D7_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json",
+                "lineageTrees/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json",
+                "lineageTrees/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json",
+                "lineageTrees/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json"
+            ]
+        };
+
+        // // Load the JSON data file
+        // d3.json('evolution-run-analysis_lineage_step-1_1724246805594.json').then(data => {
+        //     createInteractiveVisualization(data, undefined/*treeData*/, '#visualization-container', {
+        //         maxDepth: 150,
+        //         measureContextSwitches: false,
+        //         suffixFilter: null,
+        //         iteration: 0
+        //     });
+        // }).catch(error => {
+        //     console.error('Error loading the JSON file:', error);
+        // });
+
+        // Load the JSON tree file
+        d3.json('tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json')
+        .then(tree => {
+            createInteractiveVisualization(undefined/*data*/, tree, '#visualization-container', {
+                maxDepth: 150,
+                measureContextSwitches: false,
+                suffixFilter: null,
+                iteration: 0
+            });
+        }).catch(error => {
+            console.error('Error loading the JSON file:', error);
+        });
+
+        
     </script>
 </body>
 </html>
