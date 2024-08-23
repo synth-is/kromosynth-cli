@@ -7,7 +7,11 @@ return {
     count: node.count,
     s: node.s,
     gN: node.gN,
+    uBC: node.uBC,
     class: node.class,
+    duration: node.duration,
+    noteDelta: node.noteDelta,
+    velocity: node.velocity,
     children: node.children ? node.children.map(serializeTreeToJson) : []
 };
 }
@@ -70,6 +74,116 @@ export function createInteractiveVisualization(
         .style("right", "10px")
         .on("click", () => downloadTreeJson(simplifiedRoot, data, iteration));
 
+
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    let currentSource = null;
+    let currentGainNode = null;
+    let currentPlayingNode = null;
+    let hasInteracted = false;
+
+    // Create a persistent gain node for zoom-based volume control
+    const zoomGainNode = audioContext.createGain();
+    zoomGainNode.connect(audioContext.destination);
+
+    const FADE_TIME = 0.1; // Time in seconds for fade in/out
+    const BASE_VOLUME = 1; // Maximum volume at normal zoom level
+
+    // Add interaction message
+    const messageDiv = d3.select(container).append("div")
+        .attr("id", "interaction-message")
+        .style("position", "absolute")
+        .style("top", "50%")
+        .style("left", "50%")
+        .style("transform", "translate(-50%, -50%)")
+        .style("background-color", "rgba(0,0,0,0.7)")
+        .style("color", "white")
+        .style("padding", "20px")
+        .style("border-radius", "10px")
+        .style("text-align", "center")
+        .style("z-index", "1000")
+        .text("Click anywhere to enable audio playback");
+
+    // Function to remove the message and resume audio context
+    function enableAudio() {
+        if (!hasInteracted) {
+            messageDiv.remove();
+            audioContext.resume().then(() => {
+                console.log('AudioContext resumed successfully');
+            });
+            hasInteracted = true;
+        }
+    }
+
+    // Add click event listener to the container
+    d3.select(container).on("click", enableAudio);
+
+    async function playAudioWithFade(d) {
+        if (!hasInteracted) return; // Don't play audio if there's been no interaction
+        console.log("Playing audio for node:", d);
+        if (currentPlayingNode === d) return;
+
+        
+        const fileName = `${d.data.id}-${d.data.duration}_${d.data.noteDelta}_${d.data.velocity}.wav`;
+        // const audioUrl = `/path/to/audio/files/${fileName}`; // Update this path to your audio files location
+        const audioUrl = "/01J1ZZF2J09MM1YARNR9RYP6AB_YAMNet-durDims_noOsc/accordion_5_0_1_01J25K44BT544SAFR666DBH4Y4_4.wav";
+        
+        try {
+            const response = await fetch(audioUrl);
+            const arrayBuffer = await response.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+            if (currentSource) {
+                await stopAudioWithFade();
+            }
+
+            currentSource = audioContext.createBufferSource();
+            currentSource.buffer = audioBuffer;
+
+            currentGainNode = audioContext.createGain();
+            currentGainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            currentGainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + FADE_TIME);
+
+            currentSource.connect(currentGainNode);
+            currentGainNode.connect(zoomGainNode);  // Connect to zoomGainNode instead of destination
+
+            currentSource.start();
+            currentPlayingNode = d;
+        } catch (error) {
+            console.error("Error playing audio:", error);
+        }
+    }
+
+    async function stopAudioWithFade() {
+        console.log("Stopping audio");
+        if (!currentGainNode || !currentSource) return;
+
+        const stopTime = audioContext.currentTime + FADE_TIME;
+        
+        // Fade to a very small value instead of 0
+        currentGainNode.gain.setValueAtTime(currentGainNode.gain.value, audioContext.currentTime);
+        currentGainNode.gain.exponentialRampToValueAtTime(0.0001, stopTime);
+
+        return new Promise(resolve => {
+            currentSource.onended = () => {
+                if (currentSource) {
+                    currentSource.disconnect();
+                    currentSource = null;
+                }
+                if (currentGainNode) {
+                    currentGainNode.disconnect();
+                    currentGainNode = null;
+                }
+                currentPlayingNode = null;
+                resolve();
+            };
+
+            currentSource.stop(stopTime);
+        });
+    }
+    
+    
+
+
     const root = d3.hierarchy(simplifiedRoot);
 
     // Calculate the maximum depth of the tree
@@ -129,7 +243,9 @@ export function createInteractiveVisualization(
     node.append("circle")
         .attr("fill", d => d.data.s ? d3.interpolateViridis(d.data.s) : "#999")
         .attr("r", nodeRadius)
-        .attr("class", "node-circle");
+        .attr("class", "node-circle")
+        .on("mouseover", (event, d) => playAudioWithFade(d))
+        .on("mouseout", stopAudioWithFade);
 
     node.append("title")
         .text(d => `ID: ${d.data.name}\nScore: ${d.data.s}\nGeneration: ${d.data.gN}`);
@@ -142,16 +258,29 @@ export function createInteractiveVisualization(
        .call(zoom.transform, d3.zoomIdentity.scale(initialZoom));
 
     function zoomed(event) {
+        if (!hasInteracted) return; // Don't adjust volume if there's been no interaction
+
         g.attr("transform", `translate(${width/2},${height/2}) ${event.transform}`);
         
         // Update circle sizes to maintain visual size during zoom
         g.selectAll(".node-circle")
             .attr("r", nodeRadius / event.transform.k);
-
+    
         // Update link stroke width to maintain visual thickness during zoom
         g.selectAll(".link")
             .attr("stroke-width", linkStrokeWidth / event.transform.k);
+    
+        // Adjust audio volume based on zoom level
+        const zoomFactor = event.transform.k;
+        const newVolume = Math.min(BASE_VOLUME, BASE_VOLUME * zoomFactor);
+        
+        zoomGainNode.gain.cancelScheduledValues(audioContext.currentTime);
+        zoomGainNode.gain.setValueAtTime(zoomGainNode.gain.value, audioContext.currentTime);
+        zoomGainNode.gain.linearRampToValueAtTime(newVolume, audioContext.currentTime + 0.1);
+        
+        console.log(`Zoom factor: ${zoomFactor}, New volume: ${newVolume}`);
     }
+
 
     d3.select(container).append("input")
         .attr("type", "text")

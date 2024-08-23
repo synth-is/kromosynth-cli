@@ -9,7 +9,7 @@ function isMusicalClass(className) {
   return yamnetTags_musical.some(tag => normalizedName.includes(tag));
 }
 
-function findLatestDescendantsByClass(data, suffixFilter = null, iteration = 0) {
+function findLatestDescendantsByClass(data, suffixFilter = null, iteration = 0, inCategoryMusical = true, inCategoryNonMusical = false) {
   const classMap = new Map();
   
   data.evoRuns[0].iterations[iteration].lineage.forEach(item => {
@@ -25,8 +25,10 @@ function findLatestDescendantsByClass(data, suffixFilter = null, iteration = 0) 
   console.log(`Total unique classes: ${classMap.size}`);
   console.log(`Musical classes: ${Array.from(classMap.values()).filter(item => isMusicalClass(item.eliteClass)).length}`);
 
-  return Array.from(classMap.values())
-  // .filter(item => isMusicalClass(item.eliteClass));
+  return Array.from(classMap.values()).filter(item => {
+    const isMusical = isMusicalClass(item.eliteClass);
+    return (inCategoryMusical && isMusical) || (inCategoryNonMusical && !isMusical);
+  });
 }
 
 function traceLineage(data, descendant, maxDepth = Infinity, iteration = 0) {
@@ -59,7 +61,9 @@ export function buildSimplifiedTree(
     data, maxDepth = Infinity, 
     measureContextSwitches = false, 
     suffixFilter = null,
-    iteration = 0
+    iteration = 0,
+    inCategoryMusical = true,
+    inCategoryNonMusical = false
 ) {
 
   const nodeMap = new Map();
@@ -75,13 +79,17 @@ export function buildSimplifiedTree(
         count: 1,
         s: item.s,
         gN: item.gN,
+        uBC: item.uBC,
+        duration: item.duration,
+        noteDelta: item.noteDelta,
+        velocity: item.velocity,
         class: normalizedClass
       });
     }
     return nodeMap.get(item.id);
   }
 
-  const latestDescendants = findLatestDescendantsByClass(data, suffixFilter);
+  const latestDescendants = findLatestDescendantsByClass(data, suffixFilter, iteration, inCategoryMusical, inCategoryNonMusical);
 
   latestDescendants.forEach((descendant, index) => {
     console.log(`Processing descendant ${index + 1} of ${latestDescendants.length}`);
