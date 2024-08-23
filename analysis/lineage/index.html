@@ -3,37 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Phylogenetic Tree Visualization</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <style>
-        #visualization-container {
-            width: 1000px;
-            height: 1000px;
-            margin: 0 auto;
-        }
-        #controls {
-            margin-bottom: 20px;
-        }
-        #controls label {
-            margin-right: 10px;
-        }
-    </style>
+    <title>Phylogenetic Tree Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 </head>
 <body>
     <div id="controls">
-        <label for="maxDepth">Max Depth:</label>
-        <input type="number" id="maxDepth" value="150" min="1" step="1">
-        
-        <label for="measureContextSwitches">Measure Context Switches:</label>
-        <input type="checkbox" id="measureContextSwitches">
-        
-        <label for="suffixFilter">Suffix Filter:</label>
-        <input type="text" id="suffixFilter" placeholder="e.g., -5">
-
-        <label for="iteration">Iteration:</label>
-        <input type="number" id="iteration" value="0" min="0" step="1">
+        Run: <select id="runSelect"></select>
+        Step: <select id="stepSelect"></select>
+        Max Depth: <input type="number" id="maxDepth" value="Infinity">
+        Measure Context Switches: <input type="checkbox" id="measureContextSwitches">
+        Suffix Filter: <input type="text" id="suffixFilter">
     </div>
-
     <div id="visualization-container"></div>
 
     <script type="module">
@@ -46,35 +26,73 @@
                 "lineageTrees/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json",
                 "lineageTrees/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json",
                 "lineageTrees/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json"
+            ],
+            "Run 1": [
+                "evolution-run-analysis_lineage_step-1_1723727836945.json",
+                "evolution-run-analysis_lineage_step-2_1723727836945.json",
+                "evolution-run-analysis_lineage_step-3_1723727836945.json"
+            ],
+            "Run 2": [
+                "evolution-run-analysis_lineage_step-1_1723814236945.json",
+                "evolution-run-analysis_lineage_step-2_1723814236945.json"
             ]
         };
 
-        // // Load the JSON data file
-        // d3.json('evolution-run-analysis_lineage_step-1_1724246805594.json').then(data => {
-        //     createInteractiveVisualization(data, undefined/*treeData*/, '#visualization-container', {
-        //         maxDepth: 150,
-        //         measureContextSwitches: false,
-        //         suffixFilter: null,
-        //         iteration: 0
-        //     });
-        // }).catch(error => {
-        //     console.error('Error loading the JSON file:', error);
-        // });
+        function populateRunSelect() {
+            const runSelect = document.getElementById('runSelect');
+            for (const run in lineageTrees) {
+                const option = document.createElement('option');
+                option.value = run;
+                option.textContent = run;
+                runSelect.appendChild(option);
+            }
+        }
 
-        // Load the JSON tree file
-        d3.json('tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json')
-        .then(tree => {
-            createInteractiveVisualization(undefined/*data*/, tree, '#visualization-container', {
-                maxDepth: 150,
-                measureContextSwitches: false,
-                suffixFilter: null,
-                iteration: 0
+        function updateStepSelect() {
+            const selectedRun = document.getElementById('runSelect').value;
+            const stepSelect = document.getElementById('stepSelect');
+            stepSelect.innerHTML = ''; // Clear existing options
+
+            lineageTrees[selectedRun].forEach((step, index) => {
+                const option = document.createElement('option');
+                option.value = step;
+                option.textContent = `Step ${index + 1}`;
+                stepSelect.appendChild(option);
             });
-        }).catch(error => {
-            console.error('Error loading the JSON file:', error);
-        });
 
-        
+            loadData();
+        }
+
+        async function loadData() {
+            const selectedStep = document.getElementById('stepSelect').value;
+            try {
+                const response = await fetch(selectedStep);
+                const data = await response.json();
+
+                const container = document.getElementById('visualization-container');
+                container.innerHTML = ''; // Clear existing visualization
+
+                createInteractiveVisualization(undefined/*lineage data*/, data, container, {
+                    maxDepth: parseInt(document.getElementById('maxDepth').value) || Infinity,
+                    measureContextSwitches: document.getElementById('measureContextSwitches').checked,
+                    suffixFilter: document.getElementById('suffixFilter').value || null
+                });
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('visualization-container').innerHTML = 'Error loading data. Please check the console for details.';
+            }
+        }
+
+        // Event listeners
+        document.getElementById('runSelect').addEventListener('change', updateStepSelect);
+        document.getElementById('stepSelect').addEventListener('change', loadData);
+        document.getElementById('maxDepth').addEventListener('input', loadData);
+        document.getElementById('measureContextSwitches').addEventListener('change', loadData);
+        document.getElementById('suffixFilter').addEventListener('input', loadData);
+
+        // Initial setup
+        populateRunSelect();
+        updateStepSelect();
     </script>
 </body>
 </html>
