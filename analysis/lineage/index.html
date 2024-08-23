@@ -9,6 +9,7 @@
 <body>
     <div id="controls">
         Run: <select id="runSelect"></select>
+        Category: <select id="categorySelect"></select>
         Step: <select id="stepSelect"></select>
         Max Depth: <input type="number" id="maxDepth" value="Infinity">
         Measure Context Switches: <input type="checkbox" id="measureContextSwitches">
@@ -20,51 +21,100 @@
         import { createInteractiveVisualization } from './phylogenetic-tree-interactive.js';
 
         const lineageTrees = {
-            "classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel": [
-                "lineageTrees/tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json",
-                "lineageTrees/tree_01J36CJ9VWKHFBHDBKMF33V8D7_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json",
-                "lineageTrees/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json",
-                "lineageTrees/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json",
-                "lineageTrees/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel.json"
-            ],
-            "Run 1": [
-                "evolution-run-analysis_lineage_step-1_1723727836945.json",
-                "evolution-run-analysis_lineage_step-2_1723727836945.json",
-                "evolution-run-analysis_lineage_step-3_1723727836945.json"
-            ],
-            "Run 2": [
-                "evolution-run-analysis_lineage_step-1_1723814236945.json",
-                "evolution-run-analysis_lineage_step-2_1723814236945.json"
-            ]
+            "classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel": {
+                "all": [
+                    "lineageTrees/tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/tree_01J36CJ9VWKHFBHDBKMF33V8D7_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json"
+                ],
+                "musical": [
+                    "lineageTrees/tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/tree_01J36CJ9VWKHFBHDBKMF33V8D7_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json"
+                ],
+                "non-musical": [
+                    "lineageTrees/tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/tree_01J36CJ9VWKHFBHDBKMF33V8D7_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json"
+                ]
+            },
+            "Run 1": {
+                "all": [
+                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-3_1723727836945.json",
+                ],
+                "musical": [
+                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-3_1723727836945.json",
+                ],
+                "non-musical": [
+                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-3_1723727836945.json"
+                ]
+            },
+            "Run 2": {
+                "all": [
+                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-3_1723727836945.json",
+                ],
+                "musical": [
+                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-3_1723727836945.json",
+                ],
+                "non-musical": [
+                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
+                    "evolution-run-analysis_lineage_step-3_1723727836945.json"
+                ]
+            }
         };
 
-        function populateRunSelect() {
-            const runSelect = document.getElementById('runSelect');
-            for (const run in lineageTrees) {
-                const option = document.createElement('option');
-                option.value = run;
-                option.textContent = run;
-                runSelect.appendChild(option);
-            }
+        function populateSelect(selectId, options, defaultValue = null) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = ''; // Clear existing options
+            options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.textContent = option;
+                if (option === defaultValue) {
+                    optionElement.selected = true;
+                }
+                select.appendChild(optionElement);
+            });
+        }
+
+        function updateCategorySelect() {
+            const selectedRun = document.getElementById('runSelect').value;
+            const categories = Object.keys(lineageTrees[selectedRun]);
+            populateSelect('categorySelect', categories, 'musical');
+            updateStepSelect();
         }
 
         function updateStepSelect() {
             const selectedRun = document.getElementById('runSelect').value;
-            const stepSelect = document.getElementById('stepSelect');
-            stepSelect.innerHTML = ''; // Clear existing options
-
-            lineageTrees[selectedRun].forEach((step, index) => {
-                const option = document.createElement('option');
-                option.value = step;
-                option.textContent = `Step ${index + 1}`;
-                stepSelect.appendChild(option);
-            });
-
+            const selectedCategory = document.getElementById('categorySelect').value;
+            const steps = lineageTrees[selectedRun][selectedCategory];
+            populateSelect('stepSelect', steps.map((_, index) => `Step ${index + 1}`));
             loadData();
         }
 
         async function loadData() {
-            const selectedStep = document.getElementById('stepSelect').value;
+            const selectedRun = document.getElementById('runSelect').value;
+            const selectedCategory = document.getElementById('categorySelect').value;
+            const selectedStepIndex = document.getElementById('stepSelect').selectedIndex;
+            const selectedStep = lineageTrees[selectedRun][selectedCategory][selectedStepIndex];
+
             try {
                 const response = await fetch(selectedStep);
                 const data = await response.json();
@@ -72,7 +122,7 @@
                 const container = document.getElementById('visualization-container');
                 container.innerHTML = ''; // Clear existing visualization
 
-                createInteractiveVisualization(undefined/*lineage data*/, data, container, {
+                createInteractiveVisualization(undefined/*lineageData*/, data, container, {
                     maxDepth: parseInt(document.getElementById('maxDepth').value) || Infinity,
                     measureContextSwitches: document.getElementById('measureContextSwitches').checked,
                     suffixFilter: document.getElementById('suffixFilter').value || null
@@ -84,15 +134,16 @@
         }
 
         // Event listeners
-        document.getElementById('runSelect').addEventListener('change', updateStepSelect);
+        document.getElementById('runSelect').addEventListener('change', updateCategorySelect);
+        document.getElementById('categorySelect').addEventListener('change', updateStepSelect);
         document.getElementById('stepSelect').addEventListener('change', loadData);
         document.getElementById('maxDepth').addEventListener('input', loadData);
         document.getElementById('measureContextSwitches').addEventListener('change', loadData);
         document.getElementById('suffixFilter').addEventListener('input', loadData);
 
         // Initial setup
-        populateRunSelect();
-        updateStepSelect();
+        populateSelect('runSelect', Object.keys(lineageTrees));
+        updateCategorySelect();
     </script>
 </body>
 </html>
