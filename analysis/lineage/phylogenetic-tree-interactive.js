@@ -45,6 +45,7 @@ let convolverNode;
 let dryGainNode;
 let wetGainNode;
 let reverbAmount = 10; // Default reverb amount (0-100)
+let currentZoomTransform = null;
 
 if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -438,13 +439,20 @@ export function createInteractiveVisualization(
             return true;
         });
 
-    svg.call(zoom)
-    .call(zoom.transform, d3.zoomIdentity.translate(width/2, height/2).scale(initialZoom));
+    // Apply the stored zoom transform if it exists, otherwise use the initial zoom
+    if (currentZoomTransform) {
+        svg.call(zoom).call(zoom.transform, currentZoomTransform);
+    } else {
+        svg.call(zoom).call(zoom.transform, d3.zoomIdentity.translate(width/2, height/2).scale(initialZoom));
+    }
 
     function zoomed(event) {
         if (!hasInteracted) return; // Don't adjust volume if there's been no interaction
     
         const transform = event.transform;
+
+        // Store the current zoom transform
+        currentZoomTransform = transform;
     
         // Apply the zoom transformation
         g.attr("transform", `translate(${transform.x},${transform.y}) scale(${transform.k})`);
@@ -507,7 +515,4 @@ export function createInteractiveVisualization(
             suffixFilter: newSuffixFilter
         });
     }
-
-    // TODO: doesn't seem to be necessary, for resetting the zoom on dataset change:
-    // svg.call(zoom.transform, d3.zoomIdentity.translate(width/2, height/2).scale(initialZoom));
 }
