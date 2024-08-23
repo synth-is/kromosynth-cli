@@ -100,6 +100,35 @@ export function createInteractiveVisualization(
     const FADE_TIME = 0.1; // Time in seconds for fade in/out
     const BASE_VOLUME = 1; // Maximum volume at normal zoom level
 
+
+
+    // Create a container for instructions and download button
+    const controlsContainer = d3.select(container).append("div")
+        .attr("id", "controls-container")
+        .style("position", "absolute")
+        .style("bottom", "10px")
+        .style("left", "10px")
+        .style("right", "10px")
+        .style("display", "flex")
+        .style("justify-content", "space-between")
+        .style("align-items", "center");
+
+    // Add instructions
+    controlsContainer.append("p")
+        .attr("id", "instructions")
+        .style("margin", "0")
+        .text("Hover over nodes to play sounds. Double-click to download a specific sound.");
+
+    // Add download button for current sound
+    const downloadButton = controlsContainer.append("button")
+        .attr("id", "downloadCurrentSound")
+        .text("Download Current Sound")
+        .style("display", "none")
+        .on("click", downloadCurrentSound);
+
+
+
+
     // Add interaction message
     const messageDiv = d3.select(container).append("div")
         .attr("id", "interaction-message")
@@ -129,6 +158,8 @@ export function createInteractiveVisualization(
     // Add click event listener to the container
     d3.select(container).on("click", enableAudio);
 
+    let currentSoundUrl = null;
+
     async function playAudioWithFade(d) {
         if (!hasInteracted) return; // Don't play audio if there's been no interaction
         console.log("Playing audio for node:", d);
@@ -150,7 +181,7 @@ export function createInteractiveVisualization(
 
             currentSource = audioContext.createBufferSource();
             currentSource.buffer = audioBuffer;
-            currentSource.loop = true; // Enable looping
+            currentSource.loop = false; // Enable looping
 
             currentGainNode = audioContext.createGain();
             currentGainNode.gain.setValueAtTime(0, audioContext.currentTime);
@@ -161,6 +192,10 @@ export function createInteractiveVisualization(
 
             currentSource.start();
             currentPlayingNode = d;
+
+            // Show download button when audio starts playing
+            downloadButton.style("display", "inline-block");
+            currentSoundUrl = audioUrl;
         } catch (error) {
             console.error("Error playing audio:", error);
         }
@@ -195,6 +230,29 @@ export function createInteractiveVisualization(
     }
     
     
+    function downloadCurrentSound() {
+        if (currentSoundUrl) {
+            const link = document.createElement('a');
+            link.href = currentSoundUrl;
+            link.download = currentSoundUrl.split('/').pop();
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+
+    function downloadNodeSound(d) {
+        const fileName = "accordion_5_0_1_01J25K44BT544SAFR666DBH4Y4_4.wav" // `${d.data.id}-${d.data.duration}_${d.data.noteDelta}_${d.data.velocity}.wav`;
+        const audioUrl = `/01J1ZZF2J09MM1YARNR9RYP6AB_YAMNet-durDims_noOsc/${fileName}`;
+        
+        const link = document.createElement('a');
+        link.href = audioUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
 
 
     const root = d3.hierarchy(simplifiedRoot);
@@ -271,6 +329,12 @@ export function createInteractiveVisualization(
                 .duration(500)
                 .style("opacity", 0);
             stopAudioWithFade();
+            // We no longer hide the download button here
+        })
+        .on("dblclick", (event, d) => {
+            event.preventDefault(); // Prevent text selection
+            event.stopPropagation(); // Prevent zoom behavior
+            downloadNodeSound(d);
         });
     
     // node.append("title")
@@ -278,7 +342,15 @@ export function createInteractiveVisualization(
 
     const zoom = d3.zoom()
         .scaleExtent([0.1, 10])
-        .on("zoom", zoomed);
+        .on("zoom", zoomed)
+        .filter(event => {
+            // Ignore double-clicks on nodes
+            if (event.type === 'dblclick' && event.target.classList.contains('node-circle')) {
+                return false;
+            }
+            // Allow all other events
+            return true;
+        });
 
     svg.call(zoom)
        .call(zoom.transform, d3.zoomIdentity.scale(initialZoom));
@@ -304,9 +376,13 @@ export function createInteractiveVisualization(
         zoomGainNode.gain.setValueAtTime(zoomGainNode.gain.value, audioContext.currentTime);
         zoomGainNode.gain.linearRampToValueAtTime(newVolume, audioContext.currentTime + 0.1);
 
-       // Update tooltip position during zoom
-       tooltip.style("left", (d3.event.sourceEvent.pageX + 10) + "px")
-       .style("top", (d3.event.sourceEvent.pageY - 28) + "px");
+        // Update tooltip position during zoom
+        tooltip.style("left", (event.sourceEvent.pageX + 10) + "px")
+               .style("top", (event.sourceEvent.pageY - 28) + "px");
+
+        // // Update download button position during zoom
+        // downloadButton.style("left", (event.sourceEvent.pageX + 10) + "px")
+        //               .style("top", (event.sourceEvent.pageY + 30) + "px");
         
         console.log(`Zoom factor: ${zoomFactor}, New volume: ${newVolume}`);
     }
