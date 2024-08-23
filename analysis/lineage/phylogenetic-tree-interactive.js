@@ -41,11 +41,50 @@ let hasInteracted = false;
 
 let audioContext;
 let zoomGainNode;
+let convolverNode;
+let dryGainNode;
+let wetGainNode;
+let reverbAmount = 10; // Default reverb amount (0-100)
+
 if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    // Create a persistent gain node for zoom-based volume control
     zoomGainNode = audioContext.createGain();
-    zoomGainNode.connect(audioContext.destination);
+    convolverNode = audioContext.createConvolver();
+    dryGainNode = audioContext.createGain();
+    wetGainNode = audioContext.createGain();
+    
+    // Connect the nodes
+    zoomGainNode.connect(dryGainNode);
+    zoomGainNode.connect(convolverNode);
+    convolverNode.connect(wetGainNode);
+    dryGainNode.connect(audioContext.destination);
+    wetGainNode.connect(audioContext.destination);
+
+    // Initialize reverb impulse response
+    // fetch('/BIGHALLE003M2S.wav')
+    fetch('/WIDEHALL-1.wav')
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+        .then(audioBuffer => {
+            // Ensure the impulse response matches the audio context settings
+            const contextSampleRate = audioContext.sampleRate;
+            const contextChannels = 2; // Assuming stereo output
+
+            if (audioBuffer.sampleRate !== contextSampleRate || audioBuffer.numberOfChannels !== contextChannels) {
+                // Resample and adjust channels if necessary
+                const offlineCtx = new OfflineAudioContext(contextChannels, audioBuffer.duration * contextSampleRate, contextSampleRate);
+                const bufferSource = offlineCtx.createBufferSource();
+                bufferSource.buffer = audioBuffer;
+                bufferSource.connect(offlineCtx.destination);
+                bufferSource.start();
+                return offlineCtx.startRendering();
+            }
+            return audioBuffer;
+        })
+        .then(adjustedBuffer => {
+            convolverNode.buffer = adjustedBuffer;
+        })
+        .catch(error => console.error('Error loading reverb impulse response:', error));
 }
 
 export function createInteractiveVisualization(
@@ -90,6 +129,12 @@ export function createInteractiveVisualization(
         .style("padding", "10px")
         .style("font-size", "12px");
 
+    function updateReverbMix() {
+        const wetAmount = reverbAmount / 100;
+        wetGainNode.gain.setValueAtTime(wetAmount, audioContext.currentTime);
+        dryGainNode.gain.setValueAtTime(1 - wetAmount, audioContext.currentTime);
+    }
+
     // Add download button
     // const downloadButton = d3.select(container).append("button")
     //     .text("Download Tree JSON")
@@ -108,7 +153,7 @@ export function createInteractiveVisualization(
 
 
 
-    // Create a container for instructions and download button
+    // Create a container for instructions and controls
     const controlsContainer = d3.select(container).append("div")
         .attr("id", "controls-container")
         .style("position", "absolute")
@@ -123,15 +168,40 @@ export function createInteractiveVisualization(
     controlsContainer.append("p")
         .attr("id", "instructions")
         .style("margin", "0")
+        .style("flex-grow", "1")
         .text("Hover over nodes to play sounds. Double-click to download a specific sound.");
 
+    // Create a sub-container for the reverb controls and download button
+    const reverbControlsContainer = controlsContainer.append("div")
+        .style("display", "flex")
+        .style("align-items", "center")
+        .style("gap", "10px"); // This adds space between the elements
+
+    // Add reverb label
+    reverbControlsContainer.append("label")
+        .attr("for", "reverb-slider")
+        .text("Reverb")
+        .style("margin-right", "5px");
+
+    // Add reverb slider
+    const reverbSlider = reverbControlsContainer.append("input")
+        .attr("type", "range")
+        .attr("min", "0")
+        .attr("max", "100")
+        .attr("value", reverbAmount)
+        .attr("class", "reverb-slider")
+        .style("width", "100px")
+        .on("input", function() {
+            reverbAmount = parseFloat(this.value);
+            updateReverbMix();
+        });
+
     // Add download button for current sound
-    const downloadButton = controlsContainer.append("button")
+    const downloadButton = reverbControlsContainer.append("button")
         .attr("id", "downloadCurrentSound")
         .text("Download Current Sound")
         .style("display", "none")
         .on("click", downloadCurrentSound);
-
 
 
 
@@ -173,13 +243,11 @@ export function createInteractiveVisualization(
     let currentSoundUrl = null;
 
     async function playAudioWithFade(d) {
-        if (!hasInteracted) return; // Don't play audio if there's been no interaction
+        if (!hasInteracted) return;
         console.log("Playing audio for node:", d);
         if (currentPlayingNode === d) return;
-
         
         const fileName = `${d.data.id}-${d.data.duration}_${d.data.noteDelta}_${d.data.velocity}.wav`;
-        // const audioUrl = `/path/to/audio/files/${fileName}`; // Update this path to your audio files location
         const audioUrl = "/01J1ZZF2J09MM1YARNR9RYP6AB_YAMNet-durDims_noOsc/accordion_5_0_1_01J25K44BT544SAFR666DBH4Y4_4.wav";
         
         try {
@@ -193,21 +261,28 @@ export function createInteractiveVisualization(
 
             currentSource = audioContext.createBufferSource();
             currentSource.buffer = audioBuffer;
-            currentSource.loop = false; // Enable looping
+            currentSource.loop = false;
 
             currentGainNode = audioContext.createGain();
             currentGainNode.gain.setValueAtTime(0, audioContext.currentTime);
             currentGainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + FADE_TIME);
 
             currentSource.connect(currentGainNode);
-            currentGainNode.connect(zoomGainNode);  // Connect to zoomGainNode instead of destination
+            currentGainNode.connect(zoomGainNode);
 
             currentSource.start();
             currentPlayingNode = d;
 
-            // Show download button when audio starts playing
             downloadButton.style("display", "inline-block");
             currentSoundUrl = audioUrl;
+
+            // Apply current reverb mix
+            updateReverbMix();
+
+            // Set up onended callback
+            currentSource.onended = () => {
+                stopAudioWithFade();
+            };
         } catch (error) {
             console.error("Error playing audio:", error);
         }
@@ -224,8 +299,9 @@ export function createInteractiveVisualization(
         currentGainNode.gain.exponentialRampToValueAtTime(0.0001, stopTime);
 
         return new Promise(resolve => {
-            currentSource.onended = () => {
+            setTimeout(() => {
                 if (currentSource) {
+                    currentSource.stop();
                     currentSource.disconnect();
                     currentSource = null;
                 }
@@ -235,9 +311,7 @@ export function createInteractiveVisualization(
                 }
                 currentPlayingNode = null;
                 resolve();
-            };
-
-            currentSource.stop(stopTime);
+            }, FADE_TIME * 1000);
         });
     }
     
