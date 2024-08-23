@@ -36,6 +36,18 @@ function downloadTreeJson(root, data, iteration = 0) {
     URL.revokeObjectURL(url);
 }
 
+
+let hasInteracted = false;
+
+let audioContext;
+let zoomGainNode;
+if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    // Create a persistent gain node for zoom-based volume control
+    zoomGainNode = audioContext.createGain();
+    zoomGainNode.connect(audioContext.destination);
+}
+
 export function createInteractiveVisualization(
         data, 
         treeData,
@@ -87,15 +99,9 @@ export function createInteractiveVisualization(
     //     .on("click", () => downloadTreeJson(simplifiedRoot, data, iteration));
 
 
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     let currentSource = null;
     let currentGainNode = null;
     let currentPlayingNode = null;
-    let hasInteracted = false;
-
-    // Create a persistent gain node for zoom-based volume control
-    const zoomGainNode = audioContext.createGain();
-    zoomGainNode.connect(audioContext.destination);
 
     const FADE_TIME = 0.1; // Time in seconds for fade in/out
     const BASE_VOLUME = 1; // Maximum volume at normal zoom level
@@ -130,30 +136,36 @@ export function createInteractiveVisualization(
 
 
     // Add interaction message
-    const messageDiv = d3.select(container).append("div")
-        .attr("id", "interaction-message")
-        .style("position", "absolute")
-        .style("top", "50%")
-        .style("left", "50%")
-        .style("transform", "translate(-50%, -50%)")
-        .style("background-color", "rgba(0,0,0,0.7)")
-        .style("color", "white")
-        .style("padding", "20px")
-        .style("border-radius", "10px")
-        .style("text-align", "center")
-        .style("z-index", "1000")
-        .text("Click anywhere to enable audio playback when hovering over nodes");
+    let messageDiv;
+    if (!hasInteracted) {
+        messageDiv = d3.select(container).append("div")
+            .attr("id", "interaction-message")
+            .style("position", "absolute")
+            .style("top", "50%")
+            .style("left", "50%")
+            .style("transform", "translate(-50%, -50%)")
+            .style("background-color", "rgba(0,0,0,0.7)")
+            .style("color", "white")
+            .style("padding", "20px")
+            .style("border-radius", "10px")
+            .style("text-align", "center")
+            .style("z-index", "1000")
+            .text("Click anywhere to enable audio playback when hovering over nodes");
+    }
 
     // Function to remove the message and resume audio context
     function enableAudio() {
         if (!hasInteracted) {
-            messageDiv.remove();
+            if (messageDiv) {
+                messageDiv.remove();
+            }
             audioContext.resume().then(() => {
                 console.log('AudioContext resumed successfully');
             });
             hasInteracted = true;
         }
     }
+    
 
     // Add click event listener to the container
     d3.select(container).on("click", enableAudio);
@@ -357,16 +369,9 @@ export function createInteractiveVisualization(
 
     function zoomed(event) {
         if (!hasInteracted) return; // Don't adjust volume if there's been no interaction
-
+    
         const transform = event.transform;
-
-        // Get the mouse position relative to the SVG
-        const [mouseX, mouseY] = d3.pointer(event, svg.node());
-
-        // Calculate the offset from the center
-        const offsetX = mouseX - width / 2;
-        const offsetY = mouseY - height / 2;
-
+    
         // Apply the zoom transformation
         g.attr("transform", `translate(${transform.x},${transform.y}) scale(${transform.k})`);
         
@@ -385,13 +390,15 @@ export function createInteractiveVisualization(
         zoomGainNode.gain.cancelScheduledValues(audioContext.currentTime);
         zoomGainNode.gain.setValueAtTime(zoomGainNode.gain.value, audioContext.currentTime);
         zoomGainNode.gain.linearRampToValueAtTime(newVolume, audioContext.currentTime + 0.1);
-
-        // Update tooltip position during zoom
-        tooltip.style("left", (event.sourceEvent.pageX + 10) + "px")
-               .style("top", (event.sourceEvent.pageY - 28) + "px");
+    
+        // Update tooltip position during zoom, only if sourceEvent exists
+        if (event.sourceEvent) {
+            tooltip.style("left", (event.sourceEvent.pageX + 10) + "px")
+                   .style("top", (event.sourceEvent.pageY - 28) + "px");
+        }
         
         console.log(`Zoom factor: ${zoomFactor}, New volume: ${newVolume}`);
-    }
+    }    
 
 
     d3.select(container).append("input")
@@ -426,4 +433,7 @@ export function createInteractiveVisualization(
             suffixFilter: newSuffixFilter
         });
     }
+
+    // TODO: doesn't seem to be necessary, for resetting the zoom on dataset change:
+    // svg.call(zoom.transform, d3.zoomIdentity.translate(width/2, height/2).scale(initialZoom));
 }
