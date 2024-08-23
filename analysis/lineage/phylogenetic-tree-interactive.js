@@ -66,13 +66,25 @@ export function createInteractiveVisualization(
         simplifiedRoot = buildSimplifiedTree(data, maxDepth, measureContextSwitches, suffixFilter, iteration);
     }
 
-    // Add download button
-    const downloadButton = d3.select(container).append("button")
-        .text("Download Tree JSON")
+    // Add custom tooltip div
+    const tooltip = d3.select(container).append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0)
         .style("position", "absolute")
-        .style("top", "10px")
-        .style("right", "10px")
-        .on("click", () => downloadTreeJson(simplifiedRoot, data, iteration));
+        .style("pointer-events", "none")
+        .style("background-color", "white")
+        .style("border", "1px solid #ddd")
+        .style("border-radius", "5px")
+        .style("padding", "10px")
+        .style("font-size", "12px");
+
+    // Add download button
+    // const downloadButton = d3.select(container).append("button")
+    //     .text("Download Tree JSON")
+    //     .style("position", "absolute")
+    //     .style("top", "10px")
+    //     .style("right", "10px")
+    //     .on("click", () => downloadTreeJson(simplifiedRoot, data, iteration));
 
 
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -101,7 +113,7 @@ export function createInteractiveVisualization(
         .style("border-radius", "10px")
         .style("text-align", "center")
         .style("z-index", "1000")
-        .text("Click anywhere to enable audio playback");
+        .text("Click anywhere to enable audio playback when hovering over nodes");
 
     // Function to remove the message and resume audio context
     function enableAudio() {
@@ -138,6 +150,7 @@ export function createInteractiveVisualization(
 
             currentSource = audioContext.createBufferSource();
             currentSource.buffer = audioBuffer;
+            currentSource.loop = true; // Enable looping
 
             currentGainNode = audioContext.createGain();
             currentGainNode.gain.setValueAtTime(0, audioContext.currentTime);
@@ -239,16 +252,29 @@ export function createInteractiveVisualization(
         .join("g")
         .attr("class", "node")
         .attr("transform", d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`);
-
+    
     node.append("circle")
         .attr("fill", d => d.data.s ? d3.interpolateViridis(d.data.s) : "#999")
         .attr("r", nodeRadius)
         .attr("class", "node-circle")
-        .on("mouseover", (event, d) => playAudioWithFade(d))
-        .on("mouseout", stopAudioWithFade);
-
-    node.append("title")
-        .text(d => `ID: ${d.data.name}\nScore: ${d.data.s}\nGeneration: ${d.data.gN}`);
+        .on("mouseover", (event, d) => {
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", .9);
+            tooltip.html(`ID: ${d.data.name}<br/>Score: ${d.data.s}<br/>Generation: ${d.data.gN}`)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 28) + "px");
+            playAudioWithFade(d);
+        })
+        .on("mouseout", (event, d) => {
+            tooltip.transition()
+                .duration(500)
+                .style("opacity", 0);
+            stopAudioWithFade();
+        });
+    
+    // node.append("title")
+    //     .text(d => `ID: ${d.data.name}\nScore: ${d.data.s}\nGeneration: ${d.data.gN}`);
 
     const zoom = d3.zoom()
         .scaleExtent([0.1, 10])
@@ -277,6 +303,10 @@ export function createInteractiveVisualization(
         zoomGainNode.gain.cancelScheduledValues(audioContext.currentTime);
         zoomGainNode.gain.setValueAtTime(zoomGainNode.gain.value, audioContext.currentTime);
         zoomGainNode.gain.linearRampToValueAtTime(newVolume, audioContext.currentTime + 0.1);
+
+       // Update tooltip position during zoom
+       tooltip.style("left", (d3.event.sourceEvent.pageX + 10) + "px")
+       .style("top", (d3.event.sourceEvent.pageY - 28) + "px");
         
         console.log(`Zoom factor: ${zoomFactor}, New volume: ${newVolume}`);
     }
