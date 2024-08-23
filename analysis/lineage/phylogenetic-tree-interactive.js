@@ -353,23 +353,33 @@ export function createInteractiveVisualization(
         });
 
     svg.call(zoom)
-       .call(zoom.transform, d3.zoomIdentity.scale(initialZoom));
+    .call(zoom.transform, d3.zoomIdentity.translate(width/2, height/2).scale(initialZoom));
 
     function zoomed(event) {
         if (!hasInteracted) return; // Don't adjust volume if there's been no interaction
 
-        g.attr("transform", `translate(${width/2},${height/2}) ${event.transform}`);
+        const transform = event.transform;
+
+        // Get the mouse position relative to the SVG
+        const [mouseX, mouseY] = d3.pointer(event, svg.node());
+
+        // Calculate the offset from the center
+        const offsetX = mouseX - width / 2;
+        const offsetY = mouseY - height / 2;
+
+        // Apply the zoom transformation
+        g.attr("transform", `translate(${transform.x},${transform.y}) scale(${transform.k})`);
         
         // Update circle sizes to maintain visual size during zoom
         g.selectAll(".node-circle")
-            .attr("r", nodeRadius / event.transform.k);
+            .attr("r", nodeRadius / transform.k);
     
         // Update link stroke width to maintain visual thickness during zoom
         g.selectAll(".link")
-            .attr("stroke-width", linkStrokeWidth / event.transform.k);
+            .attr("stroke-width", linkStrokeWidth / transform.k);
     
         // Adjust audio volume based on zoom level
-        const zoomFactor = event.transform.k;
+        const zoomFactor = transform.k;
         const newVolume = Math.min(BASE_VOLUME, BASE_VOLUME * zoomFactor);
         
         zoomGainNode.gain.cancelScheduledValues(audioContext.currentTime);
@@ -379,10 +389,6 @@ export function createInteractiveVisualization(
         // Update tooltip position during zoom
         tooltip.style("left", (event.sourceEvent.pageX + 10) + "px")
                .style("top", (event.sourceEvent.pageY - 28) + "px");
-
-        // // Update download button position during zoom
-        // downloadButton.style("left", (event.sourceEvent.pageX + 10) + "px")
-        //               .style("top", (event.sourceEvent.pageY + 30) + "px");
         
         console.log(`Zoom factor: ${zoomFactor}, New volume: ${newVolume}`);
     }
