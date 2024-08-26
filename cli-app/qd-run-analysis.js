@@ -1277,6 +1277,7 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
           const genomeId = cell.elts[0].g;
           const score = cell.elts[0].s;
           const generation = cell.elts[0].gN;
+          const unproductivityBiasCounter = cell.uBC;
           const genomeIdClass = `${genomeId}_${oneCellKey}`; // the same genome could be an elite of more than one class
           if( lineageGraphDataObj[genomeIdClass] === undefined ) {
             const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
@@ -1302,6 +1303,7 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
             lineageGraphDataObj[genomeIdClass]["eliteClass"] = oneCellKey;
             lineageGraphDataObj[genomeIdClass]["s"] = score;
             lineageGraphDataObj[genomeIdClass]["gN"] = generation;
+            lineageGraphDataObj[genomeIdClass]["uBC"] = unproductivityBiasCounter;
           }
         }
       }
@@ -1315,6 +1317,7 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
       eliteClass: lineageGraphDataObj[genomeIdClass].eliteClass,
       s: lineageGraphDataObj[genomeIdClass].s,
       gN: lineageGraphDataObj[genomeIdClass].gN,
+      uBC: lineageGraphDataObj[genomeIdClass].uBC,
       duration: lineageGraphDataObj[genomeIdClass].duration,
       noteDelta: lineageGraphDataObj[genomeIdClass].noteDelta,
       velocity: lineageGraphDataObj[genomeIdClass].velocity,

@@ -30,11 +30,11 @@ def plot_genome_count_statistics(data_file_path, plot_file_path):
 
     # https://github.com/jbmouret/matplotlib_for_papers#setting-the-limits-and-the-ticks
     params = {
-      'axes.labelsize': 8,
+      'axes.labelsize': 6,
       'font.size': 8,
       'legend.fontsize': 5,
-      'xtick.labelsize': 8,
-      'ytick.labelsize': 8,
+      'xtick.labelsize': 6,
+      'ytick.labelsize': 6,
       'text.usetex': False,
     #    'figure.figsize': [7, 4] # instead of 4.5, 4.5
         'figure.constrained_layout.use': True

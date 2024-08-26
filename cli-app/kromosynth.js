@@ -2,13 +2,20 @@
 import meow from 'meow';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+import { resolve } from 'path';
 import { parse } from 'jsonc-parser';
+import { fork } from 'child_process';
 import NodeWebAudioAPI from 'node-web-audio-api';
 const { OfflineAudioContext } = NodeWebAudioAPI;
 import {ulid} from 'ulid';
 import toWav from 'audiobuffer-to-wav';
 import merge from 'deepmerge';
 import fetch from "node-fetch";
+import async from 'async';
 import {
 	getNewAudioSynthesisGenome,
 	getNewAudioSynthesisGenomeByMutation,
@@ -59,9 +66,9 @@ import {
 	getClassLabelsWithElitesFromEliteMap
 } from './util/qd-common.js';
 import { extractFeaturesFromAllAudioFiles } from './extract-audio-features-from-dataset.js';
+import { traceLineage, findLatestDescendantsByClass } from './util/lineage.js';
 import { mean, median, variance, std } from 'mathjs'
 import { sample } from 'lodash-es';
-
 
 const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";
 const GENOME_OUTPUT_END = "GENOME_OUTPUT_END";
@@ -164,6 +171,9 @@ const cli = meow(`
 
 		render-evorun
 			Render all elites in the elite map, for one evolution run, to audio (WAV) files
+
+		render-lineage-tree
+			Render the lineage tree from a JSON lineage analysis file to WAV files
 
 		extract-features
 			Extract audio features from a dataset of audio files
@@ -296,6 +306,8 @@ const cli = meow(`
 		$ kromosynth render-evoruns --evoruns-rest-server-url http://localhost:3003 --write-to-folder ./
 
 		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-generation 100 --owerwrite-existing-files true --score-in-file-name true
+
+		$ kromosynth render-lineage-tree --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --lineage-tree-json-file ~/Downloads/lineage.json --write-to-folder ~/Downloads/lineage-renders
 
 		$ kromosynth extract-features --dataset-folder /Users/bjornpjo/Downloads/OneBillionWav --write-to-folder /Users/bjornpjo/Downloads/OneBillionWav_features --sample-rate 44100 --ckpt-dir /Users/bjornpjo/.cache/torch/hub/checkpoints --feature-extraction-server-host 'ws://localhost:31051' --suffixes-filter "020.wav,030.wav,040.wav,050.wav,060.wav,070.wav,080.wav,090.wav,100.wav" --feature-types-filter "mfcc,vggish"
 
@@ -524,6 +536,11 @@ const cli = meow(`
 		featureTypesFilter: {
 			type: 'string'
 		},
+
+		// lineage
+		lineageTreeJsonFile: {
+			type: 'string'
+		},
 	}
 });
 
@@ -646,6 +663,9 @@ async function executeEvolutionTask() {
 			break;
 		case "render-evorun":
 			renderEvorun();
+			break;
+		case "render-lineage-tree":
+			renderLineageTree();
 			break;
 		case "extract-features":
 			extractFeatures();
@@ -973,6 +993,95 @@ async function renderEvorun() {
 	}
 
 	process.exit();
+}
+
+async function renderLineageTree() {
+	let {
+		evoRunDirPath, lineageTreeJsonFile, writeToFolder, overwriteExistingFiles,
+		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+		useGpu, sampleRate
+	} = cli.flags;
+	if( ! evoRunDirPath ) {
+		console.error("No evoRunDirPath provided");
+		process.exit();
+	}
+	if( ! lineageTreeJsonFile ) {
+		console.error("No lineageTreeJsonFile provided");
+		process.exit();
+	}
+	const lineageData = JSON.parse(fs.readFileSync(lineageTreeJsonFile));
+	
+	lineageIterationLoop:
+	for( let iterationIndex = 0; iterationIndex < 1 /*lineageData.evoRuns[0].iterations.length*/; iterationIndex++ ) {
+		const genomesToRender = {};
+		const oneIteration = lineageData.evoRuns[0].iterations[iterationIndex];
+		const evoRunId = oneIteration.id;
+		const oneEvorunPath = evoRunDirPath + "/" + evoRunId;
+		const latestDescendants = findLatestDescendantsByClass( lineageData, null, iterationIndex, true/*inCategoryMusical*/, true/*inCategoryNonMusical*/ );
+		// latestDescendants.forEach( async (oneDescendant, index) => {
+		let descendantIndex = 0;
+		let lineageIndex = 0;
+		descendantIterationLoop:
+		for( const oneDescendant of latestDescendants ) {
+			const lineage = traceLineage( lineageData, oneDescendant, Infinity/*maxDepth*/, iterationIndex );
+			// lineage.forEach( async (oneLineageItem) => {
+			for( const oneLineageItem of lineage ) {
+				const { id: genomeId, eliteClass, s, gN, uBC, duration, noteDelta, velocity, parents } = oneLineageItem;
+				const renderedDescendantFileName = `${genomeId}-${duration}_${noteDelta}_${velocity}.wav`;
+				console.log("Collecting", renderedDescendantFileName);
+				genomesToRender[renderedDescendantFileName] = { 
+					genomeId, eliteClass, duration, noteDelta, velocity, parents,
+				};
+				lineageIndex++;
+			}
+			descendantIndex++;
+		}
+		console.log("Collected", descendantIndex, "descendants and", lineageIndex, "lineage items");
+		const subFolder = writeToFolder + "/" + evoRunId + "/";
+		if( !fs.existsSync(subFolder) ) {
+			fs.mkdirSync(subFolder);
+		}
+
+    const workerPath = path.join(__dirname, 'workers', 'renderAncestorToWavFile.js');
+    const concurrencyLimit = 10;
+
+    const queue = async.queue((task, done) => {
+        const child = fork(workerPath);
+        const { fileName, subFolder, ancestorData } = task;
+
+        child.send({ 
+            evoRunId, oneEvorunPath,
+            fileName, subFolder, ancestorData, 
+            overwriteExistingFiles, useOvertoneInharmonicityFactors, useGpu, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs, sampleRate 
+        });
+
+        child.on('message', (message) => {
+            console.log("Message from child:", message);
+            done();
+        });
+
+        child.on('exit', (code) => {
+            if (code !== 0) {
+                console.error(`Child process for ${fileName} exited with code ${code}`);
+                done(new Error(`Child process exited with code ${code}`));
+            }
+        });
+
+        child.on('error', (err) => {
+            console.error(`Error from child process for ${fileName}:`, err);
+            done(err);
+        });
+    }, concurrencyLimit);
+
+    for (let [fileName, ancestorData] of Object.entries(genomesToRender)) {
+        queue.push({ fileName, subFolder, ancestorData });
+    }
+
+    queue.drain(() => {
+        console.log("All rendering complete");
+        process.exit();
+    });
+	}
 }
 
 async function extractFeatures() {
