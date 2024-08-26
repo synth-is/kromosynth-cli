@@ -1,0 +1,17 @@
+{
+  "name": "kromosynth-analysis",
+  "version": "1.0.0",
+  "main": "lineage/lineage-radial-tree-viz.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "bthj@uio.no",
+  "license": "AGPL-3.0-or-later",
+  "description": "",
+  "dependencies": {
+    "d3": "^7.9.0",
+    "jsdom": "^24.1.1",
+    "svgexport": "^0.4.2"
+  },
+  "type": "module"
+}

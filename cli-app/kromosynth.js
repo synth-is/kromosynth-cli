@@ -2,13 +2,20 @@
 import meow from 'meow';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+import { resolve } from 'path';
 import { parse } from 'jsonc-parser';
+import { fork } from 'child_process';
 import NodeWebAudioAPI from 'node-web-audio-api';
 const { OfflineAudioContext } = NodeWebAudioAPI;
 import {ulid} from 'ulid';
 import toWav from 'audiobuffer-to-wav';
 import merge from 'deepmerge';
 import fetch from "node-fetch";
+import async from 'async';
 import {
 	getNewAudioSynthesisGenome,
 	getNewAudioSynthesisGenomeByMutation,
@@ -44,6 +51,7 @@ import {
 	getNewEliteCountForAllIterations,
 	getDiversityFromEmbeddingFiles
 } from './qd-run-analysis.js';
+import { yamnetTags_non_musical, yamnetTags_musical } from './util/classificationTags.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
 } from './util/rendering-common.js';
@@ -58,9 +66,9 @@ import {
 	getClassLabelsWithElitesFromEliteMap
 } from './util/qd-common.js';
 import { extractFeaturesFromAllAudioFiles } from './extract-audio-features-from-dataset.js';
+import { traceLineage, findLatestDescendantsByClass } from './util/lineage.js';
 import { mean, median, variance, std } from 'mathjs'
 import { sample } from 'lodash-es';
-
 
 const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";
 const GENOME_OUTPUT_END = "GENOME_OUTPUT_END";
@@ -163,6 +171,9 @@ const cli = meow(`
 
 		render-evorun
 			Render all elites in the elite map, for one evolution run, to audio (WAV) files
+
+		render-lineage-tree
+			Render the lineage tree from a JSON lineage analysis file to WAV files
 
 		extract-features
 			Extract audio features from a dataset of audio files
@@ -295,6 +306,8 @@ const cli = meow(`
 		$ kromosynth render-evoruns --evoruns-rest-server-url http://localhost:3003 --write-to-folder ./
 
 		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-generation 100 --owerwrite-existing-files true --score-in-file-name true
+
+		$ kromosynth render-lineage-tree --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --lineage-tree-json-file ~/Downloads/lineage.json --write-to-folder ~/Downloads/lineage-renders
 
 		$ kromosynth extract-features --dataset-folder /Users/bjornpjo/Downloads/OneBillionWav --write-to-folder /Users/bjornpjo/Downloads/OneBillionWav_features --sample-rate 44100 --ckpt-dir /Users/bjornpjo/.cache/torch/hub/checkpoints --feature-extraction-server-host 'ws://localhost:31051' --suffixes-filter "020.wav,030.wav,040.wav,050.wav,060.wav,070.wav,080.wav,090.wav,100.wav" --feature-types-filter "mfcc,vggish"
 
@@ -523,6 +536,11 @@ const cli = meow(`
 		featureTypesFilter: {
 			type: 'string'
 		},
+
+		// lineage
+		lineageTreeJsonFile: {
+			type: 'string'
+		},
 	}
 });
 
@@ -645,6 +663,9 @@ async function executeEvolutionTask() {
 			break;
 		case "render-evorun":
 			renderEvorun();
+			break;
+		case "render-lineage-tree":
+			renderLineageTree();
 			break;
 		case "extract-features":
 			extractFeatures();
@@ -981,6 +1002,95 @@ async function renderEvorun() {
 	}
 
 	process.exit();
+}
+
+async function renderLineageTree() {
+	let {
+		evoRunDirPath, lineageTreeJsonFile, writeToFolder, overwriteExistingFiles,
+		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+		useGpu, sampleRate
+	} = cli.flags;
+	if( ! evoRunDirPath ) {
+		console.error("No evoRunDirPath provided");
+		process.exit();
+	}
+	if( ! lineageTreeJsonFile ) {
+		console.error("No lineageTreeJsonFile provided");
+		process.exit();
+	}
+	const lineageData = JSON.parse(fs.readFileSync(lineageTreeJsonFile));
+	
+	lineageIterationLoop:
+	for( let iterationIndex = 0; iterationIndex < 1 /*lineageData.evoRuns[0].iterations.length*/; iterationIndex++ ) {
+		const genomesToRender = {};
+		const oneIteration = lineageData.evoRuns[0].iterations[iterationIndex];
+		const evoRunId = oneIteration.id;
+		const oneEvorunPath = evoRunDirPath + "/" + evoRunId;
+		const latestDescendants = findLatestDescendantsByClass( lineageData, null, iterationIndex, true/*inCategoryMusical*/, true/*inCategoryNonMusical*/ );
+		// latestDescendants.forEach( async (oneDescendant, index) => {
+		let descendantIndex = 0;
+		let lineageIndex = 0;
+		descendantIterationLoop:
+		for( const oneDescendant of latestDescendants ) {
+			const lineage = traceLineage( lineageData, oneDescendant, Infinity/*maxDepth*/, iterationIndex );
+			// lineage.forEach( async (oneLineageItem) => {
+			for( const oneLineageItem of lineage ) {
+				const { id: genomeId, eliteClass, s, gN, uBC, duration, noteDelta, velocity, parents } = oneLineageItem;
+				const renderedDescendantFileName = `${genomeId}-${duration}_${noteDelta}_${velocity}.wav`;
+				console.log("Collecting", renderedDescendantFileName);
+				genomesToRender[renderedDescendantFileName] = { 
+					genomeId, eliteClass, duration, noteDelta, velocity, parents,
+				};
+				lineageIndex++;
+			}
+			descendantIndex++;
+		}
+		console.log("Collected", descendantIndex, "descendants and", lineageIndex, "lineage items");
+		const subFolder = writeToFolder + "/" + evoRunId + "/";
+		if( !fs.existsSync(subFolder) ) {
+			fs.mkdirSync(subFolder);
+		}
+
+    const workerPath = path.join(__dirname, 'workers', 'renderAncestorToWavFile.js');
+    const concurrencyLimit = 10;
+
+    const queue = async.queue((task, done) => {
+        const child = fork(workerPath);
+        const { fileName, subFolder, ancestorData } = task;
+
+        child.send({ 
+            evoRunId, oneEvorunPath,
+            fileName, subFolder, ancestorData, 
+            overwriteExistingFiles, useOvertoneInharmonicityFactors, useGpu, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs, sampleRate 
+        });
+
+        child.on('message', (message) => {
+            console.log("Message from child:", message);
+            done();
+        });
+
+        child.on('exit', (code) => {
+            if (code !== 0) {
+                console.error(`Child process for ${fileName} exited with code ${code}`);
+                done(new Error(`Child process exited with code ${code}`));
+            }
+        });
+
+        child.on('error', (err) => {
+            console.error(`Error from child process for ${fileName}:`, err);
+            done(err);
+        });
+    }, concurrencyLimit);
+
+    for (let [fileName, ancestorData] of Object.entries(genomesToRender)) {
+        queue.push({ fileName, subFolder, ancestorData });
+    }
+
+    queue.drain(() => {
+        console.log("All rendering complete");
+        process.exit();
+    });
+	}
 }
 
 async function extractFeatures() {
@@ -1433,13 +1543,17 @@ async function qdAnalysis_evoRuns() {
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "goal-switches" ) {
-						const goalSwitches = await getGoalSwitches( evoRunConfig, evolutionRunId, stepSize, evoParams );
+						// TODO: make contextArrays configurable
+						const contextArrays = [yamnetTags_non_musical, yamnetTags_musical];
+						const goalSwitches = await getGoalSwitches( evoRunConfig, evolutionRunId, stepSize, evoParams, contextArrays );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].goalSwitches = goalSwitches;
 						console.log(`Added goal switches to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "goal-switches-through-lineages" ) {
-						const goalSwitchesThroughLineages = await getGoalSwitchesThroughLineages( evoRunConfig, evolutionRunId, evoParams );
+						// TODO: make contextArrays configurable
+						const contextArrays = [yamnetTags_non_musical, yamnetTags_musical];
+						const goalSwitchesThroughLineages = await getGoalSwitchesThroughLineages( evoRunConfig, evolutionRunId, evoParams, contextArrays );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].goalSwitchesThroughLineages = goalSwitchesThroughLineages;
 						console.log(`Added goal switches through lineages to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
@@ -1504,6 +1618,10 @@ async function qdAnalysis_evoRuns() {
 				const averageCppnConnectionCountsAcrossIterations = [];
 				const averageAsNEATPatchNodeCountsAcrossIterations = [];
 				const averageAsNEATPatchConnectionCountsAcrossIterations = [];
+				
+				const averageNetworkOuputsCountsAcrossIterations = [];
+				const averageFrequencyRangesCountsAcrossIterations = [];
+				const cppnCountsAcrossIterations = [];
 
 				const cppnNodeTypeCountObjectsAcrossIterations = [];
 				const asNEATPatchNodeTypeCountObjectsAcrossIterations = [];
@@ -1513,6 +1631,10 @@ async function qdAnalysis_evoRuns() {
 					averageCppnConnectionCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageCppnConnectionCount ) );
 					averageAsNEATPatchNodeCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageAsNEATPatchNodeCount ) );
 					averageAsNEATPatchConnectionCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageAsNEATPatchConnectionCount ) );
+
+					averageNetworkOuputsCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageNetworkOutputsCount ) );
+					averageFrequencyRangesCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.averageFrequencyRangesCount ) );
+					cppnCountsAcrossIterations.push( genomeStatistics.map( statsAtEvoIt => statsAtEvoIt.cppnCount ) );
 
 					cppnNodeTypeCountObjectsAcrossIterations.push( genomeStatistics[genomeStatistics.length-1].cppnNodeTypeCounts );
 					asNEATPatchNodeTypeCountObjectsAcrossIterations.push( genomeStatistics[genomeStatistics.length-1].asNEATPatchNodeTypeCounts );
@@ -1533,6 +1655,20 @@ async function qdAnalysis_evoRuns() {
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchConnectionCounts"]["means"] = mean( averageAsNEATPatchConnectionCountsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchConnectionCounts"]["variances"] = variance( averageAsNEATPatchConnectionCountsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageAsNEATPatchConnectionCounts"]["stdDevs"] = std( averageAsNEATPatchConnectionCountsAcrossIterations, 0 );
+
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageNetworkOutputsCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageNetworkOutputsCounts"]["means"] = mean( averageNetworkOuputsCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageNetworkOutputsCounts"]["variances"] = variance( averageNetworkOuputsCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageNetworkOutputsCounts"]["stdDevs"] = std( averageNetworkOuputsCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageFrequencyRangesCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageFrequencyRangesCounts"]["means"] = mean( averageFrequencyRangesCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageFrequencyRangesCounts"]["variances"] = variance( averageFrequencyRangesCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["averageFrequencyRangesCounts"]["stdDevs"] = std( averageFrequencyRangesCountsAcrossIterations, 0 );
+
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["cppnCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["cppnCounts"]["means"] = mean( cppnCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["cppnCounts"]["variances"] = variance( cppnCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["cppnCounts"]["stdDevs"] = std( cppnCountsAcrossIterations, 0 );
 
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["cppnNodeTypeCounts"] = averageAttributes( cppnNodeTypeCountObjectsAcrossIterations );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeStatistics"]["cppnNodeTypeCountsStdDevs"] = standardDeviationAttributes( cppnNodeTypeCountObjectsAcrossIterations, 0 );	
@@ -1665,6 +1801,76 @@ async function qdAnalysis_evoRuns() {
 				
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
+			if( oneAnalysisOperation === "genome-sets-through-rendering-variations" ) {
+				console.log("aggregating genome sets through rendering variations for evolution run #", currentEvolutionRunIndex, "...");
+				function calculateGenomeCountStatistics(data) {
+					// Extract all genomeCount arrays
+					const genomeCounts = data.map(item => item.genomeSetsThroughRenderingVariations.genomeCount);
+				
+					// Determine the number of positions in genomeCount
+					const numPositions = genomeCounts[0].length;
+				
+					// Initialize arrays to store statistics for each position
+					const positionStats = Array(numPositions).fill().map(() => ({
+						sums: {},
+						sumOfSquares: {},
+						counts: {}
+					}));
+				
+					// Iterate through all genomeCount arrays
+					genomeCounts.forEach(genomeCountArray => {
+						genomeCountArray.forEach((obj, position) => {
+							Object.entries(obj).forEach(([key, value]) => {
+								if (!positionStats[position].sums[key]) {
+									positionStats[position].sums[key] = 0;
+									positionStats[position].sumOfSquares[key] = 0;
+									positionStats[position].counts[key] = 0;
+								}
+								positionStats[position].sums[key] += value;
+								positionStats[position].sumOfSquares[key] += value * value;
+								positionStats[position].counts[key]++;
+							});
+						});
+					});
+				
+					// Calculate means, variances, and standard deviations for each position
+					const means = [];
+					const variances = [];
+					const stdDevs = [];
+				
+					positionStats.forEach((stats, position) => {
+						means[position] = {};
+						variances[position] = {};
+						stdDevs[position] = {};
+				
+						Object.keys(stats.sums).forEach(key => {
+							const mean = stats.sums[key] / stats.counts[key];
+							means[position][key] = mean;
+				
+							const variance = (stats.sumOfSquares[key] / stats.counts[key]) - (mean * mean);
+							variances[position][key] = variance;
+				
+							stdDevs[position][key] = Math.sqrt(variance);
+						});
+					});
+				
+					// Structure the results
+					return {
+						aggregates: {
+							genomeSetsThroughRenderingVariations: {
+								genomeCount: {
+									means,
+									variances,
+									stdDevs
+								}
+							}
+						}
+					};
+				}
+				const genomeSetsThroughRenderingVariations = calculateGenomeCountStatistics(evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations);
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["genomeSetsThroughRenderingVariations"] = genomeSetsThroughRenderingVariations.aggregates.genomeSetsThroughRenderingVariations;
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+			}
 			if( oneAnalysisOperation == "elites-energy" ) {
 				console.log("aggregating elites energy for evolution run #", currentEvolutionRunIndex, "...");
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["elitesEnergy"] = {};
@@ -1692,11 +1898,23 @@ async function qdAnalysis_evoRuns() {
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"] = {};
 				const averageChampionCountsAcrossIterations = [];
 				const averageGoalSwitchCountsAcrossIterations = [];
+				const goalSwitchScoreCorrelationsAcrossIterations = [];
+				const averageContextSwitchCountAcrossIterations = [];
+				const averageContextDwellCountAcrossIterations = [];
+				const contextSwitchDwellRatioAcrossIterations = [];
 				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
 					const { goalSwitches } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
-					const { averageChampionCount, averageGoalSwitchCount } = goalSwitches;
+					const { 
+						averageChampionCount, averageGoalSwitchCount, 
+						goalSwitchScoreCorrelation, 
+						averageContextSwitchCount, averageContextDwellCount, contextSwitchDwellRatio
+					} = goalSwitches;
 					averageChampionCountsAcrossIterations.push( averageChampionCount );
 					averageGoalSwitchCountsAcrossIterations.push( averageGoalSwitchCount );
+					goalSwitchScoreCorrelationsAcrossIterations.push( goalSwitchScoreCorrelation );
+					averageContextSwitchCountAcrossIterations.push( averageContextSwitchCount );
+					averageContextDwellCountAcrossIterations.push( averageContextDwellCount );
+					contextSwitchDwellRatioAcrossIterations.push( contextSwitchDwellRatio );
 				}
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageChampionCounts"] = {};
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageChampionCounts"]["means"] = mean( averageChampionCountsAcrossIterations, 0 );
@@ -1707,21 +1925,70 @@ async function qdAnalysis_evoRuns() {
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageGoalSwitchCounts"]["variances"] = variance( averageGoalSwitchCountsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageGoalSwitchCounts"]["stdDevs"] = std( averageGoalSwitchCountsAcrossIterations, 0 );
 
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["goalSwitchScoreCorrelations"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["goalSwitchScoreCorrelations"]["means"] = mean( goalSwitchScoreCorrelationsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["goalSwitchScoreCorrelations"]["variances"] = variance( goalSwitchScoreCorrelationsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["goalSwitchScoreCorrelations"]["stdDevs"] = std( goalSwitchScoreCorrelationsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageContextSwitchCount"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageContextSwitchCount"]["means"] = mean( averageContextSwitchCountAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageContextSwitchCount"]["variances"] = variance( averageContextSwitchCountAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageContextSwitchCount"]["stdDevs"] = std( averageContextSwitchCountAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageContextDwellCount"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageContextDwellCount"]["means"] = mean( averageContextDwellCountAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageContextDwellCount"]["variances"] = variance( averageContextDwellCountAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["averageContextDwellCount"]["stdDevs"] = std( averageContextDwellCountAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["contextSwitchDwellRatio"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["contextSwitchDwellRatio"]["means"] = mean( contextSwitchDwellRatioAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["contextSwitchDwellRatio"]["variances"] = variance( contextSwitchDwellRatioAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitches"]["contextSwitchDwellRatio"]["stdDevs"] = std( contextSwitchDwellRatioAcrossIterations, 0 );
+
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
 			if( oneAnalysisOperation === "goal-switches-through-lineages" ) {
 				console.log("aggregating goal switches through lineages for evolution run #", currentEvolutionRunIndex, "...");
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"] = {};
 				const averageGoalSwitchCountsAcrossIterations = [];
+				const goalSwitchScoreCorrelationsAcrossIterations = [];
+				const averageContextSwitchCountsAcrossIterations = [];
+				const averageContextDwellCountsAcrossIterations = [];
+				const contextSwitchDwellRatiosAcrossIterations = [];
 				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
 					const { goalSwitchesThroughLineages } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
-					const { goalSwitchesToCells, averageGoalSwitchCount } = goalSwitchesThroughLineages;
+					const { 
+						goalSwitchesToCells, averageGoalSwitchCount,
+						goalSwitchScoreCorrelation,
+						averageContextSwitchCount, averageContextDwellCount, contextSwitchDwellRatio
+					} = goalSwitchesThroughLineages;
 					averageGoalSwitchCountsAcrossIterations.push( averageGoalSwitchCount );
+					goalSwitchScoreCorrelationsAcrossIterations.push( goalSwitchScoreCorrelation );
+					averageContextSwitchCountsAcrossIterations.push( averageContextSwitchCount );
+					averageContextDwellCountsAcrossIterations.push( averageContextDwellCount );
+					contextSwitchDwellRatiosAcrossIterations.push( contextSwitchDwellRatio );
 				}
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchCounts"] = {};
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchCounts"]["means"] = mean( averageGoalSwitchCountsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchCounts"]["variances"] = variance( averageGoalSwitchCountsAcrossIterations, 0 );
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchCounts"]["stdDevs"] = std( averageGoalSwitchCountsAcrossIterations, 0 );
+
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchScoreCorrelations"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchScoreCorrelations"]["means"] = mean( goalSwitchScoreCorrelationsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchScoreCorrelations"]["variances"] = variance( goalSwitchScoreCorrelationsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageGoalSwitchScoreCorrelations"]["stdDevs"] = std( goalSwitchScoreCorrelationsAcrossIterations, 0 );
+
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageContextSwitchCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageContextSwitchCounts"]["means"] = mean( averageContextSwitchCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageContextSwitchCounts"]["variances"] = variance( averageContextSwitchCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageContextSwitchCounts"]["stdDevs"] = std( averageContextSwitchCountsAcrossIterations, 0 );
+
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageContextDwellCounts"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageContextDwellCounts"]["means"] = mean( averageContextDwellCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageContextDwellCounts"]["variances"] = variance( averageContextDwellCountsAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["averageContextDwellCounts"]["stdDevs"] = std( averageContextDwellCountsAcrossIterations, 0 );
+
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["contextSwitchDwellRatios"] = {};
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["contextSwitchDwellRatios"]["means"] = mean( contextSwitchDwellRatiosAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["contextSwitchDwellRatios"]["variances"] = variance( contextSwitchDwellRatiosAcrossIterations, 0 );
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["goalSwitchesThroughLineages"]["contextSwitchDwellRatios"]["stdDevs"] = std( contextSwitchDwellRatiosAcrossIterations, 0 );
 
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}

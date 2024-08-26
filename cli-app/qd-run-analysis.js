@@ -8,11 +8,14 @@ import {
 } from './util/qd-common.js';
 import nthline from 'nthline';
 import {
-	getAudioBufferFromGenomeAndMeta, getGenomeFromGenomeString
+	getAudioBufferFromGenomeAndMeta, getGenomeFromGenomeString,
+  patchFromAsNEATnetwork, getRoundedFrequencyValue
 } from 'kromosynth';
 import { getAudioContext, getNewOfflineAudioContext, playAudio } from './util/rendering-common.js';
 import figlet from 'figlet';
 import { log } from 'console';
+import { mean } from 'mathjs';
+import Statistics from 'statistics.js'
 
 
 ///// class labels
@@ -601,6 +604,8 @@ export async function getGenomeStatisticsAveragedForOneIteration(
   const cellKeys = getCellKeys( eliteMap, excludeEmptyCells, classRestriction );
   // get count of cells where the elts value contains a non empty array
   const cellCount = getCellCount( eliteMap, excludeEmptyCells, classRestriction );
+  const cppnCounts = [];
+  let cumulativeCppnCounts = 0;
   const cppnNodeCounts = [];
   let cumulativeCppnNodeCount = 0;
   const cppnConnectionCounts = [];
@@ -609,14 +614,22 @@ export async function getGenomeStatisticsAveragedForOneIteration(
   let cumulativeAsNEATPatchNodeCount = 0;
   const asNEATPatchConnectionCounts = [];
   let cumulativeAsNEATPatchConnectionCount = 0;
+  const networkOutputsCounts = [];
+  let cumulativeNetworkOutputsCount = 0;
+  const frequencyRangesCounts = [];
+  let cumulativeFrequencyRangesCount = 0;
+
   const cppNodeTypeCountObjects = [];
   const asNEATPatchNodeTypeCountObjects = [];
+  
   for( const oneCellKey of cellKeys ) {
     if( eliteMap.cells[oneCellKey].elts.length ) {
       const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
       // TODO might want to ensure this is done only once per unique genomeId, to avoid unnecessary disk reads
       const {
-        cppnNodeCount, cppnConnectionCount, asNEATPatchNodeCount, asNEATPatchConnectionCount
+        cppnCount,
+        cppnNodeCount, cppnConnectionCount, asNEATPatchNodeCount, asNEATPatchConnectionCount,
+        networkOutputsCount, frequencyRangesCount
       } = await getGenomeStatistics( genomeId, evoRunConfig, evoRunId );
       cppnNodeCounts.push(cppnNodeCount);
       cumulativeCppnNodeCount += cppnNodeCount;
@@ -627,6 +640,14 @@ export async function getGenomeStatisticsAveragedForOneIteration(
       asNEATPatchConnectionCounts.push(asNEATPatchConnectionCount);
       cumulativeAsNEATPatchConnectionCount += asNEATPatchConnectionCount;
 
+      cppnCounts.push(cppnCount);
+      cumulativeCppnCounts += cppnCount;
+
+      networkOutputsCounts.push(networkOutputsCount);
+      cumulativeNetworkOutputsCount += networkOutputsCount;
+      frequencyRangesCounts.push(frequencyRangesCount);
+      cumulativeFrequencyRangesCount += frequencyRangesCount;
+
       if( calculateNodeTypeStatistics ) {
         const { cppnNodeTypeCounts, asNEATPatchNodeTypeCounts } = await getGenomeNodeTypeStatistics( genomeId, evoRunConfig, evoRunId );
         cppNodeTypeCountObjects.push(cppnNodeTypeCounts);
@@ -634,6 +655,8 @@ export async function getGenomeStatisticsAveragedForOneIteration(
       }
     }
   }
+  const cppnCount = cumulativeCppnCounts / cellCount;
+  const cppnCountStdDev = calcStandardDeviation(cppnCounts);
   const cppnNodeCountStdDev = calcStandardDeviation(cppnNodeCounts);
   const averageCppnNodeCount = cumulativeCppnNodeCount / cellCount;
   const cppnConnectionCountStdDev = calcStandardDeviation(cppnConnectionCounts);
@@ -642,6 +665,10 @@ export async function getGenomeStatisticsAveragedForOneIteration(
   const averageAsNEATPatchNodeCount = cumulativeAsNEATPatchNodeCount / cellCount;
   const asNEATPatchConnectionCountStdDev = calcStandardDeviation(asNEATPatchConnectionCounts);
   const averageAsNEATPatchConnectionCount = cumulativeAsNEATPatchConnectionCount / cellCount;
+  const networkOutputsCountStdDev = calcStandardDeviation(networkOutputsCounts);
+  const averageNetworkOutputsCount = cumulativeNetworkOutputsCount / cellCount;
+  const frequencyRangesCountStdDev = calcStandardDeviation(frequencyRangesCounts);
+  const averageFrequencyRangesCount = cumulativeFrequencyRangesCount / cellCount;
 
   let cppnNodeTypeCounts;
   let asNEATPatchNodeTypeCounts;
@@ -660,8 +687,12 @@ export async function getGenomeStatisticsAveragedForOneIteration(
   }
 
   return {
+    cppnCount, cppnCountStdDev,
+
     cppnNodeCountStdDev, cppnConnectionCountStdDev, asNEATPatchNodeCountStdDev, asNEATPatchConnectionCountStdDev,
     averageCppnNodeCount, averageCppnConnectionCount, averageAsNEATPatchNodeCount, averageAsNEATPatchConnectionCount,
+    
+    averageNetworkOutputsCount, averageFrequencyRangesCount, networkOutputsCountStdDev, frequencyRangesCountStdDev,
 
     cppnNodeTypeCounts, asNEATPatchNodeTypeCounts,
     cppnNodeTypeCountsStdDev, asNEATPatchNodeTypeCountsStdDev
@@ -672,16 +703,56 @@ async function getGenomeStatistics( genomeId, evoRunConfig, evoRunId ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
   const genomeAndMeta = await getGenomeFromGenomeString( genomeString, {} /*evoParams*/ );
+  
   // const cppnNodeCount = genomeAndMeta.waveNetwork.offspring.nodes.length;
-  const cppnNodeCount = genomeAndMeta.waveNetwork.offspring.nodes.filter( 
-    node => node.nodeType !== "Bias" && node.nodeType !== "Input" && node.nodeType !== "Output"
-  ).length;
-  const cppnConnectionCount = genomeAndMeta.waveNetwork.offspring.connections.length;
+  // handle single or multiple CPPNs
+  let cppnNodeCount = 0;
+  let cppnConnectionCount = 0;
+  let cppnCount = 0;
+
+  if (genomeAndMeta.waveNetwork.offspring) {
+    // Single CPPN
+    cppnNodeCount = genomeAndMeta.waveNetwork.offspring.nodes.filter(
+      node => node.nodeType !== "Bias" && node.nodeType !== "Input" && node.nodeType !== "Output"
+    ).length;
+    cppnConnectionCount = genomeAndMeta.waveNetwork.offspring.connections.length;
+    cppnCount = 1;
+  } else if (genomeAndMeta.waveNetwork.oneCPPNPerFrequency === true && genomeAndMeta.waveNetwork.CPPNs) {
+    // Multiple CPPNs
+    for (const key in genomeAndMeta.waveNetwork.CPPNs) {
+      if (genomeAndMeta.waveNetwork.CPPNs[key].offspring) {
+        const offspring = genomeAndMeta.waveNetwork.CPPNs[key].offspring;
+        cppnNodeCount += offspring.nodes.filter(
+          node => node.nodeType !== "Bias" && node.nodeType !== "Input" && node.nodeType !== "Output"
+        ).length;
+        cppnConnectionCount += offspring.connections.length;
+        cppnCount++;
+      }
+    }
+  }
+
+  const averageCppnNodeCount = cppnCount > 0 ? cppnNodeCount / cppnCount : 0;
+  const averageCppnConnectionCount = cppnCount > 0 ? cppnConnectionCount / cppnCount : 0;
+  
   const asNEATPatchNodeCount = genomeAndMeta.asNEATPatch.nodes.length;
   const asNEATPatchConnectionCount = genomeAndMeta.asNEATPatch.connections.length;
   // console.log("genomeId:", genomeId, "cppnNodeCount:", cppnNodeCount, "cppnConnectionCount:", cppnConnectionCount, "asNEATPatchNodeCount:", asNEATPatchNodeCount, "asNEATPatchConnectionCount:", asNEATPatchConnectionCount);
+
+  // get synthIsPatch from the genome, to have networkOutputs available, and calculate average CPPN output usage and number of frequency ranges; a Set after util.range.getRoundedFrequencyValue
+  const synthIsPatch = patchFromAsNEATnetwork( genomeAndMeta.asNEATPatch.toJSON() );
+  const uniqueNetworkOutputs = new Set();
+  const uniqueRoundedFrequencies = new Set();
+  synthIsPatch.networkOutputs.forEach(output => {
+    uniqueNetworkOutputs.add(output.networkOutput);
+    const roundedFrequency = getRoundedFrequencyValue(output.frequency);
+    uniqueRoundedFrequencies.add(roundedFrequency);
+  });
+
+
   return { 
-    cppnNodeCount, cppnConnectionCount, asNEATPatchNodeCount, asNEATPatchConnectionCount
+    cppnCount,
+    cppnNodeCount: averageCppnNodeCount, cppnConnectionCount: averageCppnConnectionCount, asNEATPatchNodeCount, asNEATPatchConnectionCount,
+    networkOutputsCount: uniqueNetworkOutputs.size, frequencyRangesCount: uniqueRoundedFrequencies.size
   };
 }
 
@@ -689,19 +760,48 @@ async function getGenomeNodeTypeStatistics( genomeId, evoRunConfig, evoRunId ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
   const genomeAndMeta = await getGenomeFromGenomeString( genomeString, {} /*evoParams*/ );
-  const cppnNodeTypes = genomeAndMeta.waveNetwork.offspring.nodes.map( node => {
-    if( node.nodeType !== "Bias" && node.nodeType !== "Input" && node.nodeType !== "Output" ) {
-      return node.activationFunction;
-    } else {
-      return "Input/Output/Bias";
+  let cppnNodeTypes;
+  let cppnCount = 0;
+  if (genomeAndMeta.waveNetwork.offspring) {
+    // Single CPPN
+    cppnNodeTypes = genomeAndMeta.waveNetwork.offspring.nodes.map( node => {
+      if( node.nodeType !== "Bias" && node.nodeType !== "Input" && node.nodeType !== "Output" ) {
+        return node.activationFunction;
+      } else {
+        return "Input/Output/Bias";
+      }
+    } ).filter( nodeType => nodeType !== "Input/Output/Bias" );
+    cppnCount = 1;
+  } else if (genomeAndMeta.waveNetwork.oneCPPNPerFrequency === true && genomeAndMeta.waveNetwork.CPPNs) {
+    // Multiple CPPNs
+    cppnNodeTypes = [];
+    for (const key in genomeAndMeta.waveNetwork.CPPNs) {
+      if (genomeAndMeta.waveNetwork.CPPNs[key].offspring) {
+        const offspring = genomeAndMeta.waveNetwork.CPPNs[key].offspring;
+        cppnNodeTypes = cppnNodeTypes.concat(
+          offspring.nodes.map( node => {
+            if( node.nodeType !== "Bias" && node.nodeType !== "Input" && node.nodeType !== "Output" ) {
+              return node.activationFunction;
+            } else {
+              return "Input/Output/Bias";
+            }
+          } ).filter( nodeType => nodeType !== "Input/Output/Bias" )
+        );
+        cppnCount++;
+      }
     }
-  } ).filter( nodeType => nodeType !== "Input/Output/Bias" );
+  }
+
   const cppnNodeTypeCounts = {};
   for( const oneNodeType of cppnNodeTypes ) {
     if( cppnNodeTypeCounts[oneNodeType] === undefined ) {
       cppnNodeTypeCounts[oneNodeType] = 0;
     }
     cppnNodeTypeCounts[oneNodeType]++;
+  }
+  // get the average count of each node type
+  for( const oneNodeType of Object.keys(cppnNodeTypeCounts) ) {
+    cppnNodeTypeCounts[oneNodeType] /= cppnCount;
   }
   const asNEATPatchNodeTypes = genomeAndMeta.asNEATPatch.nodes.map( node => {
     if( node.type === 18 ) {
@@ -931,7 +1031,7 @@ export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1, exc
 
 ///// goal switching
 
-export async function getGoalSwitches( evoRunConfig, evoRunId, stepSize = 1, evoParams ) {
+export async function getGoalSwitches( evoRunConfig, evoRunId, stepSize = 1, evoParams, contextArrays ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
@@ -945,22 +1045,49 @@ export async function getGoalSwitches( evoRunConfig, evoRunId, stepSize = 1, evo
         const cell = eliteMap.cells[oneCellKey];
         if( cell.elts.length ) {
           const genomeId = cell.elts[0].g;
+          const score = cell.elts[0].s;
           if( classChampionAndGoalSwitchCount[oneCellKey] === undefined ) {
             classChampionAndGoalSwitchCount[oneCellKey] = {
               championCount : 0,
               goalSwitchCount : 0, // "number of times during a run that a new class champion was the offspring of a champion of another class" (orig. innovations engine paper: http://dx.doi.org/10.1145/2739480.2754703)
-              lastChampion: undefined
+              lastChampion: undefined,
+              // lastClass: oneCellKey,
+              score: score,
+              contextSwitchCount: 0,
+              contextDwellCount: 0
             }
           }
           if( genomeId !== classChampionAndGoalSwitchCount[oneCellKey].lastChampion ) {
             classChampionAndGoalSwitchCount[oneCellKey].championCount++;
             classChampionAndGoalSwitchCount[oneCellKey].lastChampion = genomeId;
+            classChampionAndGoalSwitchCount[oneCellKey].lastClass = oneCellKey;
+            classChampionAndGoalSwitchCount[oneCellKey].score = score;
 
             const classEliteGenomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
             const classEliteGenome = await getGenomeFromGenomeString(classEliteGenomeString, evoParams);
             // check if attribute parentGenomes of classEliteGenome is defined and the array contains a genome with an eliteClass attribute that is not equal to oneCellKey
             if( classEliteGenome.parentGenomes && classEliteGenome.parentGenomes.find( parentGenome => parentGenome.eliteClass !== oneCellKey ) ) {
               classChampionAndGoalSwitchCount[oneCellKey].goalSwitchCount++;
+            }
+            // check if the eliteClasses belong to different contexts
+            let isContextSwitch = false;
+            let isContextDwell = false;
+            if( contextArrays && contextArrays.length ) {
+              for( const contextArray of contextArrays ) {
+                // .some ... .includes to find substrings in the contextArray
+                if( contextArray.some(str => oneCellKey.includes(str)) && classEliteGenome.parentGenomes && ! contextArray.some(str => classEliteGenome.parentGenomes[0].eliteClass.includes(str)) ) {
+                  isContextSwitch = true;
+                  break;
+                } else if( contextArray.some(str => oneCellKey.includes(str)) && classEliteGenome.parentGenomes && contextArray.some(str => classEliteGenome.parentGenomes[0].eliteClass.includes(str)) ) {
+                  isContextDwell = true;
+                  break;
+                }
+              }
+              if( isContextSwitch ) {
+                classChampionAndGoalSwitchCount[oneCellKey].contextSwitchCount++;
+              } else if( isContextDwell ) {
+                classChampionAndGoalSwitchCount[oneCellKey].contextDwellCount++;
+              }
             }
           }
         }
@@ -969,15 +1096,53 @@ export async function getGoalSwitches( evoRunConfig, evoRunId, stepSize = 1, evo
   }
   const averageChampionCount = Object.values(classChampionAndGoalSwitchCount).reduce( (acc, cur) => acc + cur.championCount, 0 ) / Object.values(classChampionAndGoalSwitchCount).length;
   const averageGoalSwitchCount = Object.values(classChampionAndGoalSwitchCount).reduce( (acc, cur) => acc + cur.goalSwitchCount, 0 ) / Object.values(classChampionAndGoalSwitchCount).length;
+  const averageContextSwitchCount = Object.values(classChampionAndGoalSwitchCount).reduce( (acc, cur) => acc + cur.contextSwitchCount, 0 ) / Object.values(classChampionAndGoalSwitchCount).length;
+  const averageContextDwellCount = Object.values(classChampionAndGoalSwitchCount).reduce( (acc, cur) => acc + cur.contextDwellCount, 0 ) / Object.values(classChampionAndGoalSwitchCount).length;
+  let contextSwitchDwellRatio;
+  if( averageContextDwellCount > 0 ) {
+    contextSwitchDwellRatio = averageContextSwitchCount / averageContextDwellCount;
+  } else {
+    contextSwitchDwellRatio = averageContextSwitchCount;
+  }
+  // goalSwitchCount and score, from classChampionAndGoalSwitchCount, into separate arrays
+  // const goalSwitches = [];
+  // const scores = [];
+  // for( const oneCellKey of Object.keys(classChampionAndGoalSwitchCount) ) {
+  //   goalSwitches.push( classChampionAndGoalSwitchCount[oneCellKey].goalSwitchCount );
+  //   scores.push( classChampionAndGoalSwitchCount[oneCellKey].score );
+  // }
+  // const goalSwitchScoreCorrelation = pearsonCorrelation( goalSwitches, scores );
+
+  const goalSwitcesAndScores = Object.values(classChampionAndGoalSwitchCount).map( obj => {
+    return {
+      goalSwitchCount: obj.goalSwitchCount,
+      score: obj.score
+    };
+  });
+  const goalSwitchesAndScoresVars = {
+    goalSwitchCount: 'metric',
+    score: 'metric'
+  };
+  let stats = new Statistics(goalSwitcesAndScores, goalSwitchesAndScoresVars);
+  let r = stats.correlationCoefficient('goalSwitchCount', 'score');
+  const goalSwitchScoreCorrelation = r.correlationCoefficient;
+  
   return {
     classChampionAndGoalSwitchCount,
     averageChampionCount,
-    averageGoalSwitchCount
+    averageGoalSwitchCount,
+    goalSwitchScoreCorrelation,
+    averageContextSwitchCount,
+    averageContextDwellCount,
+    contextSwitchDwellRatio
   };
 }
 
-export async function getGoalSwitchesThroughLineages( evoRunConfig, evoRunId, evoParams ) {
+export async function getGoalSwitchesThroughLineages( evoRunConfig, evoRunId, evoParams, contextArrays ) {
   const goalSwitchesToCells = {};
+  const scoresToCells = {};
+  const contextSwitchesToCells = {};
+  const contextDwellsToCells = {};
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
@@ -986,16 +1151,41 @@ export async function getGoalSwitchesThroughLineages( evoRunConfig, evoRunId, ev
   const cellKeys = getCellKeys( eliteMap );
   for( const oneCellKey of cellKeys ) {
     if( eliteMap.cells[oneCellKey].elts.length ) {
+      console.log( `Calculating goal switches for cell ${oneCellKey}` );
       let goalSwitchCount = 0;
+      let contextSwitchCount = 0;
+      let contextDwellCount = 0;
       let currentClass = oneCellKey;
       let genomeId = eliteMap.cells[oneCellKey].elts[0].g;
+      let currentEliteScore = eliteMap.cells[oneCellKey].elts[0].s;
+      scoresToCells[oneCellKey] = currentEliteScore;
       let classEliteGenome;
       do {
         const classEliteGenomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
         classEliteGenome = await getGenomeFromGenomeString(classEliteGenomeString, evoParams);
         if( classEliteGenome.parentGenomes ) {
+          // check if the eliteClasses belong to different contexts
+          let isContextSwitch = false;
+          let isContextDwell = false;
+          if( contextArrays && contextArrays.length ) {
+            for( const contextArray of contextArrays ) {
+              if( contextArray.some(str => currentClass.includes(str)) && classEliteGenome.parentGenomes && contextArray.some(str => classEliteGenome.parentGenomes[0].eliteClass.includes(str)) ) {
+                isContextDwell = true;
+                break;
+              } else if( contextArray.some(str => currentClass.includes(str)) && classEliteGenome.parentGenomes && ! contextArray.some(str => classEliteGenome.parentGenomes[0].eliteClass.includes(str)) ) { 
+                isContextSwitch = true;
+                break;
+              }
+            }
+            if( isContextSwitch ) {
+              contextSwitchCount++;
+            } else if( isContextDwell ) {
+              contextDwellCount++;
+            }
+          }
+          // goal switch check
           if( currentClass !== classEliteGenome.parentGenomes[0].eliteClass ) { // assume only one parent
-            console.log(oneCellKey + ", goalSwitchCount:", goalSwitchCount, "at generation", classEliteGenome.generationNumber, "from", currentClass, "to", classEliteGenome.parentGenomes[0].eliteClass);
+            // console.log(oneCellKey + ", goalSwitchCount:", goalSwitchCount, "at generation", classEliteGenome.generationNumber, "from", currentClass, "to", classEliteGenome.parentGenomes[0].eliteClass);
             goalSwitchCount++;
             currentClass = classEliteGenome.parentGenomes[0].eliteClass;
           }
@@ -1003,13 +1193,70 @@ export async function getGoalSwitchesThroughLineages( evoRunConfig, evoRunId, ev
         }
       } while( classEliteGenome.parentGenomes );
       goalSwitchesToCells[oneCellKey] = goalSwitchCount;
+      contextSwitchesToCells[oneCellKey] = contextSwitchCount;
+      contextDwellsToCells[oneCellKey] = contextDwellCount
     }
   }
   const averageGoalSwitchCount = Object.values(goalSwitchesToCells).reduce( (acc, cur) => acc + cur, 0 ) / Object.values(goalSwitchesToCells).length;
+  const averageContextSwitchCount = Object.values(contextSwitchesToCells).reduce( (acc, cur) => acc + cur, 0 ) / Object.values(contextSwitchesToCells).length;
+  const averageContextDwellCount = Object.values(contextDwellsToCells).reduce( (acc, cur) => acc + cur, 0 ) / Object.values(contextDwellsToCells).length;
+  let contextSwitchDwellRatio;
+  if( averageContextDwellCount > 0 ) {
+    contextSwitchDwellRatio = averageContextSwitchCount / averageContextDwellCount;
+  } else {
+    contextSwitchDwellRatio = averageContextSwitchCount;
+  }
+  // goalSwitchCount from goalSwitchesToCells, and score, from scoresToCells, into separate arrays
+  const goalSwitches = [];
+  const scores = [];
+  for( const oneCellKey of Object.keys(goalSwitchesToCells) ) {
+    goalSwitches.push( goalSwitchesToCells[oneCellKey] );
+    scores.push( scoresToCells[oneCellKey] );
+  }
+  const goalSwitchScoreCorrelation = pearsonCorrelation( goalSwitches, scores );
   return {
     goalSwitchesToCells,
-    averageGoalSwitchCount
+    averageGoalSwitchCount,
+    scoresToCells,
+    goalSwitchScoreCorrelation,
+
+    contextSwitchesToCells,
+    averageContextSwitchCount,
+    contextDwellsToCells,
+    averageContextDwellCount,
+    contextSwitchDwellRatio
   };
+}
+
+// Function to calculate Pearson correlation coefficient
+function pearsonCorrelation(x, y) {
+  if (x.length !== y.length) {
+      throw new Error("Input arrays must have the same length");
+  }
+
+  const n = x.length;
+  const meanX = mean(x);
+  const meanY = mean(y);
+
+  let numerator = 0;
+  let denominatorX = 0;
+  let denominatorY = 0;
+
+  for (let i = 0; i < n; i++) {
+      const dx = x[i] - meanX;
+      const dy = y[i] - meanY;
+
+      numerator += dx * dy;
+      denominatorX += dx * dx;
+      denominatorY += dy * dy;
+  }
+
+  const denominator = Math.sqrt(denominatorX * denominatorY);
+  if (denominator === 0) {
+      return 0;
+  }
+
+  return numerator / denominator;
 }
 
 ///// lineages
@@ -1028,7 +1275,11 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
         const cell = eliteMap.cells[oneCellKey];
         if( cell.elts.length ) {
           const genomeId = cell.elts[0].g;
-          if( lineageGraphDataObj[genomeId] === undefined ) {
+          const score = cell.elts[0].s;
+          const generation = cell.elts[0].gN;
+          const unproductivityBiasCounter = cell.uBC;
+          const genomeIdClass = `${genomeId}_${oneCellKey}`; // the same genome could be an elite of more than one class
+          if( lineageGraphDataObj[genomeIdClass] === undefined ) {
             const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
             const genome = await getGenomeFromGenomeString(genomeString);
             let parentGenomes;
@@ -1037,7 +1288,22 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
             } else {
               parentGenomes = [];
             }
-            lineageGraphDataObj[genomeId] = { parentGenomes };
+            lineageGraphDataObj[genomeIdClass] = { parentGenomes };
+            // if genome contains a tags attribute, referencing an array, find an object with a tag attribute that is equal to oneCellKey:
+            // if found, add the duration, noteDelta, and velocity attributes to the object at genomeIdClass
+            if( genome.tags ) {
+              const tag = genome.tags.find( tag => tag.tag === oneCellKey );
+              if( tag ) {
+                lineageGraphDataObj[genomeIdClass].duration = tag.duration;
+                lineageGraphDataObj[genomeIdClass].noteDelta = tag.noteDelta;
+                lineageGraphDataObj[genomeIdClass].velocity = tag.velocity;
+              }
+            }
+            lineageGraphDataObj[genomeIdClass]["id"] = genomeId;
+            lineageGraphDataObj[genomeIdClass]["eliteClass"] = oneCellKey;
+            lineageGraphDataObj[genomeIdClass]["s"] = score;
+            lineageGraphDataObj[genomeIdClass]["gN"] = generation;
+            lineageGraphDataObj[genomeIdClass]["uBC"] = unproductivityBiasCounter;
           }
         }
       }
@@ -1045,10 +1311,17 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
   }
   // convert lineageGraphDataObj to array with objects with the attributes id and parents
   const lineageGraphData = [];
-  for( const genomeId of Object.keys(lineageGraphDataObj) ) {
+  for( const genomeIdClass of Object.keys(lineageGraphDataObj) ) {
     lineageGraphData.push({
-      id: genomeId,
-      parents: lineageGraphDataObj[genomeId].parentGenomes
+      id: lineageGraphDataObj[genomeIdClass].id,
+      eliteClass: lineageGraphDataObj[genomeIdClass].eliteClass,
+      s: lineageGraphDataObj[genomeIdClass].s,
+      gN: lineageGraphDataObj[genomeIdClass].gN,
+      uBC: lineageGraphDataObj[genomeIdClass].uBC,
+      duration: lineageGraphDataObj[genomeIdClass].duration,
+      noteDelta: lineageGraphDataObj[genomeIdClass].noteDelta,
+      velocity: lineageGraphDataObj[genomeIdClass].velocity,
+      parents: lineageGraphDataObj[genomeIdClass].parentGenomes
     });
   }
   return lineageGraphData;

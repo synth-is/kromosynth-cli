@@ -24,7 +24,7 @@ export function getAudioContext( sampleRate = SAMPLE_RATE) {
 }
 
 export function getNewOfflineAudioContext( duration, sampleRate = SAMPLE_RATE ) {
-	const offlineAudioContext = new OfflineAudioContext({
+	return new OfflineAudioContext({
 		numberOfChannels: 2,
 		length: Math.round(sampleRate * duration),
 		// length: SAMPLE_RATE * duration,
@@ -32,8 +32,42 @@ export function getNewOfflineAudioContext( duration, sampleRate = SAMPLE_RATE ) 
 	});
 	// offlineAudioContext.destination.channelCount = 1;
 	// offlineAudioContext.destination.channelInterpretation = 'discrete';
-	return offlineAudioContext;
+	// return offlineAudioContext;
 }
+
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+function debounceAsync(func, wait) {
+  let timeout;
+  return function (...args) {
+    return new Promise((resolve, reject) => {
+      const later = async () => {
+        clearTimeout(timeout);
+        try {
+          const result = await func(...args);
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    });
+  };
+}
+
+const debouncedGetAudioBufferFromGenomeAndMeta = debounceAsync(getAudioBufferFromGenomeAndMeta, 300); // 300ms delay
 
 async function spawnGenomeAndRenderSound() {
   const evolutionRunId = Date.now();
@@ -92,8 +126,8 @@ async function spawnGenomeAndRenderSound() {
 
   if( mutatedGenome ) {
     const genomeAndMeta = {genome: mutatedGenome, duration, noteDelta, velocity, reverse, useOvertoneInharmonicityFactors};
-    const useGPU = false;
-    const antiAliasing = true;
+    const useGPU = true;
+    const antiAliasing = false;
     const frequencyUpdatesApplyToAllPathcNetworkOutputs = false;
   
     const audioData = await getAudioBufferFromGenomeAndMeta(
@@ -107,6 +141,29 @@ async function spawnGenomeAndRenderSound() {
       antiAliasing,
       frequencyUpdatesApplyToAllPathcNetworkOutputs
     );
+
+    // rendering memory leak test:
+    for( let i=0; i<100000; i++ ) {
+      console.log("leak test", i);
+      let offlineAudioContext = getNewOfflineAudioContext( duration );
+      let tempAudioData = await getAudioBufferFromGenomeAndMeta( // debouncedGetAudioBufferFromGenomeAndMeta(
+        genomeAndMeta,
+        duration, noteDelta, velocity, reverse,
+        true, // asDataArray
+        offlineAudioContext,
+        getAudioContext( ),
+        useOvertoneInharmonicityFactors,
+        useGPU,
+        antiAliasing,
+        frequencyUpdatesApplyToAllPathcNetworkOutputs
+      );
+      offlineAudioContext = null;
+      tempAudioData = null;
+      // if (global.gc) {
+      //   global.gc();
+      // }
+    }
+
     console.log("audioData.length", audioData.length);
     const wav = new WaveFile();
     wav.fromScratch(1, SAMPLE_RATE, '32f', audioData);
@@ -117,4 +174,5 @@ async function spawnGenomeAndRenderSound() {
 }
 
 await spawnGenomeAndRenderSound();
-process.exit();
+  process.exit();
+
