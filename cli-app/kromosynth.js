@@ -1021,7 +1021,7 @@ async function renderLineageTree() {
 	const lineageData = JSON.parse(fs.readFileSync(lineageTreeJsonFile));
 	
 	lineageIterationLoop:
-	for( let iterationIndex = 0; iterationIndex < 1 /*lineageData.evoRuns[0].iterations.length*/; iterationIndex++ ) {
+	for( let iterationIndex = 0; iterationIndex < lineageData.evoRuns[0].iterations.length; iterationIndex++ ) {
 		const genomesToRender = {};
 		const oneIteration = lineageData.evoRuns[0].iterations[iterationIndex];
 		const evoRunId = oneIteration.id;
