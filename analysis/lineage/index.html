@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        http-equiv="Referrer-Policy"
+        content="no-referrer" />
     <title>Phylogenetic Tree Visualization</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <style>
@@ -25,7 +28,7 @@
         Run: <select id="runSelect"></select>
         Category: <select id="categorySelect"></select>
         Step: <select id="stepSelect"></select>
-        Max Depth: <input type="number" id="maxDepth" value="Infinity">
+        <!-- Max Depth: <input type="number" id="maxDepth" value="Infinity"> -->
         Measure Context Switches: <input type="checkbox" id="measureContextSwitches">
         Suffix Filter: <input type="text" id="suffixFilter">
     </div>
@@ -35,63 +38,69 @@
         import { createInteractiveVisualization } from './phylogenetic-tree-interactive.js';
 
         const lineageTrees = {
-            "classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel": {
+            "classScorVarAsContainerDims_noOsc": {
                 "all": [
-                    "lineageTrees/tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
-                    "lineageTrees/tree_01J36CJ9VWKHFBHDBKMF33V8D7_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
-                    "lineageTrees/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
-                    "lineageTrees/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
-                    "lineageTrees/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json"
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJ9VWKHFBHDBKMF33V8D7_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json"
                 ],
                 "musical": [
-                    "lineageTrees/tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
-                    "lineageTrees/tree_01J36CJ9VWKHFBHDBKMF33V8D7_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
-                    "lineageTrees/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
-                    "lineageTrees/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
-                    "lineageTrees/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json"
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJ9VWKHFBHDBKMF33V8D7_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json"
                 ],
                 "non-musical": [
-                    "lineageTrees/tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
-                    "lineageTrees/tree_01J36CJ9VWKHFBHDBKMF33V8D7_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
-                    "lineageTrees/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
-                    "lineageTrees/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
-                    "lineageTrees/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json"
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36C4N993C11EY54VJ1DWXTJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJ9VWKHFBHDBKMF33V8D7_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJ9W2R5MHRG4PWPZHCBE4_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJK0BJ85G1HY3JSCHV8HW_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc/tree_01J36CJK15ZB1HY720Z0075VZA_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json"
                 ]
             },
-            "Run 1": {
+            "classScorVarAsContainerDims_noOsc_oneCPPNPerFreq": {
                 "all": [
-                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-3_1723727836945.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KTWF8ZAE6B5S2XN51YRQEK_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KV837NZFC47ZZ4FVQT668K_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KV8384NYH1WQBQ8WNPTPYJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KWK0FTWDQPSNXT0HBEX48Y_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KWPN20HA1A4PS9FNY7XR17_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_all.json",
                 ],
                 "musical": [
-                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-3_1723727836945.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KTWF8ZAE6B5S2XN51YRQEK_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KV837NZFC47ZZ4FVQT668K_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KV8384NYH1WQBQ8WNPTPYJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KWK0FTWDQPSNXT0HBEX48Y_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KWPN20HA1A4PS9FNY7XR17_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_musical.json",
                 ],
                 "non-musical": [
-                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-3_1723727836945.json"
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KTWF8ZAE6B5S2XN51YRQEK_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KV837NZFC47ZZ4FVQT668K_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KV8384NYH1WQBQ8WNPTPYJ_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KWK0FTWDQPSNXT0HBEX48Y_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
+                    "lineageTrees/classScorVarAsContainerDims_noOsc_oneCPPNPerFreq/tree_01J4KWPN20HA1A4PS9FNY7XR17_classScoringVariationsAsContainerDimensions_noOsc_5dur-1ndelt-1vel_nonmusical.json",
                 ]
             },
-            "Run 2": {
-                "all": [
-                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-3_1723727836945.json",
-                ],
-                "musical": [
-                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-3_1723727836945.json",
-                ],
-                "non-musical": [
-                    "evolution-run-analysis_lineage_step-1_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-2_1723727836945.json",
-                    "evolution-run-analysis_lineage_step-3_1723727836945.json"
-                ]
-            }
+            // "Run 2": {
+            //     "all": [
+            //         "evolution-run-analysis_lineage_step-1_1723727836945.json",
+            //         "evolution-run-analysis_lineage_step-2_1723727836945.json",
+            //         "evolution-run-analysis_lineage_step-3_1723727836945.json",
+            //     ],
+            //     "musical": [
+            //         "evolution-run-analysis_lineage_step-1_1723727836945.json",
+            //         "evolution-run-analysis_lineage_step-2_1723727836945.json",
+            //         "evolution-run-analysis_lineage_step-3_1723727836945.json",
+            //     ],
+            //     "non-musical": [
+            //         "evolution-run-analysis_lineage_step-1_1723727836945.json",
+            //         "evolution-run-analysis_lineage_step-2_1723727836945.json",
+            //         "evolution-run-analysis_lineage_step-3_1723727836945.json"
+            //     ]
+            // }
         };
 
         function populateSelect(selectId, options, defaultValue = null) {
@@ -129,6 +138,20 @@
             const selectedStepIndex = document.getElementById('stepSelect').selectedIndex;
             const selectedStep = lineageTrees[selectedRun][selectedCategory][selectedStepIndex];
 
+            // set evoRunId as a substring from selectedStep, between "lineageTrees/tree_" and ("_all.json" or "_musical.json" or "_nonmusical.json")
+            let suffixIndex;
+            if (selectedStep.includes("_all.json")) {
+                suffixIndex = selectedStep.indexOf("_all.json");
+            } else if (selectedStep.includes("_musical.json")) {
+                suffixIndex = selectedStep.indexOf("_musical.json");
+            } else if (selectedStep.includes("_nonmusical.json")) {
+                suffixIndex = selectedStep.indexOf("_nonmusical.json");
+            }
+            const experiment = selectedRun;
+            const evoRunId = selectedStep.substring(selectedStep.indexOf("tree_")+5, suffixIndex);
+            console.log("evoRunId", evoRunId);
+            console.log("experiment", experiment);
+
             try {
                 const response = await fetch(selectedStep);
                 const data = await response.json();
@@ -136,8 +159,8 @@
                 const container = document.getElementById('visualization-container');
                 container.innerHTML = ''; // Clear existing visualization
 
-                createInteractiveVisualization(undefined/*lineageData*/, data, container, {
-                    maxDepth: parseInt(document.getElementById('maxDepth').value) || Infinity,
+                createInteractiveVisualization(undefined/*lineageData*/, data, experiment, evoRunId, container, {
+                    // maxDepth: parseInt(document.getElementById('maxDepth').value) || Infinity,
                     measureContextSwitches: document.getElementById('measureContextSwitches').checked,
                     suffixFilter: document.getElementById('suffixFilter').value || null
                 });
@@ -151,7 +174,7 @@
         document.getElementById('runSelect').addEventListener('change', updateCategorySelect);
         document.getElementById('categorySelect').addEventListener('change', updateStepSelect);
         document.getElementById('stepSelect').addEventListener('change', loadData);
-        document.getElementById('maxDepth').addEventListener('input', loadData);
+        // document.getElementById('maxDepth').addEventListener('input', loadData);
         document.getElementById('measureContextSwitches').addEventListener('change', loadData);
         document.getElementById('suffixFilter').addEventListener('input', loadData);
 

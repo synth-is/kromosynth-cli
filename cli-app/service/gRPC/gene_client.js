@@ -46,6 +46,10 @@ export function callGeneVariationService(
 ) {
   console.log("callGeneVariationService gRPC:", gRPCHost);
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('callGeneVariationService timed out'));
+    }, 5000); // 5 seconds timeout
+
     const payload = {
       genomeStrings: struct.encode( {genomeStrings} ),
       evolutionRunId, 
@@ -57,7 +61,9 @@ export function callGeneVariationService(
       evolutionaryHyperparameters: struct.encode( evolutionaryHyperparameters ),
       patchFitnessTestDuration
     };
+    
     getClient( gRPCHost ).GenomeVariation( payload, (err, response) => {
+      clearTimeout(timeout); // Clear the timeout on response
       if( err ) {
         reject( err );
       } else {

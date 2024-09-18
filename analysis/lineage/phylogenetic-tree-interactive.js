@@ -91,6 +91,8 @@ if (!audioContext) {
 export function createInteractiveVisualization(
         data, 
         treeData,
+        experiment,
+        evoRunId,
         container, options = {}
 ) {
     // Customizable parameters
@@ -243,17 +245,23 @@ export function createInteractiveVisualization(
 
     let currentSoundUrl = null;
 
+    const LINEAGE_SOUNDS_BUCKET_HOST = "https://phylogeny-storage.synth.is"; // "https://server-kromosynth-lineage-renders.nirdrep.sigma2.no";
     async function playAudioWithFade(d) {
         if (!hasInteracted) return;
         console.log("Playing audio for node:", d);
         if (currentPlayingNode === d) return;
         
         const fileName = `${d.data.id}-${d.data.duration}_${d.data.noteDelta}_${d.data.velocity}.wav`;
-        const audioUrl = "/01J1ZZF2J09MM1YARNR9RYP6AB_YAMNet-durDims_noOsc/accordion_5_0_1_01J25K44BT544SAFR666DBH4Y4_4.wav";
-        
+        // const audioUrl = "/01J1ZZF2J09MM1YARNR9RYP6AB_YAMNet-durDims_noOsc/accordion_5_0_1_01J25K44BT544SAFR666DBH4Y4_4.wav";
+        const audioUrl = `${LINEAGE_SOUNDS_BUCKET_HOST}/${experiment}/${evoRunId}/${fileName}`;
+        console.log("audioUrl", audioUrl);
         try {
-            const response = await fetch(audioUrl);
+            const response = await fetch(audioUrl, {
+                // mode: 'no-cors'
+            });
+            console.log("response", response);  
             const arrayBuffer = await response.arrayBuffer();
+            console.log("arrayBuffer", arrayBuffer);
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
             if (currentSource) {
@@ -329,8 +337,9 @@ export function createInteractiveVisualization(
     }
 
     function downloadNodeSound(d) {
-        const fileName = "accordion_5_0_1_01J25K44BT544SAFR666DBH4Y4_4.wav" // `${d.data.id}-${d.data.duration}_${d.data.noteDelta}_${d.data.velocity}.wav`;
-        const audioUrl = `/01J1ZZF2J09MM1YARNR9RYP6AB_YAMNet-durDims_noOsc/${fileName}`;
+        const fileName = `${d.data.id}-${d.data.duration}_${d.data.noteDelta}_${d.data.velocity}.wav`;
+        // const audioUrl = `/01J1ZZF2J09MM1YARNR9RYP6AB_YAMNet-durDims_noOsc/${fileName}`;
+        const audioUrl = `${LINEAGE_SOUNDS_BUCKET_HOST}/${experiment}/${evoRunId}/${fileName}`;
         
         const link = document.createElement('a');
         link.href = audioUrl;
@@ -496,12 +505,12 @@ export function createInteractiveVisualization(
         });
 
     // Add event listeners for parameter changes
-    d3.select('#maxDepth').on('input', updateVisualization);
+    // d3.select('#maxDepth').on('input', updateVisualization);
     d3.select('#measureContextSwitches').on('change', updateVisualization);
     d3.select('#suffixFilter').on('input', updateVisualization);
 
     function updateVisualization() {
-        const newMaxDepth = parseInt(d3.select('#maxDepth').property('value'));
+        // const newMaxDepth = parseInt(d3.select('#maxDepth').property('value'));
         const newMeasureContextSwitches = d3.select('#measureContextSwitches').property('checked');
         const newSuffixFilter = d3.select('#suffixFilter').property('value') || null;
 
@@ -509,7 +518,7 @@ export function createInteractiveVisualization(
         d3.select(container).selectAll('*').remove();
 
         // Recreate visualization with new parameters
-        createInteractiveVisualization(data, treeData, container, {
+        createInteractiveVisualization(data, treeData, container, experiment, evoRunId, {
             maxDepth: newMaxDepth,
             measureContextSwitches: newMeasureContextSwitches,
             suffixFilter: newSuffixFilter

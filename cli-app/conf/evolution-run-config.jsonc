@@ -63,6 +63,9 @@
           "featureExtractionEndpoint": "/vggish",
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
+          "shouldRetrainProjection": true, // wether to periodically retrain the chosen dimensionality reduction (PCA, UMAP, VAE, etc.)
+          "shouldCalculateNovelty": true, // wether to calculate novelty scores, while projecting into the feature map
+          "pcaNoveltyWithAutoEncoder": false, // if true, the autoencoder is used to calculate novelty scores, otherwise the PCA inverse_transform is used
           "pcaComponents": "0,1", // to allow selection of specific projection components, which are ranked by importence in the case of PCA
           "sampleRate": 16000
         },
@@ -183,6 +186,23 @@
         }
       ],
       "classificationDimensions": [100, 100]
+    },
+    { // two low-level (or scalar) features, not projected (/raw endpoint)
+      "classConfigurations": [
+        {
+          "refSetName": "customRef1",
+          "featureExtractionEndpoint": "/manual?features=spectral_centroid,spectral_flatness",
+          "featureExtractionType": "mfcc",
+          "qualityEvaluationEndpoint": "/manual?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=manual-spectral_centroid,manual-spectral_flatness",
+          "qualityFromFeatures": true,
+          "usingQueryEmbeddings": false, // e.g. for a FAD reference set
+          "projectionEndpoint": "/raw",
+          "shouldRetrainProjection": false,
+          "shouldCalculateNovelty": false,
+          "sampleRate": 16000
+        }
+      ],
+      "classificationDimensions": [100, 100]
     }
   ],
   "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
@@ -206,7 +226,7 @@
   "renderSampleRateForClassifier": 16000,
   // "batchDurationMs": 60000,
 
-  "commitEliteMapToGitEveryNIterations": 1000,
+  "commitEliteMapToGitEveryNIterations": 1, // or generations
   "addGenomesToGit": false,
   "prunePastEliteGenomesEveryNGenerations": null,// 20,
   "renderEliteMapToWavFilesEveryNGenerations": 500, // 50000,
