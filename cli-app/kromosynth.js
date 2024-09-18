@@ -912,12 +912,21 @@ async function renderEvorun() {
 	}
 	const evoRunId = evoRunDirPath.substring(0,evoRunDirPath.length).split('/').pop();
 	const generationCount = getCommitCount( evoRunDirPath, true );
-	if( generationCount > 1 ) {
+	if( generationCount >= 1 ) {
 		if( ! everyNthGeneration || everyNthGeneration >= generationCount ) {
-			everyNthGeneration = generationCount - 1;
+			if( generationCount === 1 ) {
+				everyNthGeneration = generationCount;
+			} else {
+				everyNthGeneration = generationCount - 1;
+			}
 		}
-		
-		for( let iteration = everyNthGeneration; iteration < generationCount; iteration = (iteration + everyNthGeneration) > generationCount && iteration !== generationCount-1 ? generationCount-1 : iteration + everyNthGeneration ) {
+		console.log("generationCount",generationCount);
+		console.log("everyNthGeneration",everyNthGeneration);
+		for( 
+				let iteration = generationCount > 1 ? everyNthGeneration : 0; 
+				iteration < generationCount; 
+				iteration = (iteration + everyNthGeneration) > generationCount && iteration !== generationCount-1 ? generationCount-1 : iteration + everyNthGeneration 
+		) {
 			const eliteMaps = await getEliteMaps( evoRunDirPath, iteration );
 			for( let eliteMap of eliteMaps) {
 				const classes = await getClassLabelsWithElitesFromEliteMap( eliteMap );
@@ -1012,7 +1021,7 @@ async function renderLineageTree() {
 	const lineageData = JSON.parse(fs.readFileSync(lineageTreeJsonFile));
 	
 	lineageIterationLoop:
-	for( let iterationIndex = 0; iterationIndex < 1 /*lineageData.evoRuns[0].iterations.length*/; iterationIndex++ ) {
+	for( let iterationIndex = 0; iterationIndex < lineageData.evoRuns[0].iterations.length; iterationIndex++ ) {
 		const genomesToRender = {};
 		const oneIteration = lineageData.evoRuns[0].iterations[iterationIndex];
 		const evoRunId = oneIteration.id;

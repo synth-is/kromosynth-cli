@@ -34,7 +34,7 @@ process.on('message', async (message) => {
         getNewOfflineAudioContext( duration, sampleRate ),
         getAudioContext( sampleRate ),
         useOvertoneInharmonicityFactors,
-        true, //useGpu,
+        useGpu,
         antiAliasing,
         frequencyUpdatesApplyToAllPathcNetworkOutputs
       );
