@@ -296,6 +296,53 @@ export async function getCoverageForAllIterations( evoRunConfig, evoRunId, stepS
 
 // QD score heatmap
 
+export async function getScoreMatricesForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+  const terrainNames = getTerrainNames( evoRunConfig );
+  let scoreMatrixes;
+  if( terrainNames.length ) {
+    scoreMatrixes = {};
+    for( const oneTerrainName of terrainNames ) {
+      scoreMatrixes[oneTerrainName] = new Array(Math.ceil(commitCount / stepSize));
+    }
+    for( let iterationIndex = 0, scoreMatrixIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, scoreMatrixIndex++ ) {
+      if( iterationIndex % stepSize === 0 ) {
+        console.log(`Calculating score matrix for iteration ${iterationIndex}...`);
+        for( const oneTerrainName of terrainNames ) {
+          scoreMatrixes[oneTerrainName][scoreMatrixIndex] = await getScoreMatrixForOneIteration(
+            evoRunConfig, evoRunId, iterationIndex, oneTerrainName
+          );
+        }
+      }
+    }
+  } else {
+    scoreMatrixes = new Array(Math.ceil(commitCount / stepSize));
+    for( let iterationIndex = 0, scoreMatrixIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, scoreMatrixIndex++ ) {
+      if( iterationIndex % stepSize === 0 ) {
+        console.log(`Calculating score matrix for iteration ${iterationIndex}...`);
+        scoreMatrixes[scoreMatrixIndex] = await getScoreMatrixForOneIteration(
+          evoRunConfig, evoRunId, iterationIndex
+        );
+      }
+    }
+  }
+  const scoreMatrixesStringified = JSON.stringify(scoreMatrixes);
+  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  const scoreMatrixesFilePath = `${evoRunDirPath}score-matrixes_step-${stepSize}.json`;
+  fs.writeFileSync( scoreMatrixesFilePath, scoreMatrixesStringified );
+  return scoreMatrixes;
+}
+
+async function getScoreMatrixForOneIteration( evoRunConfig, evoRunId, iterationIndex, terrainName ) {
+  const eliteMap = await getEliteMap( 
+    evoRunConfig, evoRunId, iterationIndex,
+    false, // forceCreateCommitIdsList
+    terrainName
+  );
+  return getScoreMatrixFromEliteMap( eliteMap );
+}
+
 export async function getScoreMatrixForLastIteration( evoRunConfig, evoRunId ) {
   const terrainNames = getTerrainNames( evoRunConfig );
   let scoreMatrixes;
