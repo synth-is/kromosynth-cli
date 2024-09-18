@@ -1,6 +1,20 @@
 import { reverse } from "lodash-es";
 import WebSocket from "ws";
 
+export function isServerAvailable( serverUrl ) {
+  return new Promise( resolve => {
+    const ws = new WebSocket(serverUrl);
+    ws.onopen = () => {
+      ws.close();
+      resolve(true);
+    };
+    ws.onerror = () => {
+      ws.close();
+      resolve(false);
+    };
+  });
+}
+
 export async function renderAndEvaluateGenomesViaWebsockets(
   genome,
   classScoringDurations,
@@ -118,8 +132,10 @@ export function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
         const buffer = new Uint8Array( message );
         const channelData = new Float32Array( buffer.buffer );
         // console.log('channelData', channelData);
+        ws.close(); // close the websocket connection
         resolve( channelData );
       } else {
+        ws.close(); // close the websocket connection
         reject( message );
       }
     });
@@ -151,9 +167,11 @@ export function getAudioClassPredictionsFromWebsocket(
     ws.on('message', (message) => {
       try {
         const predictions = JSON.parse( message );
+        ws.close(); // close the websocket connection
         resolve( predictions );
       } catch( error ) {
         console.error("getAudioClassPredictionsFromWebsocket: could not parse message: " + message, error);
+        ws.close(); // close the websocket connection
         resolve( {} );
       }
     });
@@ -182,14 +200,21 @@ export function getFeaturesFromWebsocket(
   const ws = getClient( evaluationFeatureHostWithQueryParams );
   ws.binaryType = "arraybuffer"; // Set binary type for receiving array buffers
   return new Promise((resolve, reject) => {
+    let timeout;
     ws.on('open', () => {
       ws.send( audioBufferChannelData );
+      timeout = setTimeout(() => {
+        reject(new Error('WebSocket request timed out'));
+      }, 60000); // Set timeout to 60 seconds
     });
     ws.on('message', (message) => {
+      clearTimeout(timeout); // Clear the timeout when a message is received
       const features = JSON.parse( message );
+      ws.close(); // close the websocket connection
       resolve( features );
     });
     ws.on('error', (error) => {
+      clearTimeout(timeout); // Clear the timeout on error
       delete clients[evaluationFeatureHost];
       reject( error );
     });
@@ -210,6 +235,7 @@ export function getQualityFromWebsocket(  // TODO: rename to getQualityFromWebso
     });
     ws.on('message', (message) => {
       const quality = JSON.parse( message );
+      ws.close(); // close the websocket connection
       resolve( quality );
     });
     ws.on('error', (error) => {
@@ -243,9 +269,11 @@ export function getQualityFromWebsocketForEmbedding(
     ws.on('message', (message) => {
       if( message.status === 'ERROR' ) {
         console.error('getQualityFromWebsocketForEmbedding error:', message);
+        ws.close(); // close the websocket connection
         reject( message );
       } else {
         const quality = JSON.parse( message );
+        ws.close(); // close the websocket connection
         resolve( quality );
       }
     });
@@ -266,16 +294,11 @@ export function addToQualityQueryEmbeddigs(
   const ws = getClient( `${evaluationQualityHost}/add-to-query-embeddings?eval_embds_path=${querySetEmbedsPath}&candidate_id=${candidateId}&replacement_id=${replacementId?replacementId:''}` );
   return new Promise((resolve, reject) => {
     ws.on('open', () => {
-      // const querySetAdditionMessage = {
-      //   "embedding": embedding,
-      //   "candidate_id": candidateId,
-      //   "replacement_id": replacementId,
-      //   "eval_embds_path": querySetEmbedsPath
-      // };
       ws.send( JSON.stringify(embedding) );
     });
     ws.on('message', (message) => {
       const quality = JSON.parse( message );
+      ws.close(); // close the websocket connection
       resolve( quality );
     });
     ws.on('error', (error) => {
@@ -293,26 +316,34 @@ export function getDiversityFromWebsocket(
   evoRunDirPath,
   shouldFit,
   pcaComponents,
-  projectionEndpoint = ""
+  shouldCalculateNovelty
 ) {
   console.log('getDiversityFromWebsocket', evaluationDiversityHost);
   const ws = getClient( evaluationDiversityHost );
   return new Promise((resolve, reject) => {
+    let timeout;
     ws.on('open', () => {
       const diversityMessage = {
         "feature_vectors": featureVectors,
         "fitness_values": fitnessValues,
         "evorun_dir": evoRunDirPath,
         "should_fit": shouldFit,
+        "calculate_novelty": shouldCalculateNovelty,
         "pca_components": pcaComponents,
       };
-      ws.send( JSON.stringify( diversityMessage ) );
+      ws.send( JSON.stringify( diversityMessage ), { timeout: 120000 } );
+      timeout = setTimeout(() => {
+        reject(new Error('WebSocket request timed out'));
+      }, 120000); // Set timeout to 60 seconds
     });
     ws.on('message', (message) => {
+      clearTimeout(timeout); // Clear the timeout when a message is received
       const diversity = JSON.parse( message );
+      ws.close(); // close the websocket connection
       resolve( diversity );
     });
     ws.on('error', (error) => {
+      clearTimeout(timeout); // Clear the timeout on error
       delete clients[evaluationDiversityHost];
       reject( error );
     });

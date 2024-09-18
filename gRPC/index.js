@@ -69,11 +69,12 @@ async function mutatedGenome( call, callback ) {
   } = call.request;
   let error = null;
   let newGenome;
+  let genomes;
   try {
     const genomeStringsArray = struct.decode( genomeStrings ).genomeStrings;
     const audioGraphMutationParamsDecoded = struct.decode( audioGraphMutationParams );
     const evolutionaryHyperparametersDecoded = struct.decode( evolutionaryHyperparameters );
-    const genomes = await Promise.all( genomeStringsArray.map( async genomeString => await getGenomeFromGenomeString( 
+    genomes = await Promise.all( genomeStringsArray.map( async genomeString => await getGenomeFromGenomeString( 
       genomeString, evolutionaryHyperparametersDecoded 
     ) ) );
     newGenome = await getNewAudioSynthesisGenomeByMutation(
@@ -86,10 +87,12 @@ async function mutatedGenome( call, callback ) {
       evolutionaryHyperparametersDecoded,
       OfflineAudioContext,
       patchFitnessTestDuration
-    );  
+    );
+    genomes = undefined;
   } catch (e) {
     console.error("gRPC -> mutatedGenome", e);
     error = e;
+    genomes = undefined;
   }
   
   // TODO conditional getNewAudioSynthesisGenomeByCrossover
@@ -100,7 +103,7 @@ async function mutatedGenome( call, callback ) {
   } else {
     genome_string = "";
   }
-
+  newGenome = undefined;
   return callback( null, {genome_string} );
 }
 
