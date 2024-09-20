@@ -1047,12 +1047,15 @@ async function renderLineageTree() {
 		}
 		console.log("Collected", descendantIndex, "descendants and", lineageIndex, "lineage items");
 		const subFolder = writeToFolder + "/" + evoRunId + "/";
+		if( !fs.existsSync(writeToFolder) ) {
+			fs.mkdirSync(writeToFolder);
+		}
 		if( !fs.existsSync(subFolder) ) {
 			fs.mkdirSync(subFolder);
 		}
 
     const workerPath = path.join(__dirname, 'workers', 'renderAncestorToWavFile.js');
-    const concurrencyLimit = 10;
+    const concurrencyLimit = 4;
 
     const queue = async.queue((task, done) => {
         const child = fork(workerPath);

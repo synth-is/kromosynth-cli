@@ -11,7 +11,8 @@ function isMusicalClass(className) {
 
 export function findLatestDescendantsByClass(data, suffixFilter = null, iteration = 0, inCategoryMusical = true, inCategoryNonMusical = false) {
   const classMap = new Map();
-  
+  console.log("data.evoRuns[0].iterations.length", data.evoRuns[0].iterations.length)
+  console.log("iteration", iteration)
   data.evoRuns[0].iterations[iteration].lineage.forEach(item => {
       const normalizedClass = normalizeClassName(item.eliteClass);
       if (
