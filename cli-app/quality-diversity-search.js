@@ -49,6 +49,8 @@ import { add, e, i } from 'mathjs';
 import { log } from 'console';
 import { getAudioContext, getNewOfflineAudioContext } from './util/rendering-common.js';
 import { calculateQDScoreForEliteMap, getCoverageForEliteMap } from './qd-run-analysis.js';
+import DiversityTracker from './util/diversity-tracker.js';
+
 
 const chance = new Chance();
 
@@ -582,7 +584,7 @@ export async function qdSearch(
 
     if( eliteMap.isBeingSwitchedToFromAnotherMap ) eliteMap.isBeingSwitchedToFromAnotherMap = false;
 
-    if( eliteMap.generationNumber % 10 === 0 ) {
+    if( eliteMap.generationNumber % 100 === 0 ) {
       if (global.gc) {
         global.gc();
       }
@@ -660,7 +662,8 @@ async function mapElitesBatch(
     // qualityEvaluationEndpoint, 
     // projectionEndpoint,
     shouldRetrainProjection,
-    shouldCalculateNovelty
+    shouldCalculateNovelty,
+    shouldTrackDiversity
   } = getWsServiceEndpointsFromClassConfiguration( classConfiguration ); 
 
   if( shouldPopulateCellFeatures ) {
@@ -1376,7 +1379,8 @@ async function mapElitesBatch(
       cellFeatures, eliteMap, 
       _evaluationProjectionServers, evoRunDirPath, 
       classScoringVariationsAsContainerDimensions,
-      shouldCalculateNovelty
+      shouldCalculateNovelty,
+      shouldTrackDiversity
     );
     // we've done the fitting, so we can set shouldFit to false
     // eliteMap.shouldFit = true;
@@ -2421,98 +2425,98 @@ function getNextFitGenerationIndex( lastProjectionFitGenerationNumber ) {
 }
 
 async function retrainProjectionModel( 
-    cellFeatures, eliteMap, 
-    evaluationDiversityHosts, evoRunDirPath, 
-    classScoringVariationsAsContainerDimensions, 
-    shouldCalculateNovelty
+  cellFeatures, eliteMap, 
+  evaluationDiversityHosts, evoRunDirPath, 
+  classScoringVariationsAsContainerDimensions, 
+  shouldCalculateNovelty,
+  shouldTrackDiversity
 ) {
+  const evaluationDiversityHost = evaluationDiversityHosts[0]; // if more than other servers, they will pick up the updated model data by checking file timestamps; see dimensionality_reduction.py in kormosynth-evaluate
 
-  // TODO: letting getClassKeysFromSeedFeatures handle this ... no?
+  // Initialize the DiversityTracker
+  let tracker;
+  if (shouldTrackDiversity) {
+    tracker = new DiversityTracker(evaluationDiversityHost, `${evoRunDirPath}/diversity`);
+    await tracker.loadPersistedData(); // Load any persisted data
 
-  // we need to call all the diversity projection services, to have them all fit their projection with this set of features
-  // - each actually persists the projection model, while it would be enough that one does; a bit suboptimal, but not a big deal
-  let diversityProjection;
-  // require that eliteMap.classConfigurations[] is populated
+    // Prepare feature vectors before remapping
+    const featureVectorsBefore = Object.values(cellFeatures).map(features => features.projection_features);
 
-  // const {featureExtractionType, projectionEndpoint, pcaComponents} = eliteMap.classConfigurations[eliteMap.eliteMapIndex];
-
+    // Send metrics request before remapping
+    await tracker.sendMetricsRequest(eliteMap.generationNumber, featureVectorsBefore, null, 'before');
+    await tracker.sendClusterAnalysisRequest(eliteMap.generationNumber, featureVectorsBefore, 'before');
+    await tracker.sendPerformanceSpreadRequest(eliteMap.generationNumber, featureVectorsBefore, 'before');
+  }
+  // Retrain projection model
   const {
     projectionFeatureType,
     projectionEndpoint,
     pcaComponents
   } = getWsServiceEndpointsFromClassConfiguration(eliteMap.classConfigurations[eliteMap.eliteMapIndex]);
 
-  // let's add cellFeatures to a Map to guarantee order, and consistency with corresponding elites
   let cellFeaturesMap = new Map();
   let cellElitesMap = new Map();
-  for( const cellKey in cellFeatures ) {
-    cellFeaturesMap.set( cellKey, cellFeatures[cellKey] );
-    if( eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length ) { // this should always be the case!
-      cellElitesMap.set( cellKey, eliteMap.cells[cellKey].elts[0] );
+  for (const cellKey in cellFeatures) {
+    cellFeaturesMap.set(cellKey, cellFeatures[cellKey]);
+    if (eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length) {
+      cellElitesMap.set(cellKey, eliteMap.cells[cellKey].elts[0]);
     }
   }
-  if( cellFeaturesMap.size !== cellElitesMap.size ) {
+  if (cellFeaturesMap.size !== cellElitesMap.size) {
     console.error("Error: cellFeaturesSet.size !== cellElites.size");  
     throw new Error("Error: cellFeaturesSet.size !== cellElites.size");
   }
 
   const cellKeysWithFeatures = cellFeaturesMap.keys();
   const allFeaturesToProject = [];
-  for( const cellKeyWithFeatures of cellKeysWithFeatures ) {
-    // allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures][featureExtractionType].features );
+  for (const cellKeyWithFeatures of cellKeysWithFeatures) {
     allFeaturesToProject.push(cellFeatures[cellKeyWithFeatures][projectionFeatureType].features);
   }
-  const evaluationDiversityHost = evaluationDiversityHosts[0]; // if more than other servers, they will pick up the updated model data by checking file timestamps; see dimensionality_reduction.py in kormosynth-evaluate
+
   console.log(`Retraining projection with ${allFeaturesToProject.length} features, after generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`);
-  diversityProjection = await getDiversityFromWebsocket(
+  const diversityProjection = await getDiversityFromWebsocket(
     allFeaturesToProject,
-    undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
+    undefined,
     evaluationDiversityHost + projectionEndpoint,
     evoRunDirPath,
-    true, // shouldFit
+    true,
     pcaComponents,
-    shouldCalculateNovelty // as we want to update the AE as well, for obtaining the reconstruction loss in later calls
+    shouldCalculateNovelty
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`, e);
     cellFeaturesMap = null;
     cellElitesMap = null;
-    // throw new Error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`);
     return `Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`;
   });
-  eliteMap.lastProjectionFitIndex++;
-  eliteMap.projectionModelFitGenerations.push( eliteMap.generationNumber );
-  eliteMap.projectionSizes.push( diversityProjection.feature_map.length );
 
-  let countNonEmptyCells = Object.values(eliteMap.cells).filter( cell => cell.elts.length > 0 ).length;
+  eliteMap.lastProjectionFitIndex++;
+  eliteMap.projectionModelFitGenerations.push(eliteMap.generationNumber);
+  eliteMap.projectionSizes.push(diversityProjection.feature_map.length);
+
+  let countNonEmptyCells = Object.values(eliteMap.cells).filter(cell => cell.elts.length > 0).length;
   console.log(`countNonEmptyCells before repopulation: ${countNonEmptyCells}`);
-  // work the new projection into the elite map
-  // - clear the container: eliteMap.cells
-  // - - for each cellKey in eliteMap.cells
-  Object.keys(eliteMap.cells).forEach( cellKey => {
+
+  Object.keys(eliteMap.cells).forEach(cellKey => {
     eliteMap.cells[cellKey].elts = [];
   });
-  // empty the cellFeatures, as we've now repopulated the eliteMap.cells
-  // - we'll reassign the features along with the eliteMap.cells remapping
-  for( const cellKey in cellFeatures ) {
+
+  for (const cellKey in cellFeatures) {
     delete cellFeatures[cellKey];
   }
-  // repopulate the container: eliteMap.cells
-  // - add the new cells
-  // - - iterate over all elements in cellElitesMap, with index
+
   let i = 0;
-  for( const [cellKey, elite] of cellElitesMap ) {
+  for (const [cellKey, elite] of cellElitesMap) {
     let newCellKey;
-    if( classScoringVariationsAsContainerDimensions ) {
-      const genomeString = await readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
-      const { duration, noteDelta, velocity } = getDurationNoteDeltaVelocityFromGenomeString( genomeString, cellKey );
+    if (classScoringVariationsAsContainerDimensions) {
+      const genomeString = await readGenomeAndMetaFromDisk(evolutionRunId, genomeId, evoRunDirPath);
+      const { duration, noteDelta, velocity } = getDurationNoteDeltaVelocityFromGenomeString(genomeString, cellKey);
       newCellKey = diversityProjection.feature_map[i].join('_') + `-${duration}_${noteDelta}_${velocity}`;
     } else {
       newCellKey = diversityProjection.feature_map[i].join('_');
     }
-    if( eliteMap.cells[newCellKey].elts.length ) {
-      // we have competing elites, so let's keep the one with the highest score
+    if (eliteMap.cells[newCellKey].elts.length) {
       const currentElite = eliteMap.cells[newCellKey].elts[0];
-      if( elite.s > currentElite.s ) {
+      if (elite.s > currentElite.s) {
         eliteMap.cells[newCellKey].elts = [elite];
         cellFeatures[newCellKey] = cellFeaturesMap.get(cellKey);
       }
@@ -2523,12 +2527,37 @@ async function retrainProjectionModel(
     i++;
   }
 
-  countNonEmptyCells = Object.values(eliteMap.cells).filter( cell => cell.elts.length > 0 ).length;
+  countNonEmptyCells = Object.values(eliteMap.cells).filter(cell => cell.elts.length > 0).length;
+  console.log(`countNonEmptyCells after repopulation: ${countNonEmptyCells}`);
+
+  if (shouldTrackDiversity) {
+    // Prepare feature vectors after remapping
+    const featureVectorsAfter = Object.values(cellFeatures).map(features => features.projection_features);
+
+    // Send metrics request after remapping
+    await tracker.sendMetricsRequest(eliteMap.generationNumber, featureVectorsAfter, null, 'after');
+    await tracker.sendClusterAnalysisRequest(eliteMap.generationNumber, featureVectorsAfter, 'after');
+    await tracker.sendPerformanceSpreadRequest(eliteMap.generationNumber, featureVectorsAfter, 'after');
+
+    const comparison = tracker.getComparison(eliteMap.generationNumber);
+    console.log(`Comparison for generation ${eliteMap.generationNumber}:`, comparison);
+
+      // Get all comparisons
+    const allComparisons = tracker.getAllComparisons();
+    console.log('All comparisons:', allComparisons);
+
+    // Request visualization of all metrics
+    await tracker.requestVisualization();
+
+    console.log('Diversity tracking completed.');
+  }
+
+  countNonEmptyCells = Object.values(eliteMap.cells).filter(cell => cell.elts.length > 0).length;
   console.log(`countNonEmptyCells after repopulation: ${countNonEmptyCells}`);
 
   cellFeaturesMap = null;
   cellElitesMap = null;
-  
+
   return diversityProjection;
 }
 
@@ -3136,7 +3165,8 @@ function getWsServiceEndpointsFromClassConfiguration(classConfiguration) {
       shouldCalculateNovelty: false,
       qualityFromFeatures: false,
       usingQueryEmbeddings: false,
-      sampleRate: 16000
+      sampleRate: 16000,
+      shouldTrackDiversity: false
     };
   }
 
@@ -3151,6 +3181,7 @@ function getWsServiceEndpointsFromClassConfiguration(classConfiguration) {
     shouldCalculateNovelty: classConfiguration.shouldCalculateNovelty,
     qualityFromFeatures: classConfiguration.qualityFromFeatures,
     usingQueryEmbeddings: classConfiguration.usingQueryEmbeddings,
-    sampleRate: classConfiguration.sampleRate
+    sampleRate: classConfiguration.sampleRate,
+    shouldTrackDiversity: classConfiguration.shouldTrackDiversity
   };
 }
