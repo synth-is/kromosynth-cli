@@ -656,9 +656,9 @@ async function mapElitesBatch(
   // }
   const classConfiguration = classificationGraphModel.classConfigurations && classificationGraphModel.classConfigurations.length ? classificationGraphModel.classConfigurations[eliteMapIndex] : undefined;
   const { 
-    featureExtractionEndpoint, 
-    qualityEvaluationEndpoint, 
-    projectionEndpoint,
+    // featureExtractionEndpoint, 
+    // qualityEvaluationEndpoint, 
+    // projectionEndpoint,
     shouldRetrainProjection,
     shouldCalculateNovelty
   } = getWsServiceEndpointsFromClassConfiguration( classConfiguration ); 
@@ -668,7 +668,7 @@ async function mapElitesBatch(
     // - so far they have been collected: let's project the whole collection
     searchPromises = new Array( seedFeaturesAndScores.length );
     const seedFeatureClassKeys = await getClassKeysFromSeedFeatures( // this call trains the projection
-      seedFeaturesAndScores, _evaluationProjectionServers[0]+projectionEndpoint, evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap
+      seedFeaturesAndScores, _evaluationProjectionServers[0], evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap
     );
     for( let i=0; i < seedFeaturesAndScores.length; i++ ) {
       searchPromises[i] = new Promise( async (resolve, reject) => {
@@ -720,7 +720,8 @@ async function mapElitesBatch(
         _evaluationFeatureServers,
         evoRunDirPath, evolutionRunId,
         ckptDir,
-        featureExtractionEndpoint, classConfiguration.featureExtractionType
+        // featureExtractionEndpoint, classConfiguration.featureExtractionType
+        classConfiguration
       );
     }
     for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
@@ -748,9 +749,9 @@ async function mapElitesBatch(
         } else if( isUnsupervisedDiversityEvaluation ) {
           // using feature extraction and dimensionality reduction for diversity projection and a separate quality evaluation service
           geneEvaluationServerHost = {
-            feature: _evaluationFeatureServers[ batchIteration % _evaluationFeatureServers.length ] + featureExtractionEndpoint,
-            projection: _evaluationProjectionServers[ batchIteration % _evaluationProjectionServers.length ] + projectionEndpoint,
-            quality: _evaluationQualityServers[ batchIteration % _evaluationQualityServers.length ] + qualityEvaluationEndpoint
+            feature: _evaluationFeatureServers[ batchIteration % _evaluationFeatureServers.length ], // + featureExtractionEndpoint,
+            projection: _evaluationProjectionServers[ batchIteration % _evaluationProjectionServers.length ], // + projectionEndpoint,
+            quality: _evaluationQualityServers[ batchIteration % _evaluationQualityServers.length ], // + qualityEvaluationEndpoint
           };
         }
       }
@@ -1607,15 +1608,25 @@ async function populateAndSaveCellFeatures(
   evaluationFeatureExtractionHosts,
   evoRunDirPath, evolutionRunId,
   ckptDir,
-  featureExtractionEndpoint, featureExtractionType
+  // featureExtractionEndpoint, featureExtractionType
+  classConfiguration
 ) {
+  const {
+    qualityFeatureExtractionEndpoint,
+    projectionFeatureExtractionEndpoint,
+    qualityFeatureType,
+    projectionFeatureType,
+    sampleRate
+  } = getWsServiceEndpointsFromClassConfiguration(classConfiguration);
+
+  const classConfigurations = eliteMap.classConfigurations;
   let cellKeyIndex = 0;
   for( const cellKey in eliteMap.cells ) {
     const cell = eliteMap.cells[cellKey];
     if( cell.elts && cell.elts.length && ! cellFeatures[cellKey] ) {
       console.error("cellFeatures[cellKey] is undefined, for cellKey", cellKey);
     }
-    if( cell.elts && cell.elts.length && (!cellFeatures[cellKey] || !cellFeatures[cellKey][featureExtractionType]) ) {
+    if( cell.elts && cell.elts.length && (!cellFeatures[cellKey] || !cellFeatures[cellKey][projectionFeatureType]) ) {
       const cellGenomeId = cell.elts[0].g;
       const cellGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, cellGenomeId, evoRunDirPath );
       const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
@@ -1629,20 +1640,61 @@ async function populateAndSaveCellFeatures(
         geneRenderingServerHosts[cellKeyIndex % geneRenderingServerHosts.length], renderSampleRateForClassifier
       );
       const evaluationFeatureHost = evaluationFeatureExtractionHosts[cellKeyIndex % evaluationFeatureExtractionHosts.length];
-      // const evaluationFeatureHostBase64encoded = Buffer.from(evaluationFeatureHost).toString('base64');
-      const featuresResponse = await getFeaturesFromWebsocket(
-        audioBuffer,
-        evaluationFeatureHost + featureExtractionEndpoint,
-        ckptDir, // `${ckptDir}/${evaluationFeatureHostBase64encoded}`,
-        renderSampleRateForClassifier
-      );
-      const { features, type, embedding } = featuresResponse;
-      if( ! type ) {
-        console.error("type is undefined");
+      
+      // const featuresResponse = await getFeaturesFromWebsocket(
+      //   audioBuffer,
+      //   evaluationFeatureHost + featureExtractionEndpoint,
+      //   ckptDir, // `${ckptDir}/${evaluationFeatureHostBase64encoded}`,
+      //   renderSampleRateForClassifier
+      // );
+      // const { features, type, embedding } = featuresResponse;
+      // if( ! type ) {
+      //   console.error("type is undefined");
+      // }
+      // const cellGenomeFeatures = { features, type, embedding };
+      // if( ! cellFeatures[cellKey] ) cellFeatures[cellKey] = {};
+      // cellFeatures[cellKey][type] = cellGenomeFeatures;
+
+      let qualityFeaturesResponse, projectionFeaturesResponse;
+
+      if (qualityFeatureExtractionEndpoint === projectionFeatureExtractionEndpoint) {
+        // If endpoints are the same, make only one call
+        const featuresResponse = await getFeaturesFromWebsocket(
+          audioBuffer,
+          evaluationFeatureHost + qualityFeatureExtractionEndpoint,
+          ckptDir,
+          sampleRate
+        );
+        qualityFeaturesResponse = projectionFeaturesResponse = featuresResponse;
+      } else {
+        // If endpoints are different, make two separate calls
+        [qualityFeaturesResponse, projectionFeaturesResponse] = await Promise.all([
+          getFeaturesFromWebsocket(
+            audioBuffer,
+            evaluationFeatureHost + qualityFeatureExtractionEndpoint,
+            ckptDir,
+            sampleRate
+          ),
+          getFeaturesFromWebsocket(
+            audioBuffer,
+            evaluationFeatureHost + projectionFeatureExtractionEndpoint,
+            ckptDir,
+            sampleRate
+          )
+        ]);
       }
-      const cellGenomeFeatures = { features, type, embedding };
-      if( ! cellFeatures[cellKey] ) cellFeatures[cellKey] = {};
-      cellFeatures[cellKey][type] = cellGenomeFeatures;
+    
+      if (!cellFeatures[cellKey]) cellFeatures[cellKey] = {};
+      
+      cellFeatures[cellKey][qualityFeatureType] = {
+        features: qualityFeaturesResponse.features,
+        embedding: qualityFeaturesResponse.embedding
+      };
+    
+      cellFeatures[cellKey][projectionFeatureType] = {
+        features: projectionFeaturesResponse.features,
+        embedding: projectionFeaturesResponse.embedding
+      };
 
       cellKeyIndex++;
     }
@@ -1722,7 +1774,7 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
     if( audioBuffer && audioBuffer.length && ! audioBuffer.some( value => isNaN(value) ) ) {
 
       const { 
-        features, featuresType, embedding, quality 
+        projectionFeatures: features, projectionFeaturesType: featuresType, projectionEmbedding: embedding, quality 
       } = await getFeaturesAndScoreForAudioBuffer(
         audioBuffer,
         evaluationFeatureExtractionHost, evaluationQualityHost,
@@ -1853,12 +1905,19 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
 
   } else {
     // assume we already have a trained projection model, and just project the new genome features
+
+    const {
+      projectionFeatureType,
+      projectionEndpoint
+    } = getWsServiceEndpointsFromClassConfiguration(classConfigurations[0]);
+
     const diversityProjection = await getDiversityFromWebsocket(
+      // newGenomesFeatures.map(f => f[projectionFeatureType].features),
       newGenomesFeatures,
-      undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
-      evaluationDiversityHost,
+      undefined,
+      evaluationDiversityHost + projectionEndpoint,
       evoRunDirPath,
-      shouldFit, // this should be false
+      shouldFit,
       pcaComponents,
       shouldCalculateNovelty
     ).catch(e => {
@@ -1967,7 +2026,7 @@ async function getGenomeScoreAndFeatures(
     // });
 
     const { 
-      features, featuresType, embedding, quality 
+      projectionFeatures: features, projectionFeaturesType: featuresType, embedding, quality 
     } = await getFeaturesAndScoreForAudioBuffer(
       audioBuffer,
       evaluationFeatureExtractionHost, evaluationQualityHost,
@@ -2009,85 +2068,106 @@ function getQuerySetEmbedsPath( evoRunDirPath, refSetName ) {
 
 async function getFeaturesAndScoreForAudioBuffer(
   audioBuffer,
-  evaluationFeatureExtractionHost, evaluationQualityHost,
-  classConfigurations, eliteMapIndex, 
-  measureCollectivePerformance, ckptDir, evoRunDirPath
+  evaluationFeatureExtractionHost,
+  evaluationQualityHost,
+  classConfigurations,
+  eliteMapIndex,
+  measureCollectivePerformance,
+  ckptDir,
+  evoRunDirPath
 ) {
   let qualityFromEmbeds = false;
   let qualityFromFeatures = false;
-  let refSetName, refSetEmbedsPath, querySetEmbedsPath, featureExtractionEndpoint, sampleRate;
-  if( classConfigurations && classConfigurations.length ) {
-    // TODO: handle multiple class configurations here?
-    // for now, assume we have just one entry in classConfigurations
-    
-    // refSetName = classConfigurations[eliteMapIndex].refSetName;
-    // each map holds only one class configuration, as set in initializeGrid
+  let refSetName, refSetEmbedsPath, querySetEmbedsPath, sampleRate;
+
+  const {
+    qualityFeatureExtractionEndpoint,
+    projectionFeatureExtractionEndpoint,
+    qualityFeatureType,
+    projectionFeatureType,
+    qualityEvaluationEndpoint,
+    qualityFromFeatures: configQualityFromFeatures,
+    usingQueryEmbeddings,
+    sampleRate: configSampleRate
+  } = getWsServiceEndpointsFromClassConfiguration(classConfigurations[0]);
+
+  if (classConfigurations && classConfigurations.length) {
     refSetName = classConfigurations[0].refSetName;
-    
     refSetEmbedsPath = classConfigurations[0].refSetEmbedsPath;
-    querySetEmbedsPath = getQuerySetEmbedsPath( evoRunDirPath, refSetName ); // classConfigurations[0].querySetEmbedsPath;
-    sampleRate = classConfigurations[0].sampleRate;
-    if( classConfigurations[0].qualityFromFeatures ) {
+    querySetEmbedsPath = getQuerySetEmbedsPath(evoRunDirPath, refSetName);
+    sampleRate = configSampleRate;
+    if (configQualityFromFeatures) {
       qualityFromFeatures = true;
     } else {
       qualityFromEmbeds = true;
     }
   }
 
-  // const hostFeaturesEncodedBase64 = Buffer.from(evaluationFeatureExtractionHost).toString('base64');
-  // get features from audio buffer
-  const featuresResponse = await getFeaturesFromWebsocket(
-    audioBuffer,
-    evaluationFeatureExtractionHost,
-    // optional:
-    ckptDir, // `${ckptDir}/${hostFeaturesEncodedBase64}`,
-    sampleRate,
-  ).catch(e => {
-    console.error("Error getting features", e);
-  });
-  // console.log("--- getGenomeClassScoresByDiversityProjectionWithNewGenomes featuresResponse", featuresResponse);
-  const newGenomeFeatureVector = featuresResponse.features;
-  // newGenomesFeatures.push( newGenomeFeatureVector );
-  const newGenomeEmbedding = featuresResponse.embedding;
-  // newGenomesEmbedding.push( newGenomeEmbedding );
+  let qualityFeaturesResponse, projectionFeaturesResponse;
 
-  const featuresType = featuresResponse.type;
+  if (qualityFeatureExtractionEndpoint === projectionFeatureExtractionEndpoint) {
+    // If endpoints are the same, make only one call
+    const featuresResponse = await getFeaturesFromWebsocket(
+      audioBuffer,
+      evaluationFeatureExtractionHost + qualityFeatureExtractionEndpoint,
+      ckptDir,
+      sampleRate
+    );
+    qualityFeaturesResponse = projectionFeaturesResponse = featuresResponse;
+  } else {
+    // If endpoints are different, make two separate calls
+    [qualityFeaturesResponse, projectionFeaturesResponse] = await Promise.all([
+      getFeaturesFromWebsocket(
+        audioBuffer,
+        evaluationFeatureExtractionHost + qualityFeatureExtractionEndpoint,
+        ckptDir,
+        sampleRate
+      ),
+      getFeaturesFromWebsocket(
+        audioBuffer,
+        evaluationFeatureExtractionHost + projectionFeatureExtractionEndpoint,
+        ckptDir,
+        sampleRate
+      )
+    ]);
+  }
 
   let newGenomeQuality;
-  if( qualityFromEmbeds || qualityFromFeatures ) {
+  if (qualityFromFeatures || qualityFromEmbeds) {
     let vectorsToCompare;
-    if( qualityFromEmbeds ) {
-      vectorsToCompare = newGenomeEmbedding;
+    if (qualityFromFeatures) {
+      vectorsToCompare = qualityFeaturesResponse.features;
     } else {
-      vectorsToCompare =  newGenomeFeatureVector;
+      vectorsToCompare = qualityFeaturesResponse.embedding;
     }
-    if( vectorsToCompare.length === 1  ) {  
+    
+    if (vectorsToCompare.length === 1) {
       console.error(`Error: vectorsToCompare has length 1`);
     }
-    // const hostEvalQualityEncodedBase64 = Buffer.from(evaluationQualityHost).toString('base64');
+    
     newGenomeQuality = await getQualityFromWebsocketForEmbedding(
       vectorsToCompare,
       refSetEmbedsPath,
       querySetEmbedsPath,
       measureCollectivePerformance,
-      evaluationQualityHost,
-      ckptDir, // `${ckptDir}/${hostEvalQualityEncodedBase64}`
-    ).catch(e => {
-      console.error(`getFeaturesAndScoreForAudioBuffer: Error getting quality.`, e);
-    });
+      evaluationQualityHost + qualityEvaluationEndpoint,
+      ckptDir
+    );
   } else {
-    // get quality from audio buffer
+    // Fallback to using audio buffer for quality evaluation
     newGenomeQuality = await getQualityFromWebsocket(
       audioBuffer,
-      evaluationQualityHost
-    ).catch(e => {
-      console.error(`Error getting quality from evaluationFeatureExtractionHost ${evaluationFeatureExtractionHost}`, e);
-    });
+      evaluationQualityHost + qualityEvaluationEndpoint
+    );
   }
+
   return {
-    features: newGenomeFeatureVector,
-    featuresType,
-    embedding: newGenomeEmbedding,
+    qualityFeatures: qualityFeaturesResponse.features,
+    qualityFeaturesType: qualityFeatureType,
+    qualityEmbedding: qualityFeaturesResponse.embedding,
+    projectionFeatures: projectionFeaturesResponse.features,
+    projectionFeaturesType: projectionFeatureType,
+    projectionEmbedding: projectionFeaturesResponse.embedding,
     quality: newGenomeQuality
   };
 }
@@ -2132,10 +2212,11 @@ function getFeaturesForGenomeString(
 async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDiversityHost, evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap ) {
   const featuresArray = seedFeaturesAndScores.map( f => f.features );
   const pcaComponents = eliteMap.classConfigurations && eliteMap.classConfigurations.length ? eliteMap.classConfigurations[0].pcaComponentsn : undefined;
+  const projectionEndpoint = eliteMap.classConfigurations && eliteMap.classConfigurations.length ? eliteMap.classConfigurations[0].projectionEndpoint : undefined;
   const diversityProjection = await getDiversityFromWebsocket(
     featuresArray,
     undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
-    evaluationDiversityHost,
+    evaluationDiversityHost + projectionEndpoint,
     evoRunDirPath,
     true, // shouldFit
     pcaComponents,
@@ -2352,7 +2433,14 @@ async function retrainProjectionModel(
   // - each actually persists the projection model, while it would be enough that one does; a bit suboptimal, but not a big deal
   let diversityProjection;
   // require that eliteMap.classConfigurations[] is populated
-  const {featureExtractionType, projectionEndpoint, pcaComponents} = eliteMap.classConfigurations[eliteMap.eliteMapIndex];
+
+  // const {featureExtractionType, projectionEndpoint, pcaComponents} = eliteMap.classConfigurations[eliteMap.eliteMapIndex];
+
+  const {
+    projectionFeatureType,
+    projectionEndpoint,
+    pcaComponents
+  } = getWsServiceEndpointsFromClassConfiguration(eliteMap.classConfigurations[eliteMap.eliteMapIndex]);
 
   // let's add cellFeatures to a Map to guarantee order, and consistency with corresponding elites
   let cellFeaturesMap = new Map();
@@ -2371,7 +2459,8 @@ async function retrainProjectionModel(
   const cellKeysWithFeatures = cellFeaturesMap.keys();
   const allFeaturesToProject = [];
   for( const cellKeyWithFeatures of cellKeysWithFeatures ) {
-    allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures][featureExtractionType].features );
+    // allFeaturesToProject.push( cellFeatures[cellKeyWithFeatures][featureExtractionType].features );
+    allFeaturesToProject.push(cellFeatures[cellKeyWithFeatures][projectionFeatureType].features);
   }
   const evaluationDiversityHost = evaluationDiversityHosts[0]; // if more than other servers, they will pick up the updated model data by checking file timestamps; see dimensionality_reduction.py in kormosynth-evaluate
   console.log(`Retraining projection with ${allFeaturesToProject.length} features, after generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`);
@@ -3034,31 +3123,34 @@ function readFromFileWhenItExists( filePath, tries ) {
   });
 }
 
-function getWsServiceEndpointsFromClassConfiguration( classConfiguration ) {
-  let featureExtractionEndpoint;
-  let qualityEvaluationEndpoint;
-  let projectionEndpoint;
-  let shouldRetrainProjection;
-  let shouldCalculateNovelty;
-  // if( classificationGraphModel.classConfigurations && classificationGraphModel.classConfigurations.length ) {
-  if( classConfiguration ) {
-    // featureExtractionEndpoint = classificationGraphModel.classConfigurations[eliteMapIndex].featureExtractionEndpoint;
-    // qualityEvaluationEndpoint = classificationGraphModel.classConfigurations[eliteMapIndex].qualityEvaluationEndpoint;
-    // projectionEndpoint = classificationGraphModel.classConfigurations[eliteMapIndex].projectionEndpoint;
-    featureExtractionEndpoint = classConfiguration.featureExtractionEndpoint;
-    qualityEvaluationEndpoint = classConfiguration.qualityEvaluationEndpoint;
-    projectionEndpoint = classConfiguration.projectionEndpoint;
-    shouldRetrainProjection = classConfiguration.shouldRetrainProjection;
-    shouldCalculateNovelty = classConfiguration.shouldCalculateNovelty;
-  } else {
-    featureExtractionEndpoint = "";
-    qualityEvaluationEndpoint = "";
-    projectionEndpoint = "";
-    shouldRetrainProjection = false;
-    shouldCalculateNovelty = false;
+function getWsServiceEndpointsFromClassConfiguration(classConfiguration) {
+  if (!classConfiguration) {
+    return {
+      qualityFeatureExtractionEndpoint: "",
+      projectionFeatureExtractionEndpoint: "",
+      qualityFeatureType: "",
+      projectionFeatureType: "",
+      qualityEvaluationEndpoint: "",
+      projectionEndpoint: "",
+      shouldRetrainProjection: false,
+      shouldCalculateNovelty: false,
+      qualityFromFeatures: false,
+      usingQueryEmbeddings: false,
+      sampleRate: 16000
+    };
   }
-  return { 
-    featureExtractionEndpoint, qualityEvaluationEndpoint, 
-    projectionEndpoint, shouldRetrainProjection, shouldCalculateNovelty 
+
+  return {
+    qualityFeatureExtractionEndpoint: classConfiguration.qualityFeatureExtractionEndpoint || classConfiguration.featureExtractionEndpoint,
+    projectionFeatureExtractionEndpoint: classConfiguration.projectionFeatureExtractionEndpoint || classConfiguration.featureExtractionEndpoint,
+    qualityFeatureType: classConfiguration.qualityFeatureType || classConfiguration.featureExtractionType,
+    projectionFeatureType: classConfiguration.projectionFeatureType || classConfiguration.featureExtractionType,
+    qualityEvaluationEndpoint: classConfiguration.qualityEvaluationEndpoint,
+    projectionEndpoint: classConfiguration.projectionEndpoint,
+    shouldRetrainProjection: classConfiguration.shouldRetrainProjection,
+    shouldCalculateNovelty: classConfiguration.shouldCalculateNovelty,
+    qualityFromFeatures: classConfiguration.qualityFromFeatures,
+    usingQueryEmbeddings: classConfiguration.usingQueryEmbeddings,
+    sampleRate: classConfiguration.sampleRate
   };
 }

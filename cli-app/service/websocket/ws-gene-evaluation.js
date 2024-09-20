@@ -5,11 +5,11 @@ export function isServerAvailable( serverUrl ) {
   return new Promise( resolve => {
     const ws = new WebSocket(serverUrl);
     ws.onopen = () => {
-      ws.close();
+      ws.close(1000);
       resolve(true);
     };
     ws.onerror = () => {
-      ws.close();
+      ws.close(1000);
       resolve(false);
     };
   });
@@ -132,10 +132,10 @@ export function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
         const buffer = new Uint8Array( message );
         const channelData = new Float32Array( buffer.buffer );
         // console.log('channelData', channelData);
-        ws.close(); // close the websocket connection
+        ws.close(1000); // close the websocket connection
         resolve( channelData );
       } else {
-        ws.close(); // close the websocket connection
+        ws.close(1000); // close the websocket connection
         reject( message );
       }
     });
@@ -167,11 +167,11 @@ export function getAudioClassPredictionsFromWebsocket(
     ws.on('message', (message) => {
       try {
         const predictions = JSON.parse( message );
-        ws.close(); // close the websocket connection
+        ws.close(1000); // close the websocket connection
         resolve( predictions );
       } catch( error ) {
         console.error("getAudioClassPredictionsFromWebsocket: could not parse message: " + message, error);
-        ws.close(); // close the websocket connection
+        ws.close(1000); // close the websocket connection
         resolve( {} );
       }
     });
@@ -210,7 +210,7 @@ export function getFeaturesFromWebsocket(
     ws.on('message', (message) => {
       clearTimeout(timeout); // Clear the timeout when a message is received
       const features = JSON.parse( message );
-      ws.close(); // close the websocket connection
+      ws.close(1000); // close the websocket connection
       resolve( features );
     });
     ws.on('error', (error) => {
@@ -235,7 +235,7 @@ export function getQualityFromWebsocket(  // TODO: rename to getQualityFromWebso
     });
     ws.on('message', (message) => {
       const quality = JSON.parse( message );
-      ws.close(); // close the websocket connection
+      ws.close(1000); // close the websocket connection
       resolve( quality );
     });
     ws.on('error', (error) => {
@@ -269,11 +269,11 @@ export function getQualityFromWebsocketForEmbedding(
     ws.on('message', (message) => {
       if( message.status === 'ERROR' ) {
         console.error('getQualityFromWebsocketForEmbedding error:', message);
-        ws.close(); // close the websocket connection
+        ws.close(1000); // close the websocket connection
         reject( message );
       } else {
         const quality = JSON.parse( message );
-        ws.close(); // close the websocket connection
+        ws.close(1000); // close the websocket connection
         resolve( quality );
       }
     });
@@ -298,7 +298,7 @@ export function addToQualityQueryEmbeddigs(
     });
     ws.on('message', (message) => {
       const quality = JSON.parse( message );
-      ws.close(); // close the websocket connection
+      ws.close(1000); // close the websocket connection
       resolve( quality );
     });
     ws.on('error', (error) => {
@@ -339,7 +339,7 @@ export function getDiversityFromWebsocket(
     ws.on('message', (message) => {
       clearTimeout(timeout); // Clear the timeout when a message is received
       const diversity = JSON.parse( message );
-      ws.close(); // close the websocket connection
+      ws.close(1000); // close the websocket connection
       resolve( diversity );
     });
     ws.on('error', (error) => {
