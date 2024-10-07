@@ -23,13 +23,13 @@
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
           "shouldRetrainProjection": true,
-          "projectionRetrainingLinearGapIncrement": 10,
-          "shouldCalculateNovelty": false,
-          "shouldCalculateSurprise": false,
+          "shouldCalculateSurprise": true,
+          "shouldUseAutoEncoderForSurprise": true, // for surprise calculation
+          "shouldCalculateNovelty": true,
           "shouldTrackDiversity": true,
           "sampleRate": 16000,
-          "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
-          "eliteRemappingCompetitionCriteria": "score" // one of: 'score', 'novelty' or 'surprise',
+          "mapSelectorBias": "surprise", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+          "eliteRemappingCompetitionCriteria": "surprise" // one of: 'score', 'novelty' or 'surprise',
         }
       ],
       "classificationDimensions": [100, 100]
@@ -81,7 +81,7 @@
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
-    "ws://127.0.0.1:33052",
-    "ws://127.0.0.1:33053"
+    // "ws://127.0.0.1:33052",
+    // "ws://127.0.0.1:33053"
   ]
 }

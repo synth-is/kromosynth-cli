@@ -5,7 +5,7 @@
   // "batchSize": 16, // 625, // 0,0625 * 10000 (32/512)
   "maxNumberOfParents": 1,
 
-  "renderElitesToWavFiles": true,
+  "renderElitesToWavFiles": false,
 
   "oneCPPNPerFrequency": true,
 
@@ -23,7 +23,7 @@
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
           "shouldRetrainProjection": true,
-          "projectionRetrainingLinearGapIncrement": 10,
+          "projectionRetrainingLinearGapIncrement": 50,
           "shouldCalculateNovelty": false,
           "shouldCalculateSurprise": false,
           "shouldTrackDiversity": true,

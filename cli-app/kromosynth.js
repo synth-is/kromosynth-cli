@@ -61,13 +61,15 @@ import {
 	calcStandardDeviation, calcVariance, calcMean,
 	runCmd,
 	averageAttributes, standardDeviationAttributes, 
-	getCommitCount, getClassLabelsWithElites, readGenomeAndMetaFromDisk, 
+	getCommitCount, getClassLabelsWithElites, 
 	getEliteMap, getEliteMaps, 
 	getClassLabelsWithElitesFromEliteMap
 } from './util/qd-common.js';
+import { readGenomeAndMetaFromDisk } from './util/qd-common-elite-map-persistence.js';
 import { extractFeaturesFromAllAudioFiles } from './extract-audio-features-from-dataset.js';
 import { traceLineage, findLatestDescendantsByClass } from './util/lineage.js';
-import { mean, median, variance, std } from 'mathjs'
+import { mapEliteMapToMapWithDifferentBDs } from './util/terrain-remap.js';
+import { mean, median, variance, std, map } from 'mathjs'
 import { sample } from 'lodash-es';
 
 const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";
@@ -263,6 +265,22 @@ const cli = meow(`
 		--suffixes-filter	Array of file suffixes to filter the dataset folder by; e.g. '"020.wav,030.wav,040.wav,050.wav,060.wav,070.wav,080.wav,090.wav,100.wav"
 		--feature-types-filter Array of feature types to extract; e.g. '"mfcc,vggish"'
 
+		Command <map-elite-map-to-map-with-different-bd>
+		--evolution-run-id	See above
+		--evo-run-dir-path Path to the evolution run directory
+		--terrain-name-from Name of the terrain to map from
+		--terrain-name-to Name of the terrain to map to
+		--genome-rendering-host Host of the genome rendering server
+		--feature-extraction-host Host of the feature extraction server
+		--quality-evaluation-feature-extraction-endpoint Endpoint of the feature extraction server for obtaining features for quality evaluation
+		--projection-feature-extraction-endpoint Endpoint of the feature extraction server for obtaining features for projection
+		--quality-evaluation-host Host of the quality evaluation server
+		--quality-evaluation-endpoint Endpoint of the quality evaluation server
+		--projection-host Host of the projection server
+		--projection-endpoint Endpoint of the projection server
+		--use-gpu
+		--sample-rate
+
 	Examples
 		$ kromosynth new-genome [--write-to-file]
 		$ kromosynth mutate-genome [--read-from-file | --read-from-input] [--write-to-file | --write-to-output]
@@ -310,6 +328,14 @@ const cli = meow(`
 		$ kromosynth render-lineage-tree --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --lineage-tree-json-file ~/Downloads/lineage.json --write-to-folder ~/Downloads/lineage-renders
 
 		$ kromosynth extract-features --dataset-folder /Users/bjornpjo/Downloads/OneBillionWav --write-to-folder /Users/bjornpjo/Downloads/OneBillionWav_features --sample-rate 44100 --ckpt-dir /Users/bjornpjo/.cache/torch/hub/checkpoints --feature-extraction-server-host 'ws://localhost:31051' --suffixes-filter "020.wav,030.wav,040.wav,050.wav,060.wav,070.wav,080.wav,090.wav,100.wav" --feature-types-filter "mfcc,vggish"
+
+		$ kromosynth map-elite-map-to-map-with-different-bd --evolution-run-id 01GVR6ZWKJAXF3DHP0ER8R6S2J --evo-run-dir-path ~/evoruns/01GVR6ZWKJAXF3DHP0ER8R6S2J \
+			--terrain-name-from "bd24" --terrain-name-to "bd16" \
+			--genome-rendering-host ws://127.0.0.1:30051 \
+			--feature-extraction-host ws://127.0.0.1:31051 --quality-evaluation-feature-extraction-endpoint "/mfcc" --projection-feature-extraction-endpoint "/manual?features=spectral_centroid,spectral_flatness" \
+			--quality-evaluation-host ws://127.0.0.1:32051 --quality-evaluation-endpoint "/cosine?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=mfcc" \
+			--projection-host http://localhost:31053 --projection-endpoint /manual?features=spectral_centroid,spectral_flatness \
+			--use-gpu true --sample-rate 16000
 
 		TODO see saveRenderedSoundsToFilesWorker onwards
 
@@ -541,6 +567,43 @@ const cli = meow(`
 		lineageTreeJsonFile: {
 			type: 'string'
 		},
+
+		// map-elite-map-to-map-with-different-bd
+		terrainNameFrom: {
+			type: 'string'
+		},
+		terrainNameTo: {
+			type: 'string'
+		},
+		genomeRenderingHost: {
+			type: 'string'
+		},
+		featureExtractionHost: {
+			type: 'string'
+		},
+		qualityEvaluationFeatureExtractionEndpoint: {
+			type: 'string'
+		},
+		projectionFeatureExtractionEndpoint: {
+			type: 'string'
+		},
+		qualityEvaluationHost: {
+			type: 'string'
+		},
+		qualityEvaluationEndpoint: {
+			type: 'string'
+		},
+		projectionHost: {
+			type: 'string'
+		},
+		projectionEndpoint: {
+			type: 'string'
+		},
+
+		terrainName: {
+			type: 'string',
+			default: ''
+		},
 	}
 });
 
@@ -669,6 +732,9 @@ async function executeEvolutionTask() {
 			break;
 		case "extract-features":
 			extractFeatures();
+			break;
+		case "map-elite-map-to-map-with-different-bd":
+			cmdMapEliteMapToMapWithDifferentBD();
 			break;
     default:
       cli.showHelp();
@@ -1103,6 +1169,27 @@ async function extractFeatures() {
 	await extractFeaturesFromAllAudioFiles( datasetFolder, writeToFolder, sampleRate, ckptDir, featureExtractionServerHost, suffixesFilter, featureTypesFilter );
 }
 
+async function cmdMapEliteMapToMapWithDifferentBD() {
+	const {
+		evolutionRunId, evoRunDirPath,
+		terrainNameFrom, terrainNameTo, 
+		genomeRenderingHost, 
+		featureExtractionHost, qualityEvaluationFeatureExtractionEndpoint, projectionFeatureExtractionEndpoint, 
+		qualityEvaluationHost, qualityEvaluationEndpoint, 
+		projectionHost, projectionEndpoint,
+		useGPU, sampleRate
+	} = cli.flags;
+	await mapEliteMapToMapWithDifferentBDs(
+		evolutionRunId, evoRunDirPath, terrainNameFrom, terrainNameTo,
+		genomeRenderingHost,
+		featureExtractionHost, qualityEvaluationFeatureExtractionEndpoint, projectionFeatureExtractionEndpoint, 
+		qualityEvaluationHost, qualityEvaluationEndpoint,
+		projectionHost, projectionEndpoint,
+		useGPU,
+		sampleRate
+	);
+}
+
 async function getEvoruns( evorunsRestServerUrl ) {
 	const response = await fetch( `${evorunsRestServerUrl}/evorunpaths` );
 	const evoruns = await response.json();
@@ -1441,7 +1528,10 @@ async function qdAnalysis_percentCompletion() {
 
 async function qdAnalysis_evoRuns() {
 	const evoRunsConfig = getEvolutionRunsConfig();
-	const {analysisOperations, stepSize, scoreThreshold, uniqueGenomes, excludeEmptyCells, classRestriction, maxIterationIndex, writeToFolder} = cli.flags;
+	const {
+		analysisOperations, stepSize, scoreThreshold, uniqueGenomes, excludeEmptyCells, classRestriction, maxIterationIndex, 
+		writeToFolder, terrainName
+	} = cli.flags;
 	const analysisOperationsList = analysisOperations.split(",");
 	let classRestrictionList;
 	if( classRestriction ) {
@@ -1454,7 +1544,7 @@ async function qdAnalysis_evoRuns() {
 	if( writeToFolder === './' ) { // let's then rather place the output at evoRunsConfig.baseEvolutionRunConfigFile
 		analysisResultFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
 	} else {
-		analysisResultFilePath = `${writeToFolder}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
+		analysisResultFilePath = `${writeToFolder}/evolution-run-analysis_${analysisOperationsList}${terrainName ? '_terrain-'+terrainName : ''}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
 	}
 	for( let currentEvolutionRunIndex = 0; currentEvolutionRunIndex < evoRunsConfig.evoRuns.length; currentEvolutionRunIndex++ ) {
 		const currentEvoConfig = evoRunsConfig.evoRuns[currentEvolutionRunIndex];
@@ -1503,13 +1593,25 @@ async function qdAnalysis_evoRuns() {
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "score-matrices" ) {
-						const scoreMatrices = await getScoreMatricesForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+						const scoreMatrices = await getScoreMatricesForAllIterations( evoRunConfig, evolutionRunId, stepSize, terrainName, false/*includeGenomeId*/ );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreMatrices = scoreMatrices;
+						console.log(`Added score matrices to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
+					if( oneAnalysisOperation === "score-and-genome-matrices" ) {
+						const scoreMatrices = await getScoreMatricesForAllIterations( evoRunConfig, evolutionRunId, stepSize, terrainName, true/*includeGenomeId*/ );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreMatrices = scoreMatrices;
 						console.log(`Added score matrices to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "score-matrix" ) {
-						const scoreMatrix = await getScoreMatrixForLastIteration( evoRunConfig, evolutionRunId );
+						const scoreMatrix = await getScoreMatrixForLastIteration( evoRunConfig, evolutionRunId, terrainName );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreMatrix = scoreMatrix;
+						console.log(`Added score matrix to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
+					if( oneAnalysisOperation === "score-and-genome-matrix" ) {
+						const scoreMatrix = await getScoreMatrixForLastIteration( evoRunConfig, evolutionRunId, terrainName, true/*includeGenomeId*/ );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreMatrix = scoreMatrix;
 						console.log(`Added score matrix to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );

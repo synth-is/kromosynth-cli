@@ -5,7 +5,7 @@
   // "batchSize": 16, // 625, // 0,0625 * 10000 (32/512)
   "maxNumberOfParents": 1,
 
-  "renderElitesToWavFiles": true,
+  "renderElitesToWavFiles": false,
 
   "oneCPPNPerFrequency": true,
 
@@ -16,14 +16,14 @@
           "refSetName": "customRef1",
           // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
           // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
-          "featureExtractionEndpoint": "/mfcc",
-          "featureExtractionType": "mfcc",
-          "qualityEvaluationEndpoint": "/adaptive?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=mfcc",
+          "featureExtractionEndpoint": "/vggish",
+          "featureExtractionType": "vggish",
+          "qualityEvaluationEndpoint": "/adaptive?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=vggish",
           "qualityFromFeatures": true,
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
           "shouldRetrainProjection": true,
-          "projectionRetrainingLinearGapIncrement": 10,
+          "shouldUseAutoEncoderForSurprise": false, // for surprise calculation
           "shouldCalculateNovelty": false,
           "shouldCalculateSurprise": false,
           "shouldTrackDiversity": true,

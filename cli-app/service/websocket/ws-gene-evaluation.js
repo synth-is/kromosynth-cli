@@ -316,6 +316,7 @@ export function getDiversityFromWebsocket(
   evoRunDirPath,
   shouldFit,
   pcaComponents,
+  shouldCalculateSurprise, shouldUseAutoEncoderForSurprise,
   shouldCalculateNovelty
 ) {
   console.log('getDiversityFromWebsocket', evaluationDiversityHost);
@@ -328,13 +329,15 @@ export function getDiversityFromWebsocket(
         "fitness_values": fitnessValues,
         "evorun_dir": evoRunDirPath,
         "should_fit": shouldFit,
+        "calculate_surprise": shouldCalculateSurprise,
+        "use_autoencoder_for_surprise": shouldUseAutoEncoderForSurprise,
         "calculate_novelty": shouldCalculateNovelty,
         "pca_components": pcaComponents,
       };
       ws.send( JSON.stringify( diversityMessage ), { timeout: 120000 } );
       timeout = setTimeout(() => {
         reject(new Error('WebSocket request timed out'));
-      }, 120000); // Set timeout to 60 seconds
+      }, 600000); // Set timeout to 10 minutes; e.g. UMAP can take a long time to train
     });
     ws.on('message', (message) => {
       clearTimeout(timeout); // Clear the timeout when a message is received

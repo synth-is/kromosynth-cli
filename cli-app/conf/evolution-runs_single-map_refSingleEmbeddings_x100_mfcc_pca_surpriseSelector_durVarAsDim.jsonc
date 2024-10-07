@@ -1,0 +1,18 @@
+{
+  "baseEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_surpriseSelector_durVarAsDim__2024-09",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_surpriseSelector_durVarAsDim.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01J94582RJ2WAJVMT45Y1JY2V2_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_surpriseSelector_durVarAsDim__2024-09"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

@@ -29,10 +29,16 @@
       "iterations": [
         {
           "id": "01J1JD4VQADMB2VJA9688Z3FZ8_YAMNet-durDims_noOsc"
+        },
+        {
+          "id": "01J1YQYS69JJYSVG6FWRGXXS45_YAMNet-durDims_noOsc"
+        },
+        {
+          "id": "01J1ZZF2J09MM1YARNR9RYP6AB_YAMNet-durDims_noOsc"
         }
       ]
     }
   ],
   "currentEvolutionRunIndex": 2,
-  "currentEvolutionRunIteration": 0
+  "currentEvolutionRunIteration": 2
 }

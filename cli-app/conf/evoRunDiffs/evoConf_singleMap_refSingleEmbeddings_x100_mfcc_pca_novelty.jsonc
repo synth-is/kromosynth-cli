@@ -5,7 +5,7 @@
   // "batchSize": 16, // 625, // 0,0625 * 10000 (32/512)
   "maxNumberOfParents": 1,
 
-  "renderElitesToWavFiles": true,
+  "renderElitesToWavFiles": false,
 
   "oneCPPNPerFrequency": true,
 
@@ -23,13 +23,11 @@
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
           "shouldRetrainProjection": true,
-          "projectionRetrainingLinearGapIncrement": 10,
-          "shouldCalculateNovelty": false,
-          "shouldCalculateSurprise": false,
+          "shouldCalculateSurprise": true,
+          "shouldCalculateNovelty": true,
           "shouldTrackDiversity": true,
           "sampleRate": 16000,
-          "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
-          "eliteRemappingCompetitionCriteria": "score" // one of: 'score', 'novelty' or 'surprise',
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         }
       ],
       "classificationDimensions": [100, 100]

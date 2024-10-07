@@ -3,36 +3,15 @@ import { execSync, exec, spawn } from 'child_process';
 import fs from 'fs-extra';
 import nthline from 'nthline';
 import { renderAudio } from 'kromosynth';
+import { 
+  getAudioBufferChannelDataForGenomeAndMetaFromWebsocet,
+  getFeaturesFromWebsocket,
+} from '../service/websocket/ws-gene-evaluation.js';
 
 export function getEvoRunDirPath( evoRunConfig, evoRunId ) {
   const { evoRunsDirPath } = evoRunConfig;
   const evoRunDirPath = `${evoRunsDirPath}${evoRunId}/`;
   return evoRunDirPath;
-}
-
-export async function readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath ) {
-  let genomeJSONString;
-  try {
-    const genomeKey = getGenomeKey(evolutionRunId, genomeId);
-    const evoRunDirPathSeparator = evoRunDirPath.endsWith('/') ? '' : '/';
-    const genomeFilePath = `${evoRunDirPath}${evoRunDirPathSeparator}${genomeKey}.json`;
-    if( fs.existsSync(genomeFilePath) ) {
-      genomeJSONString = fs.readFileSync(genomeFilePath, 'utf8');
-      // console.log(`Genome file found: ${genomeFilePath}`);
-    } else {
-      console.error(`Genome file NOT found: ${genomeFilePath}`);
-    }
-  } catch( err ) {
-    console.error("readGenomeFromDisk: ", err);
-  }
-  return genomeJSONString;
-}
-
-export function getGenomeKey( evolutionRunId, genomeId ) {
-  return `genome_${evolutionRunId}_${genomeId}`;
-}
-export function getFeaturesKey( evolutionRunId, genomeId ) {
-  return `features_${evolutionRunId}_${genomeId}`;
 }
 
 export function deleteAllGenomesNotInEliteMap( eliteMap, evoRunDirPath ) {
@@ -66,6 +45,72 @@ export function deleteAllGenomeRendersNotInEliteMap( eliteMap, evoRenderDirPath 
     }
   }
 }
+
+export function getDurationNoteDeltaVelocityFromGenomeString( genomeString, cellKey ) {
+  const genomeAndMeta = JSON.parse( genomeString );
+  let tagForCell;
+  if( cellKey ) {
+    if( genomeAndMeta.genome.tags !== undefined ) {
+      tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === cellKey );
+    }      
+    if( undefined === tagForCell && genomeAndMeta.genome.tags !== undefined ) {
+      // this genome has not been an elite in the current map, so let's use the last tag
+      tagForCell = genomeAndMeta.genome.tags[genomeAndMeta.genome.tags.length - 1];
+    }
+  } else {
+    // let's use the last tag
+    tagForCell = genomeAndMeta.genome.tags[genomeAndMeta.genome.tags.length - 1];
+  }
+  // const { duration, noteDelta, velocity } = tagForCell;
+  let duration, noteDelta, velocity;
+  if( tagForCell !== undefined ) { // handling temporary condition during development, otherwise we should be able to destructure directly from tagForCell
+    duration = tagForCell.duration;
+    noteDelta = tagForCell.noteDelta;
+    velocity = tagForCell.velocity;
+  }
+  return { duration, noteDelta, velocity };
+}
+
+
+///// features
+
+export function getFeaturesForGenomeString( 
+  genomeString, 
+  duration, noteDelta, velocity, 
+  useGPU, 
+  antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs, 
+  geneRenderingServerHost, 
+  evaluationFeatureExtractionHost, featureExtractionEndpoint,
+  sampleRate,
+  ckptDir
+) {
+return new Promise( async (resolve, reject) => {
+  const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
+    genomeString,
+    duration,
+    noteDelta,
+    velocity,
+    useGPU,
+    antiAliasing,
+    frequencyUpdatesApplyToAllPathcNetworkOutputs,
+    geneRenderingServerHost, sampleRate
+  ).catch(e => {
+    console.error(`Error rendering geneome ${genomeString.substring(0, 10)}`, e);
+    reject(e);
+  });
+  const featuresResponse = await getFeaturesFromWebsocket(
+    audioBuffer,
+    evaluationFeatureExtractionHost + featureExtractionEndpoint,
+    ckptDir, // `${ckptDir}/${evaluationFeatureExtractionHostEncodedBase64}`,
+    sampleRate,
+  ).catch(e => {
+    console.error("Error getting features", e);
+    reject(e);
+  });
+  resolve( { features: featuresResponse.features, embedding: featuresResponse.embedding } );
+});
+}
+
 
 ///// functions corresponding to logic in endpoints in the kromosynth-evoruns project
 

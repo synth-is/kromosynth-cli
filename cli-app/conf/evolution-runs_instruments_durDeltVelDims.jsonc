@@ -1,0 +1,28 @@
+{
+  "baseEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "instruments_durDeltVelDims",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_instruments_durDeltVelDims.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": null
+        }
+      ]
+    },
+    {
+      "label": "instruments_durDeltVelDims_noOsc",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_instruments_durDeltVelDims.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01J29SGV2JKTZ32HNQTKX690AJ_instruments_durDeltVelDims_noOsc"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIteration": 0
+}

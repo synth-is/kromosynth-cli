@@ -9,6 +9,7 @@
   "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
   "batchSize": 50,
   "maxNumberOfParents": 1,
+  // "mapSelectorBias": - is in classConfigurations
   "terminationCondition": {
     // "numberOfEvals": 300000
   //  or
@@ -64,10 +65,18 @@
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "shouldRetrainProjection": true, // wether to periodically retrain the chosen dimensionality reduction (PCA, UMAP, VAE, etc.)
+          "projectionRetrainingLinearGapIncrement": 10,
+          "shouldCalculateSurprise": false,
+          "shouldUseAutoEncoderForSurprise": false, // if true, the autoencoder is used to calculate novelty scores, otherwise the PCA inverse_transform is used
           "shouldCalculateNovelty": true, // wether to calculate novelty scores, while projecting into the feature map
-          "pcaNoveltyWithAutoEncoder": false, // if true, the autoencoder is used to calculate novelty scores, otherwise the PCA inverse_transform is used
+          "shouldTrackDiversity": true,
+          "useNoveltyArchive": true, // wether to use a novelty archive, for intermitent inspiration when retraining unsupervised projections
+          "inspirationRate": 0.2, // the rate at which to draw from the novelty archive, when selecting an individual for mutation
+          "noveltyArchiveSizePercentage": 0.2, // the size of the novelty archive, as a percentage of the population size
           "pcaComponents": "0,1", // to allow selection of specific projection components, which are ranked by importence in the case of PCA
-          "sampleRate": 16000
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+          "eliteRemappingCompetitionCriteria": "score", // one of: 'score', 'novelty' or 'surprise',
         },
         {
           "refSetName": "string",
@@ -76,7 +85,9 @@
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "pcaComponents": "0,1",
-          "sampleRate": 16000
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+          // ...
         },
         {
           "refSetName": "reed",
@@ -84,7 +95,8 @@
           "featureExtractionEndpoint": "/vggish",
           "projectionEndpoint": "/pca",
           "pcaComponents": "0,1",
-          "sampleRate": 16000
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         }
       ],
       "classificationDimensions": [50, 50, ["mallet", "string", "reed"]]
@@ -97,7 +109,8 @@
           "featureExtractionEndpoint": "/mfcc",
           "projectionEndpoint": "/pca",
           "pcaComponents": "0,1",
-          "sampleRate": 16000
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         },
         {
           "refSetName": "myFavs1",
@@ -106,7 +119,8 @@
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "pcaComponents": "0,1",
-          "sampleRate": 16000
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         },
         {
           "refSetName": "myFavs2",
@@ -115,7 +129,8 @@
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "pcaComponents": "0,1",
-          "sampleRate": 16000
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         },
         {
           "refSetName": "myFavs3",
@@ -124,7 +139,8 @@
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "pcaComponents": "0,1",
-          "sampleRate": 48000
+          "sampleRate": 48000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         },
         {
           "refSetName": "myFavs4",
@@ -133,7 +149,8 @@
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "pcaComponents": "0,1",
-          "sampleRate": 24000
+          "sampleRate": 24000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         }
       ],
       "classificationDimensions": [50, 50]
@@ -147,7 +164,8 @@
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "pcaComponents": "0,2",
-          "sampleRate": 16000
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         },
         {
           "refSetName": "customRef2",
@@ -156,7 +174,8 @@
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "pcaComponents": "0,2",
-          "sampleRate": 16000
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         }
       ],
       "classificationDimensions": [100, 100]
@@ -172,7 +191,8 @@
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
           "pcaComponents": "0,1",
-          "sampleRate": 16000
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         },
         {
           "refSetName": "customRef2",
@@ -182,7 +202,8 @@
           "qualityFromFeatures": true,
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/umap",
-          "sampleRate": 16000
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         }
       ],
       "classificationDimensions": [100, 100]
@@ -199,7 +220,9 @@
           "projectionEndpoint": "/raw",
           "shouldRetrainProjection": false,
           "shouldCalculateNovelty": false,
-          "sampleRate": 16000
+          "shouldTrackDiversity": true,
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
         }
       ],
       "classificationDimensions": [100, 100]

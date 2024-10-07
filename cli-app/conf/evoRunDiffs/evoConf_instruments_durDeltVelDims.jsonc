@@ -1,0 +1,37 @@
+{
+  "evoRunsGroup": "instruments_durDeltVelDims", // for grouping runs, e.g. in a UI
+  "maxNumberOfParents": 1,
+  "terminationCondition": {
+  // "coverageGradientThreshold": 0.01
+  //  or
+    "qdScoreGradientThreshold": 0.01
+  },
+  "classifiers": [
+    ["nsynth","mtg_jamendo_instrument"]
+  ],
+  "classifierIndex" : 0,
+  "classScoringVariationsAsContainerDimensions": true,
+
+  "classScoringDurations": [4, 10],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "geneVariationServers": [
+    "127.0.0.1:50051"
+  ],
+  "geneEvaluationServers": [
+    "ws://127.0.0.1:40051?classifiers=nsynth,mtg_jamendo_instrument",
+    "ws://127.0.0.1:40052?classifiers=nsynth,mtg_jamendo_instrument",
+    "ws://127.0.0.1:40053?classifiers=nsynth,mtg_jamendo_instrument"
+  ],
+  "geneRenderingServers": [
+    "ws://127.0.0.1:30051",
+    "ws://127.0.0.1:30052",
+    "ws://127.0.0.1:30053"
+  ],
+
+  // disable UnsupervisedDiversityEvaluation:
+  "evaluationFeatureServers": [], // feature extraction
+  "evaluationQualityServers": [], // quality evaluation
+  "evaluationProjectionServers": [] // projection
+}

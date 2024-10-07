@@ -2,10 +2,10 @@ import fs from 'fs';
 import {
   runCmd, spawnCmd,
   getEvoRunDirPath,
-  readGenomeAndMetaFromDisk,
   calcVariance, calcStandardDeviation, calcMeanDeviation,
   averageAttributes, standardDeviationAttributes
 } from './util/qd-common.js';
+import { readGenomeAndMetaFromDisk } from './util/qd-common-elite-map-persistence.js';
 import nthline from 'nthline';
 import {
 	getAudioBufferFromGenomeAndMeta, getGenomeFromGenomeString,
@@ -296,12 +296,12 @@ export async function getCoverageForAllIterations( evoRunConfig, evoRunId, stepS
 
 // QD score heatmap
 
-export async function getScoreMatricesForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
+export async function getScoreMatricesForAllIterations( evoRunConfig, evoRunId, stepSize = 1, terrainName, includeGenomeId ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const terrainNames = getTerrainNames( evoRunConfig );
   let scoreMatrixes;
-  if( terrainNames.length ) {
+  if( terrainNames.length && ! terrainName ) {
     scoreMatrixes = {};
     for( const oneTerrainName of terrainNames ) {
       scoreMatrixes[oneTerrainName] = new Array(Math.ceil(commitCount / stepSize));
@@ -311,7 +311,7 @@ export async function getScoreMatricesForAllIterations( evoRunConfig, evoRunId, 
         console.log(`Calculating score matrix for iteration ${iterationIndex}...`);
         for( const oneTerrainName of terrainNames ) {
           scoreMatrixes[oneTerrainName][scoreMatrixIndex] = await getScoreMatrixForOneIteration(
-            evoRunConfig, evoRunId, iterationIndex, oneTerrainName
+            evoRunConfig, evoRunId, iterationIndex, oneTerrainName, includeGenomeId
           );
         }
       }
@@ -322,7 +322,7 @@ export async function getScoreMatricesForAllIterations( evoRunConfig, evoRunId, 
       if( iterationIndex % stepSize === 0 ) {
         console.log(`Calculating score matrix for iteration ${iterationIndex}...`);
         scoreMatrixes[scoreMatrixIndex] = await getScoreMatrixForOneIteration(
-          evoRunConfig, evoRunId, iterationIndex
+          evoRunConfig, evoRunId, iterationIndex, terrainName, includeGenomeId
         );
       }
     }
@@ -334,62 +334,173 @@ export async function getScoreMatricesForAllIterations( evoRunConfig, evoRunId, 
   return scoreMatrixes;
 }
 
-async function getScoreMatrixForOneIteration( evoRunConfig, evoRunId, iterationIndex, terrainName ) {
+async function getScoreMatrixForOneIteration( evoRunConfig, evoRunId, iterationIndex, terrainName, includeGenomeId ) {
   const eliteMap = await getEliteMap( 
     evoRunConfig, evoRunId, iterationIndex,
     false, // forceCreateCommitIdsList
     terrainName
   );
-  return getScoreMatrixFromEliteMap( eliteMap );
+  if( includeGenomeId ) {
+    return getScoreAndGenomeMatrixFromEliteMap( eliteMap );
+  } else {
+    return getScoreMatrixFromEliteMap( eliteMap );
+  }
 }
 
-export async function getScoreMatrixForLastIteration( evoRunConfig, evoRunId ) {
+export async function getScoreMatrixForLastIteration( evoRunConfig, evoRunId, terrainName, includeGenomeId ) {
   const terrainNames = getTerrainNames( evoRunConfig );
   let scoreMatrixes;
-  if( terrainNames.length ) {
+  if( terrainName ) {
+    console.log(`Calculating score matrix for terrain ${terrainName}...`);  
+    scoreMatrixes = await getScoreMatrixForOneIteration( evoRunConfig, evoRunId, undefined/*iteration*/, terrainName );
+  } else if( terrainNames.length ) {
     scoreMatrixes = {};
     for( const oneTerrainName of terrainNames ) {
       console.log(`Calculating score matrix for terrain ${oneTerrainName}...`);
-      const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, oneTerrainName );
-      scoreMatrixes[oneTerrainName] = await getScoreMatrixForTerrain( evoRunConfig, evoRunId, oneTerrainName );
+      // const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, oneTerrainName );
+      scoreMatrixes[oneTerrainName] = await getScoreMatrixForTerrain( evoRunConfig, evoRunId, oneTerrainName, includeGenomeId );
     }
   } else {
-    const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false );
-    scoreMatrixes = await getScoreMatrixForTerrain( evoRunConfig, evoRunId );
+    // const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false );
+    scoreMatrixes = await getScoreMatrixForTerrain( evoRunConfig, evoRunId, undefined/*terrainName*/, includeGenomeId );
   }
   return scoreMatrixes;
 }
 
-export async function getScoreMatrixForTerrain( evoRunConfig, evoRunId, terrainName ) {
+export async function getScoreMatrixForTerrain( evoRunConfig, evoRunId, terrainName, includeGenomeId ) {
   const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, terrainName );
-  return getScoreMatrixFromEliteMap( eliteMap );
+  if( includeGenomeId ) {
+    return getScoreAndGenomeMatrixFromEliteMap( eliteMap );
+  } else {
+    return getScoreMatrixFromEliteMap( eliteMap );
+  }
 }
 
-export async function getScoreMatrixFromEliteMap( eliteMap ) {
-  let scoresArray = [];
+export async function getScoreMatrixFromEliteMap(eliteMap) {
+  let scoresArray = {};
+  let is3D = false;
 
   // Iterate over each key in the JSON object
   for (let key in eliteMap.cells) {
-    let [firstIndex, secondIndex] = key.split(/[_|,]/); // Split key by underscore or comma
+    let parts = key.split('-');
+    let [firstIndex, secondIndex] = parts[0].split('_').map(Number);
+    let thirdDimension = parts[1];
 
-    firstIndex = parseInt(firstIndex);
-    secondIndex = parseInt(secondIndex);
+    if (thirdDimension) {
+      is3D = true;
+    }
 
-    // Create nested arrays to store scores
-    scoresArray[firstIndex] = scoresArray[firstIndex] || [];
+    // Initialize nested structures
+    if (!scoresArray[firstIndex]) {
+      scoresArray[firstIndex] = {};
+    }
 
     // Check if "elts" array exists and has elements
     if (
-      eliteMap.cells[key].hasOwnProperty("elts") && 
+      eliteMap.cells[key].hasOwnProperty("elts") &&
       eliteMap.cells[key].elts.length > 0
     ) {
-      scoresArray[firstIndex][secondIndex] = eliteMap.cells[key].elts[0].s;
+      if (is3D) {
+        if (!scoresArray[firstIndex][secondIndex]) {
+          scoresArray[firstIndex][secondIndex] = {};
+        }
+        scoresArray[firstIndex][secondIndex][thirdDimension] = eliteMap.cells[key].elts[0].s;
+      } else {
+        scoresArray[firstIndex][secondIndex] = eliteMap.cells[key].elts[0].s;
+      }
     } else {
-      scoresArray[firstIndex][secondIndex] = null; // Handle empty "elts" array
+      if (is3D) {
+        if (!scoresArray[firstIndex][secondIndex]) {
+          scoresArray[firstIndex][secondIndex] = {};
+        }
+        scoresArray[firstIndex][secondIndex][thirdDimension] = null;
+      } else {
+        scoresArray[firstIndex][secondIndex] = null;
+      }
     }
   }
 
-  return scoresArray;
+  // Convert the object to a nested array
+  let resultArray = Object.keys(scoresArray).sort((a, b) => Number(a) - Number(b)).map(i => {
+    return Object.keys(scoresArray[i]).sort((a, b) => Number(a) - Number(b)).map(j => {
+      if (is3D) {
+        return Object.keys(scoresArray[i][j]).sort().map(k => {
+          return scoresArray[i][j][k];
+        });
+      } else {
+        return scoresArray[i][j];
+      }
+    });
+  });
+
+  return resultArray;
+}
+
+export async function getScoreAndGenomeMatrixFromEliteMap(eliteMap) {
+  let dataArray = {};
+  let is3D = false;
+
+  // Iterate over each key in the JSON object
+  for (let key in eliteMap.cells) {
+    let parts = key.split('-');
+    let [firstIndex, secondIndex] = parts[0].split('_').map(Number);
+    let thirdDimension = parts[1];
+
+    if (thirdDimension) {
+      is3D = true;
+    }
+
+    // Initialize nested structures
+    if (!dataArray[firstIndex]) {
+      dataArray[firstIndex] = {};
+    }
+
+    // Check if "elts" array exists and has elements
+    if (
+      eliteMap.cells[key].hasOwnProperty("elts") &&
+      eliteMap.cells[key].elts.length > 0
+    ) {
+      let data = {
+        score: eliteMap.cells[key].elts[0].s,
+        genomeId: eliteMap.cells[key].elts[0].g
+      };
+
+      if (is3D) {
+        if (!dataArray[firstIndex][secondIndex]) {
+          dataArray[firstIndex][secondIndex] = {};
+        }
+        dataArray[firstIndex][secondIndex][thirdDimension] = data;
+      } else {
+        dataArray[firstIndex][secondIndex] = data;
+      }
+    } else {
+      let data = { score: null, genomeId: null };
+
+      if (is3D) {
+        if (!dataArray[firstIndex][secondIndex]) {
+          dataArray[firstIndex][secondIndex] = {};
+        }
+        dataArray[firstIndex][secondIndex][thirdDimension] = data;
+      } else {
+        dataArray[firstIndex][secondIndex] = data;
+      }
+    }
+  }
+
+  // Convert the object to a nested array
+  let resultArray = Object.keys(dataArray).sort((a, b) => Number(a) - Number(b)).map(i => {
+    return Object.keys(dataArray[i]).sort((a, b) => Number(a) - Number(b)).map(j => {
+      if (is3D) {
+        return Object.keys(dataArray[i][j]).sort().map(k => {
+          return dataArray[i][j][k];
+        });
+      } else {
+        return dataArray[i][j];
+      }
+    });
+  });
+
+  return resultArray;
 }
 
 ///// elite count
@@ -1668,17 +1779,39 @@ async function getEliteMap( evoRunConfig, evoRunId, iterationIndex, forceCreateC
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const terrainSuffix = terrainName ? `_${terrainName}` : '';
   let eliteMapFileName = `elites_${evoRunId}${terrainSuffix}.json`;
-  // check if eliteMapFileName exists
-  if( ! fs.existsSync(`${evoRunDirPath}/${eliteMapFileName}`) ) {
-    // let's try to find the first elite map file starting with 'elites_'
-    const eliteMapFiles = fs.readdirSync(evoRunDirPath).filter( file => file.startsWith('elites_') );
-    if( eliteMapFiles.length ) {
+  const eliteMapFilePath = `${evoRunDirPath}/${eliteMapFileName}`;
+
+  // Check if eliteMapFileName exists
+  if (!fs.existsSync(eliteMapFilePath)) {
+    // Try to find the first elite map file starting with 'elites_'
+    const eliteMapFiles = fs.readdirSync(evoRunDirPath).filter(file => file.startsWith('elites_'));
+    if (eliteMapFiles.length) {
       eliteMapFileName = eliteMapFiles[0];
     } else {
       throw new Error(`Elite map file not found in ${evoRunDirPath}`);
     }
   }
-  const eliteMapString = await spawnCmd(`git -C ${evoRunDirPath} show ${commitId}:${eliteMapFileName}`, {}, true);
+
+  // Check if the elite file is tracked by git
+  let isTracked = false;
+  try {
+    runCmd(`git -C ${evoRunDirPath} ls-files --error-unmatch ${eliteMapFileName}`, true);
+    isTracked = true;
+  } catch (error) {
+    if (error.message.includes("did not match any file(s) known to git")) {
+      isTracked = false;
+    } else {
+      throw error;
+    }
+  }
+
+  let eliteMapString;
+  if (isTracked) {
+    eliteMapString = await spawnCmd(`git -C ${evoRunDirPath} show ${commitId}:${eliteMapFileName}`, {}, true);
+  } else {
+    eliteMapString = fs.readFileSync(eliteMapFilePath, 'utf8');
+  }
+
   const eliteMap = JSON.parse(eliteMapString);
   return eliteMap;
 }

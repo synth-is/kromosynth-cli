@@ -5,7 +5,7 @@
   // "batchSize": 16, // 625, // 0,0625 * 10000 (32/512)
   "maxNumberOfParents": 1,
 
-  "renderElitesToWavFiles": true,
+  "renderElitesToWavFiles": false,
 
   "oneCPPNPerFrequency": true,
 
@@ -14,22 +14,23 @@
       "classConfigurations": [
         {
           "refSetName": "customRef1",
-          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
-          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
-          "featureExtractionEndpoint": "/mfcc",
-          "featureExtractionType": "mfcc",
+          // "featureExtractionEndpoint": "/manual?features=spectral_centroid,spectral_flatness",
+          // "featureExtractionType": "spectral_centroid,spectral_flatness",
+
+          "qualityFeatureExtractionEndpoint": "/mfcc",
+          "qualityFeatureType": "mfcc",
+          "projectionFeatureExtractionEndpoint": "/manual?features=spectral_centroid,spectral_flatness",
+          "projectionFeatureType": "spectral_centroid,spectral_flatness",
+
           "qualityEvaluationEndpoint": "/adaptive?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=mfcc",
           "qualityFromFeatures": true,
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
-          "projectionEndpoint": "/pca",
-          "shouldRetrainProjection": true,
-          "projectionRetrainingLinearGapIncrement": 10,
+          "projectionEndpoint": "/raw",
+          "shouldRetrainProjection": false,
           "shouldCalculateNovelty": false,
           "shouldCalculateSurprise": false,
           "shouldTrackDiversity": true,
-          "sampleRate": 16000,
-          "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
-          "eliteRemappingCompetitionCriteria": "score" // one of: 'score', 'novelty' or 'surprise',
+          "sampleRate": 16000
         }
       ],
       "classificationDimensions": [100, 100]
@@ -71,17 +72,17 @@
 
   "evaluationFeatureServers": [ // feature extraction
     "ws://127.0.0.1:31051",
-    "ws://127.0.0.1:31052",
-    "ws://127.0.0.1:31053"
+    // "ws://127.0.0.1:31052",
+    // "ws://127.0.0.1:31053"
   ],
   "evaluationQualityServers": [ // quality evaluation
     "ws://127.0.0.1:32051",
-    "ws://127.0.0.1:32052",
-    "ws://127.0.0.1:32053"
+    // "ws://127.0.0.1:32052",
+    // "ws://127.0.0.1:32053"
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
-    "ws://127.0.0.1:33052",
-    "ws://127.0.0.1:33053"
+    // "ws://127.0.0.1:33052",
+    // "ws://127.0.0.1:33053"
   ]
 }

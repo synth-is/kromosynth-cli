@@ -48,7 +48,7 @@ export function callGeneVariationService(
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('callGeneVariationService timed out'));
-    }, 5000); // 5 seconds timeout
+    }, 60000); // 60 seconds timeout
 
     const payload = {
       genomeStrings: struct.encode( {genomeStrings} ),

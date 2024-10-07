@@ -5,7 +5,7 @@
   // "batchSize": 16, // 625, // 0,0625 * 10000 (32/512)
   "maxNumberOfParents": 1,
 
-  "renderElitesToWavFiles": true,
+  "renderElitesToWavFiles": false,
 
   "oneCPPNPerFrequency": true,
 
@@ -23,10 +23,13 @@
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
           "shouldRetrainProjection": true,
-          "projectionRetrainingLinearGapIncrement": 10,
+          "projectionRetrainingLinearGapIncrement": 50,
           "shouldCalculateNovelty": false,
           "shouldCalculateSurprise": false,
           "shouldTrackDiversity": true,
+          "useNoveltyArchive": true, // wether to use a novelty archive, for intermitent inspiration when retraining unsupervised projections
+          "inspirationRate": 0.2, // the rate at which to draw from the novelty archive, when selecting an individual for mutation
+          "noveltyArchiveSizePercentage": 0.2, // the size of the novelty archive, as a percentage of the population size
           "sampleRate": 16000,
           "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
           "eliteRemappingCompetitionCriteria": "score" // one of: 'score', 'novelty' or 'surprise',

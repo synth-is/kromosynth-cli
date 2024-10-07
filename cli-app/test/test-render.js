@@ -143,7 +143,7 @@ async function spawnGenomeAndRenderSound() {
     );
 
     // rendering memory leak test:
-    for( let i=0; i<100000; i++ ) {
+    for( let i=0; i<10000; i++ ) {
       console.log("leak test", i);
       let offlineAudioContext = getNewOfflineAudioContext( duration );
       let tempAudioData = await getAudioBufferFromGenomeAndMeta( // debouncedGetAudioBufferFromGenomeAndMeta(
@@ -162,6 +162,7 @@ async function spawnGenomeAndRenderSound() {
       // if (global.gc) {
       //   global.gc();
       // }
+      // if( i % 100 === 0 ) await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
     console.log("audioData.length", audioData.length);

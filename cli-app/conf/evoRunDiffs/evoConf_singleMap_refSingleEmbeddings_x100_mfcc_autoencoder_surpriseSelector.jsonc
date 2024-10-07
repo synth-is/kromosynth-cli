@@ -5,7 +5,7 @@
   // "batchSize": 16, // 625, // 0,0625 * 10000 (32/512)
   "maxNumberOfParents": 1,
 
-  "renderElitesToWavFiles": true,
+  "renderElitesToWavFiles": false,
 
   "oneCPPNPerFrequency": true,
 
@@ -21,14 +21,13 @@
           "qualityEvaluationEndpoint": "/adaptive?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=mfcc",
           "qualityFromFeatures": true,
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
-          "projectionEndpoint": "/pca",
+          "projectionEndpoint": "/autoencoder",
           "shouldRetrainProjection": true,
-          "projectionRetrainingLinearGapIncrement": 10,
           "shouldCalculateNovelty": false,
-          "shouldCalculateSurprise": false,
+          "shouldCalculateSurprise": true,
           "shouldTrackDiversity": true,
           "sampleRate": 16000,
-          "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+          "mapSelectorBias": "surprise", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
           "eliteRemappingCompetitionCriteria": "score" // one of: 'score', 'novelty' or 'surprise',
         }
       ],
@@ -81,7 +80,7 @@
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
-    "ws://127.0.0.1:33052",
-    "ws://127.0.0.1:33053"
+    // "ws://127.0.0.1:33052",
+    // "ws://127.0.0.1:33053"
   ]
 }

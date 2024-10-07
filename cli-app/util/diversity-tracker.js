@@ -1,11 +1,11 @@
-import { promises as fs } from 'fs';
+import fs from 'fs';
 import path from 'path';
 import WebSocket from "ws";
+import { mean, median, variance, std } from 'mathjs'
 
 export default class DiversityTracker {
   constructor(websocketUrl, dataDir) {
-    this.websocket = new WebSocket(websocketUrl);
-    this.websocket.onmessage = this.handleMessage.bind(this);
+    this.websocketUrl = websocketUrl;
     this.metrics = {};
     this.comparisons = {};
     this.clusterAnalysis = {};
@@ -17,11 +17,10 @@ export default class DiversityTracker {
     this.performanceSpreadFile = path.join(dataDir, 'performance_spread.json');
   }
 
-  async sendMetricsRequest(generation, featureVectors, genotypes, stage) {
+  async sendMetricsRequest(generation, featureVectors, stage) {
     const data = {
       generation: generation,
       feature_vectors: featureVectors,
-      genotypes: genotypes,
       stage: stage
     };
     await this.sendMessage('/diversity_metrics', data);
@@ -46,42 +45,52 @@ export default class DiversityTracker {
     await this.sendMessage('/performance_spread', data);
   }
 
-  async storeMetrics(generation, metrics, stage) {
+  storeMetrics(generation, metrics, stage) {
     if (!this.metrics[generation]) {
       this.metrics[generation] = {};
     }
     this.metrics[generation][stage] = metrics;
 
-    if (this.metrics[generation]['before'] && this.metrics[generation]['after'] &&
-        this.clusterAnalysis[generation] && this.clusterAnalysis[generation]['before'] && this.clusterAnalysis[generation]['after'] &&
-        this.performanceSpread[generation] && this.performanceSpread[generation]['before'] && this.performanceSpread[generation]['after']) {
-      await this.compareMetrics(generation);
-    }
+    // if (this.metrics[generation]['before'] && this.metrics[generation]['after'] &&
+    //     this.clusterAnalysis[generation] && this.clusterAnalysis[generation]['before'] && this.clusterAnalysis[generation]['after'] &&
+    //     this.performanceSpread[generation] && this.performanceSpread[generation]['before'] && this.performanceSpread[generation]['after']) {
+    //   this.compareMetrics(generation);
+    // }
 
-    await this.persistMetrics();
+    // keep last novelty_scores_after only, to save memory and disk space
+    if (stage === 'after') {
+      this.last_novelty_scores_after = metrics.novelty_scores;
+      delete this.metrics[generation]['after'].novelty_scores;
+    }
+    if (stage === 'before') {
+      this.last_novelty_scores_before = metrics.novelty_scores;
+      delete this.metrics[generation]['before'].novelty_scores;
+    }
+    
+    this.persistMetrics();
   }
 
-  async storeClusterAnalysis(generation, analysis, stage) {
+  storeClusterAnalysis(generation, analysis, stage) {
     if (!this.clusterAnalysis[generation]) {
       this.clusterAnalysis[generation] = {};
     }
     this.clusterAnalysis[generation][stage] = analysis;
-    await this.persistClusterAnalysis();
+    this.persistClusterAnalysis();
   }
 
-  async storePerformanceSpread(generation, spread, stage) {
+  storePerformanceSpread(generation, spread, stage) {
     if (!this.performanceSpread[generation]) {
       this.performanceSpread[generation] = {};
     }
     this.performanceSpread[generation][stage] = spread;
-    await this.persistPerformanceSpread();
+    this.persistPerformanceSpread();
   }
 
-  async compareMetrics(generation) {
+  compareMetrics(generation) {
     const before = this.metrics[generation]['before'];
     const after = this.metrics[generation]['after'];
-    const clusterBefore = this.clusterAnalysis[generation]['before'];
-    const clusterAfter = this.clusterAnalysis[generation]['after'];
+    // const clusterBefore = this.clusterAnalysis[generation]['before'];
+    // const clusterAfter = this.clusterAnalysis[generation]['after'];
     const spreadBefore = this.performanceSpread[generation]['before'];
     const spreadAfter = this.performanceSpread[generation]['after'];
     
@@ -90,17 +99,20 @@ export default class DiversityTracker {
         mean_change: (after.behavioral_diversity.mean - before.behavioral_diversity.mean) / before.behavioral_diversity.mean,
         std_change: (after.behavioral_diversity.std - before.behavioral_diversity.std) / before.behavioral_diversity.std
       },
-      genotypic_diversity: {
-        mean_change: (after.genotypic_diversity.mean - before.genotypic_diversity.mean) / before.genotypic_diversity.mean,
-        std_change: (after.genotypic_diversity.std - before.genotypic_diversity.std) / before.genotypic_diversity.std
-      },
+      // genotypic_diversity: {
+      //   mean_change: (after.genotypic_diversity.mean - before.genotypic_diversity.mean) / before.genotypic_diversity.mean,
+      //   std_change: (after.genotypic_diversity.std - before.genotypic_diversity.std) / before.genotypic_diversity.std
+      // },
+      // novelty_scores: {
+      //   mean_change: (Math.mean(after.novelty_scores) - Math.mean(before.novelty_scores)) / Math.mean(before.novelty_scores)
+      // },
       novelty_scores: {
-        mean_change: (Math.mean(after.novelty_scores) - Math.mean(before.novelty_scores)) / Math.mean(before.novelty_scores)
+        mean_change: (mean(this.last_novelty_scores_after) - mean(this.last_novelty_scores_before)) / mean(this.last_novelty_scores_before)
       },
-      cluster_analysis: {
-        cluster_count_change: clusterAfter.n_clusters - clusterBefore.n_clusters,
-        size_distribution_change: this.compareDistributions(clusterBefore.cluster_sizes, clusterAfter.cluster_sizes)
-      },
+      // cluster_analysis: {
+      //   cluster_count_change: clusterAfter.n_clusters - clusterBefore.n_clusters,
+      //   size_distribution_change: this.compareDistributions(clusterBefore.cluster_sizes, clusterAfter.cluster_sizes)
+      // },
       performance_spread: {
         mean_change: (spreadAfter.mean - spreadBefore.mean) / spreadBefore.mean,
         std_change: (spreadAfter.std - spreadBefore.std) / spreadBefore.std,
@@ -108,8 +120,16 @@ export default class DiversityTracker {
         max_change: (spreadAfter.max - spreadBefore.max) / spreadBefore.max
       }
     };
+    if( this.clusterAnalysis[generation] && this.clusterAnalysis[generation]['before'] && this.clusterAnalysis[generation]['after'] ) {
+      const clusterBefore = this.clusterAnalysis[generation]['before'];
+      const clusterAfter = this.clusterAnalysis[generation]['after'];
+      this.comparisons[generation].cluster_analysis = {
+        cluster_count_change: clusterAfter.n_clusters - clusterBefore.n_clusters,
+        size_distribution_change: this.compareDistributions(clusterBefore.cluster_sizes, clusterAfter.cluster_sizes)
+      };
+    }
 
-    await this.persistComparisons();
+    this.persistComparisons();
   }
 
   compareDistributions(before, after) {
@@ -139,97 +159,150 @@ export default class DiversityTracker {
     }, 0);
   }
 
-
   getComparison(generation) {
     return this.comparisons[generation];
-}
+  }
 
   getAllComparisons() {
-      return this.comparisons;
+    return this.comparisons;
   }
 
   async requestVisualization() {
-      const metricsHistory = this.prepareMetricsHistory();
-      await this.sendMessage('/visualize_metrics', { metrics_history: metricsHistory });
+    const metricsHistory = this.prepareMetricsHistory();
+    await this.sendMessage('/visualize_metrics', { 
+      diversity_dir: this.dataDir,
+      metrics_history: metricsHistory 
+    });
   }
 
   prepareMetricsHistory() {
-      const history = {};
-      for (const [generation, stages] of Object.entries(this.metrics)) {
-          for (const [stage, metrics] of Object.entries(stages)) {
-              for (const [metricName, value] of Object.entries(metrics)) {
-                  if (!history[metricName]) history[metricName] = [];
-                  history[metricName].push({ generation: parseInt(generation), stage, value });
-              }
-          }
+    const history = {};
+    for (const [generation, stages] of Object.entries(this.metrics)) {
+      for (const [stage, metrics] of Object.entries(stages)) {
+        for (const [metricName, value] of Object.entries(metrics)) {
+          if (!history[metricName]) history[metricName] = [];
+          history[metricName].push({ generation: parseInt(generation), stage, value });
+        }
       }
-      return history;
+    }
+    return history;
   }
 
   async sendMessage(endpoint, data) {
-      if (this.websocket.readyState === WebSocket.OPEN) {
-          this.websocket.send(JSON.stringify({...data, path: endpoint}));
-      } else {
-          console.error('WebSocket is not open. ReadyState:', this.websocket.readyState);
-      }
+    const ws = new WebSocket(this.websocketUrl + endpoint);
+    return new Promise((resolve, reject) => {
+      ws.on('open', () => {
+        ws.send(JSON.stringify({ ...data }));
+      });
+
+      ws.on('message', (message) => {
+        const response = JSON.parse(message);
+        if (response.status === 'OK') {
+          if (response.diversity_metrics) {
+            console.log('Received diversity metrics:', response.diversity_metrics);
+            this.storeMetrics(response.generation, response.diversity_metrics, response.stage);
+          } else if (response.cluster_analysis) {
+            console.log('Received cluster analysis:', response.cluster_analysis);
+            this.storeClusterAnalysis(response.generation, response.cluster_analysis, response.stage);
+          } else if (response.performance_spread) {
+            console.log('Received performance spread:', response.performance_spread);
+            this.storePerformanceSpread(response.generation, response.performance_spread, response.stage);
+          } else if (response.message) {
+            console.log('Visualization message:', response.message);
+          }
+          resolve();
+        } else {
+          console.error('Error:', response.error);
+          reject(response.error);
+        }
+        ws.close(1000); // Close the websocket connection
+      });
+
+      ws.on('error', (error) => {
+        console.error('WebSocket error:', error);
+        reject(error);
+      });
+
+      ws.on('close', (code) => {
+        if (code !== 1000) {
+          console.error(`WebSocket closed with code: ${code}`);
+        }
+      });
+    });
   }
 
-  handleMessage(event) {
-    const response = JSON.parse(event.data);
-    if (response.status === 'OK') {
-      if (response.diversity_metrics) {
-        console.log('Received diversity metrics:', response.diversity_metrics);
-        this.storeMetrics(response.generation, response.diversity_metrics, response.stage);
-      } else if (response.cluster_analysis) {
-        console.log('Received cluster analysis:', response.cluster_analysis);
-        this.storeClusterAnalysis(response.generation, response.cluster_analysis, response.stage);
-      } else if (response.performance_spread) {
-        console.log('Received performance spread:', response.performance_spread);
-        this.storePerformanceSpread(response.generation, response.performance_spread, response.stage);
-      } else if (response.message) {
-        console.log('Visualization message:', response.message);
-      }
-    } else {
-      console.error('Error:', response.error);
+  persistMetrics() {
+    try {
+      fs.mkdirSync(this.dataDir, { recursive: true });
+      fs.writeFileSync(this.metricsFile, JSON.stringify(this.metrics, null, 2));
+    } catch (error) {
+      console.error('Error persisting metrics:', error);
     }
   }
 
-  async persistMetrics() {
-      try {
-          await fs.mkdir(this.dataDir, { recursive: true });
-          await fs.writeFile(this.metricsFile, JSON.stringify(this.metrics, null, 2));
-      } catch (error) {
-          console.error('Error persisting metrics:', error);
-      }
+  persistComparisons() {
+    try {
+      fs.mkdirSync(this.dataDir, { recursive: true });
+      fs.writeFileSync(this.comparisonsFile, JSON.stringify(this.comparisons, null, 2));
+    } catch (error) {
+      console.error('Error persisting comparisons:', error);
+    }
   }
 
-  async persistComparisons() {
-      try {
-          await fs.mkdir(this.dataDir, { recursive: true });
-          await fs.writeFile(this.comparisonsFile, JSON.stringify(this.comparisons, null, 2));
-      } catch (error) {
-          console.error('Error persisting comparisons:', error);
-      }
+  persistClusterAnalysis() {
+    try {
+      fs.mkdirSync(this.dataDir, { recursive: true });
+      fs.writeFileSync(this.clusterAnalysisFile, JSON.stringify(this.clusterAnalysis, null, 2));
+    } catch (error) {
+      console.error('Error persisting cluster analysis:', error);
+    }
   }
 
-  async loadPersistedData() {
-      try {
-          const metricsData = await fs.readFile(this.metricsFile, 'utf8');
-          this.metrics = JSON.parse(metricsData);
-      } catch (error) {
-          if (error.code !== 'ENOENT') {
-              console.error('Error loading metrics:', error);
-          }
-      }
+  persistPerformanceSpread() {
+    try {
+      fs.mkdirSync(this.dataDir, { recursive: true });
+      fs.writeFileSync(this.performanceSpreadFile, JSON.stringify(this.performanceSpread, null, 2));
+    } catch (error) {
+      console.error('Error persisting performance spread:', error);
+    }
+  }
 
-      try {
-          const comparisonsData = await fs.readFile(this.comparisonsFile, 'utf8');
-          this.comparisons = JSON.parse(comparisonsData);
-      } catch (error) {
-          if (error.code !== 'ENOENT') {
-              console.error('Error loading comparisons:', error);
-          }
+  loadPersistedData() {
+    try {
+      const metricsData = fs.readFileSync(this.metricsFile, 'utf8');
+      this.metrics = JSON.parse(metricsData);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error('Error loading metrics:', error);
       }
+    }
+
+    try {
+      const comparisonsData = fs.readFileSync(this.comparisonsFile, 'utf8');
+      this.comparisons = JSON.parse(comparisonsData);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error('Error loading comparisons:', error);
+      }
+    }
+
+    try {
+      const clusterAnalysisData = fs.readFileSync(this.clusterAnalysisFile, 'utf8');
+      this.clusterAnalysis = JSON.parse(clusterAnalysisData);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error('Error loading cluster analysis:', error);
+      }
+    }
+
+    try {
+      const performanceSpreadData = fs.readFileSync(this.performanceSpreadFile, 'utf8');
+      this.performanceSpread = JSON.parse(performanceSpreadData);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error('Error loading performance spread:', error);
+      }
+    }
   }
 }
 
@@ -241,7 +314,7 @@ export default class DiversityTracker {
 const tracker = new DiversityTracker('ws://localhost:8765', './diversity_data');
 
 (async () => {
-  await tracker.loadPersistedData(); // Load any persisted data
+  tracker.loadPersistedData(); // Load any persisted data
 
   // Simulate an evolutionary algorithm run
   for (let generation = 0; generation < 10; generation++) {

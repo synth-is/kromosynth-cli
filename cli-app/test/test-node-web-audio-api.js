@@ -1,6 +1,6 @@
 import { OfflineAudioContext } from 'node-web-audio-api';
 
-for( let i=0; i < 5000; i++ ) {
+for( let i=0; i < 10000; i++ ) {
   console.log('+ i:', i);
 
   let offline = new OfflineAudioContext(1, 10*48000, 48000);

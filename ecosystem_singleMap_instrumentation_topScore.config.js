@@ -56,7 +56,7 @@ module.exports = {
       name   : "kromosynth-evaluation-socket-server_quality_ref_features",
       interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3', // NB: different python environment
       cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
-      script : "quality_ref_features.py",
+      script : "quality_instrumentation.py",
       args: "--host 127.0.0.1",
       instances : 3,
       exec_mode : "fork",
@@ -75,7 +75,7 @@ module.exports = {
       cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
       script : "projection_quantised.py",
       args: "--host 127.0.0.1 --dimensions 2 --dimension-cells 100",
-      instances : 3, // only one instance for ParametricUMAP
+      instances : 3,
       exec_mode : "fork",
       max_memory_restart: '4G',
       // cron_restart: '*/30 * * * *',

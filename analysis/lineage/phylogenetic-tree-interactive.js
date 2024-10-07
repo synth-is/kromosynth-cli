@@ -44,7 +44,7 @@ let zoomGainNode;
 let convolverNode;
 let dryGainNode;
 let wetGainNode;
-let reverbAmount = 10; // Default reverb amount (0-100)
+let reverbAmount = 3; // Default reverb amount (0-100)
 let currentZoomTransform = null;
 
 if (!audioContext) {
@@ -96,8 +96,18 @@ export function createInteractiveVisualization(
         container, options = {}
 ) {
     // Customizable parameters
-    const width = 1000;
-    const height = 1000;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    window.addEventListener('resize', () => {
+        const newWidth = window.innerWidth;
+        const newHeight = window.innerHeight;
+        svg.attr("width", newWidth).attr("height", newHeight);
+        g.attr("transform", `translate(${newWidth / 2},${newHeight / 2})`);
+        tree.size([2 * Math.PI, Math.min(newWidth, newHeight) / 2 - marginRadius]);
+        adjustNodes(root);
+        link.attr("d", d3.linkRadial().angle(d => d.x).radius(d => d.y));
+        node.attr("transform", d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`);
+    });
     const separationFactor = 3;
     const siblingSpacingFactor = 1.1;
     const nodeRadius = 6; // options.nodeRadius || 3;
@@ -245,7 +255,7 @@ export function createInteractiveVisualization(
 
     let currentSoundUrl = null;
 
-    const LINEAGE_SOUNDS_BUCKET_HOST = "https://phylogeny-storage.synth.is"; // "https://server-kromosynth-lineage-renders.nirdrep.sigma2.no";
+    const LINEAGE_SOUNDS_BUCKET_HOST = "https://ns9648k.web.sigma2.no"; // "https://phylogeny-storage.synth.is"; // "https://server-kromosynth-lineage-renders.nirdrep.sigma2.no";
     async function playAudioWithFade(d) {
         if (!hasInteracted) return;
         console.log("Playing audio for node:", d);
@@ -496,7 +506,7 @@ export function createInteractiveVisualization(
         .attr("type", "text")
         .attr("placeholder", "Search by ID...")
         .style("position", "absolute")
-        .style("top", "10px")
+        .style("top", "30px")  // Adjusted to avoid overlap with other elements
         .style("left", "10px")
         .on("input", function() {
             const searchTerm = this.value.toLowerCase();

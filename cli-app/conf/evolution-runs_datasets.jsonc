@@ -1,0 +1,57 @@
+{
+  "baseEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "datasets_NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_datasets.jsonc",
+      "diffEvolutionaryHyperparametersFile": null,
+      "iterations": [
+        {
+          "id": "01J33955AN22M7SS5EC6SZ842P_datasets_NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc"
+        },
+        {
+          "id": "01J33RZ9KCYNE4N28SK17EJ2RA_datasets_NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc"
+        }
+      ]
+    },
+    {
+      "label": "datasets_NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc__noOsc",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_datasets.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01J348M2YC31F4VR1AJXWWH0BP_datasets_NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc__noOsc"
+        },
+        {
+          "id": "01J36GCJEQ72SSFR364WE7HSHX_datasets_NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc__noOsc"
+        },
+        {
+          "id": "01J37V1SPEKZKSQS5EAMZK6716_datasets_NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc__noOsc"
+        }
+      ]
+    },
+    {
+      "label": "datasets_NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc-statistics__noOsc",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_datasets_mfcc-statistics.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01J3E4TCXXWV082NJB0X004DMZ_datasets_NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc-statistics__noOsc"
+        }
+      ]
+    },
+    {
+      "label": "datasets_NSynth_1Billion_OrchideaSOL_-_filtered_-_vggish__noOsc",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_datasets_vggish.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01J3GRNRYGGC9MGKTFRJMBSNYE_datasets_NSynth_1Billion_OrchideaSOL_-_filtered_-_vggish__noOsc"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 3,
+  "currentEvolutionRunIteration": 0
+}

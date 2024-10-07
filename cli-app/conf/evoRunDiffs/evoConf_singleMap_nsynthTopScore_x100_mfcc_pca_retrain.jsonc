@@ -18,12 +18,11 @@
           // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
           "featureExtractionEndpoint": "/mfcc",
           "featureExtractionType": "mfcc",
-          "qualityEvaluationEndpoint": "/adaptive?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=mfcc",
-          "qualityFromFeatures": true,
+          "qualityEvaluationEndpoint": "/nsynth_instrument_topscore", // quality_instrumentation.py
+          "qualityFromFeatures": false,
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
           "shouldRetrainProjection": true,
-          "projectionRetrainingLinearGapIncrement": 10,
           "shouldCalculateNovelty": false,
           "shouldCalculateSurprise": false,
           "shouldTrackDiversity": true,

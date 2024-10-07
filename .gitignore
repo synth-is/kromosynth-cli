@@ -4,3 +4,4 @@ evoruns
 evorenders
 node_modules
 analysis/__pycache__
+analysis/lineage/lineageTrees

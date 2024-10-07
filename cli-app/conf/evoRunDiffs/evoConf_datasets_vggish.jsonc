@@ -1,0 +1,44 @@
+{
+  "evoRunsGroup": "datasets", // for grouping runs, e.g. in a UI
+  "seedEvals": 500,
+  "maxNumberOfParents": 1,
+  "terminationCondition": {
+  // "coverageGradientThreshold": 0.01
+  //  or
+    "qdScoreGradientThreshold": 0.01
+  },
+  "classifiers": [
+    "ws://127.0.0.1:40051"
+  ],
+  "classifierIndex" : 0,
+  "classScoringVariationsAsContainerDimensions": true,
+
+  "classScoringDurations": [4],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+
+  "geneVariationServers": [
+    "127.0.0.1:50051"
+  ],
+
+  "geneEvaluationServers": [
+    "ws://127.0.0.1:40051",
+    // "ws://127.0.0.1:40052",
+    // "ws://127.0.0.1:40053"
+  ],
+  "evaluationFeatureServers": [ // feature extraction, with datasets classification
+    "ws://127.0.0.1:31051/vggish",
+    "ws://127.0.0.1:31052/vggish",
+    // "ws://127.0.0.1:31053",
+  ],
+
+  "geneRenderingServers": [
+    "ws://127.0.0.1:30051",
+    "ws://127.0.0.1:30052",
+    // "ws://127.0.0.1:30053"
+  ],
+
+  // disable UnsupervisedDiversityEvaluation:
+  "evaluationQualityServers": [], // quality evaluation
+  "evaluationProjectionServers": [] // projection
+}
