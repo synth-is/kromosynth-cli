@@ -857,7 +857,7 @@ async function mapElitesBatch(
           } else {
             ///// selection
             const classEliteGenomeStrings = [];
-            if( noveltyArchive && Math.random() < inspirationRate ) {
+            if( noveltyArchive && Math.random() < inspirationRate && noveltyArchive.archive.length > 0 ) {
               // get individual from the novelty archive
               const dimensionalityReductionModel = new DimensionalityReductionModel(
                 geneEvaluationServerHost.projection + classConfiguration.projectionEndpoint,
@@ -1559,6 +1559,24 @@ async function mapElitesBatch(
 
   if( classConfiguration.useNoveltyArchive && ! isSeedRound ) {
     noveltyArchive.saveToFile(evoRunDirPath);
+
+    if( eliteMap.generationNumber % 100/* TODO hardcoding for now */ === 0 ) {
+      noveltyArchive.saveCheckpoint(evoRunDirPath, eliteMap.generationNumber);
+    }
+
+    // TODO fewer DimensionalityReductionModel instantiations?
+    console.log("Updating projections and scores in novelty archive");
+    const projectionHost = _evaluationProjectionServers[ 0 ];
+    const dimensionalityReductionModel = new DimensionalityReductionModel(
+      projectionHost + classConfiguration.projectionEndpoint,
+      evoRunDirPath,
+      false, //shouldFit,
+      classConfiguration.pcaComponents,
+      shouldCalculateSurprise,
+      shouldUseAutoEncoderForSurprise
+    );
+    await noveltyArchive.updateProjectionsAndScores( eliteMap, dimensionalityReductionModel );
+    console.log("Done updating projections and scores in novelty archive");
   }
 
   const commitEliteMapToGitStartTime = performance.now();
