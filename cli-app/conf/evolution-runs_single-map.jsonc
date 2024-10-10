@@ -118,22 +118,22 @@
       ]
     },
     {
-      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50__2024-09",
-      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50.jsonc",
-      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
-      "iterations": [
-        {
-          "id": "01J9HQWK1F5JP0RY8F91AQY2FV_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50__2024-09"
-        }
-      ]
-    },
-    {
       "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50_noveltyArchv__2024-09",
       "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50_noveltyArchv.jsonc",
       "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
       "iterations": [
         {
           "id": "01J9MHFP1TQ7R6FDQKHP0AQJWS_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50_noveltyArchv__2024-09"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50__2024-09",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01J9HQWK1F5JP0RY8F91AQY2FV_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50__2024-09"
         }
       ]
     },
@@ -204,6 +204,6 @@
       ]
     }
   ],
-  "currentEvolutionRunIndex": 11,
+  "currentEvolutionRunIndex": 12,
   "currentEvolutionRunIteration": 0
 }

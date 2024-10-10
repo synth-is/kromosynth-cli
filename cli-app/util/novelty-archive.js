@@ -329,8 +329,13 @@ export default class NoveltyArchive {
 
   static ARCHIVE_FILE_NAME = 'elite_novelty_archive.json';
 
-  async saveToFile(fileBasePath) {
-    const filePath = fileBasePath + NoveltyArchive.ARCHIVE_FILE_NAME;
+  async saveToFile(fileBasePath, fileName) {
+    let filePath;
+    if( fileName === undefined ) {
+      filePath = fileBasePath + NoveltyArchive.ARCHIVE_FILE_NAME;
+    } else {
+      filePath = fileBasePath + fileName
+    }
     const data = {
       archive: this.archive,
       maxSize: this.maxSize,
@@ -369,9 +374,8 @@ export default class NoveltyArchive {
   }
 
   async saveCheckpoint(checkpointDir, generation) {
-    const fileName = `novelty_archive_gen_${generation}.json`;
-    const filePath = path.join(checkpointDir, fileName);
-    await this.saveToFile(filePath);
+    const fileName = `elite_novelty_archive_gen_${generation}.json`;
+    await this.saveToFile(checkpointDir, fileName);
   }
 
   static async loadLatestCheckpoint(checkpointDir) {

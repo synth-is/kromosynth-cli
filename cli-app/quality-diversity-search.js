@@ -2672,6 +2672,7 @@ async function retrainProjectionModel(
 
   // re-map to the container, with potentially new competition dynamics
   let i = 0;
+  let containerLossCount = 0;
   for (const [cellKey, elite] of cellElitesMap) {
     let newCellKey;
     if (classScoringVariationsAsContainerDimensions) {
@@ -2690,6 +2691,8 @@ async function retrainProjectionModel(
         eliteMap.cells[newCellKey].elts = [elite];
         cellFeatures[newCellKey] = cellFeaturesMap.get(cellKey);
         cellFeatures[newCellKey]["containerProjection"] = diversityProjection.feature_map[i];
+      } else {
+        containerLossCount++;
       }
     } else {
       eliteMap.cells[newCellKey].elts = [elite];
@@ -2698,6 +2701,8 @@ async function retrainProjectionModel(
     }
     i++;
   }
+  eliteMap.containerLossesPerUpdate.push(containerLossCount);
+  eliteMap.averageContainerLosses = eliteMap.containerLossesPerUpdate.reduce((a, b) => a + b, 0) / eliteMap.containerLossesPerUpdate.length;
 
   countNonEmptyCells = Object.values(eliteMap.cells).filter(cell => cell.elts.length > 0).length;
   console.log(`countNonEmptyCells after repopulation: ${countNonEmptyCells}`);
@@ -2882,6 +2887,8 @@ async function initializeEliteMap(
     projectionSizes: [],
     coverages: [],
     eliteCounts: [],
+    containerLossesPerUpdate: [],
+    averageContainerLosses: -1,
     timestamp: Date.now(),
     eliteCountAtGeneration: 0,
     terminated: false,
