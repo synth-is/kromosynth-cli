@@ -9,6 +9,7 @@ import {
   getDiversityFromWebsocket, 
   getQualityFromWebsocketForEmbedding,
 } from '../service/websocket/ws-gene-evaluation.js';
+import fs from 'fs-extra';
 
 // TODO: needs separation between qualityFeatureExtractionEndpoint and projectionFeatureExtractionEndpoint
 
@@ -43,10 +44,44 @@ export async function mapEliteMapToMapWithDifferentBDs(
   const invalidProjectionVectors = [];
   if( terrainNameTo !== "random" ) { // "random" a special case for testing
     projectionFeatures = [];
-    scores = []
-    for( const [eliteKey, genomneId] of eliteKeysToGenomeIds ) {
-      if( ! genomneId ) throw new Error("Genome file for eliteGenomeId not found:", genomneId);
-      const genomeAndMetaString = await readGenomeAndMetaFromDisk( evolutionRunId, genomneId, evoRunDirPath );
+    scores = [];
+
+    let qualityEvaluationFeatureType;
+    let projectionFeatureType;
+    if (qualityEvaluationFeatureExtractionEndpoint.startsWith('/manual?features=')) {
+      qualityEvaluationFeatureType = qualityEvaluationFeatureExtractionEndpoint.split('=')[1];
+    } else {
+      qualityEvaluationFeatureType = qualityEvaluationFeatureExtractionEndpoint.split('/')[1];
+    }
+    if (projectionFeatureExtractionEndpoint.startsWith('/manual?features=')) {
+      projectionFeatureType = projectionFeatureExtractionEndpoint.split('=')[1];
+    } else {
+      projectionFeatureType = projectionFeatureExtractionEndpoint.split('/')[1];
+    }
+    // map genome IDs to scores
+    const genomeIdsToScores = {};
+    for( let oneOccupiedCellKey of Object.keys(eliteMap.cells).filter( k => eliteMap.cells[k].elts.length ) ) {
+      const {g, s} = eliteMap.cells[oneOccupiedCellKey].elts[0];
+      genomeIdsToScores[g] = s;
+    }
+
+    let doesSourceEliteMapUseSameQualityEvaluationFeatureType = false;
+    const sourceQualityEvaluationEndpoint = eliteMap.classConfigurations[0].qualityEvaluationEndpoint;
+    const referenceEmbeddingKeyMatch = sourceQualityEvaluationEndpoint.match(/&reference_embedding_key=([^&]+)/);
+    if (referenceEmbeddingKeyMatch && referenceEmbeddingKeyMatch[1] === qualityEvaluationFeatureType) {
+      doesSourceEliteMapUseSameQualityEvaluationFeatureType = true;
+    }
+  
+    let currentIteration = 0;
+    const totalIterations = eliteKeysToGenomeIds.size;
+    for( const [eliteKey, genomeId] of eliteKeysToGenomeIds ) {
+      currentIteration++;
+      const progress = Math.round((currentIteration / totalIterations) * 100);
+      console.log(`Processing elite key ${eliteKey} (${progress}% complete)`);
+
+      if( ! genomeId ) throw new Error("Genome file for eliteGenomeId not found:", genomeId);
+      if( ! genomeId ) throw new Error("Genome file for eliteGenomeId not found:", genomeId);
+      const genomeAndMetaString = await readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
       const { duration, noteDelta, velocity } = getDurationNoteDeltaVelocityFromGenomeString(genomeAndMetaString, eliteKey);
       durationsNoteDeltasVelocities.push( { duration, noteDelta, velocity } );
       let qualityFeaturesResponse, projectionFeaturesResponse;
@@ -54,9 +89,34 @@ export async function mapEliteMapToMapWithDifferentBDs(
       let attempt = 0;
       let success = false;
 
+      let qualityEvaluationFeature;
+      let projectionFeature;
+
+      // check if we have the features on file
+      const cellFeatureSFilePath = evoRunDirPath + "/cellFeatures/" + `features_${evolutionRunId}_${genomeId}.json`;
+      if( fs.existsSync(cellFeatureSFilePath) ) {
+        const cellFeaturesJSONString = fs.readFileSync(cellFeatureSFilePath, 'utf8');
+        const cellFeaturesJSON = JSON.parse(cellFeaturesJSONString);
+        if( Object.hasOwn(cellFeaturesJSON, qualityEvaluationFeatureType)) {
+          qualityEvaluationFeature = cellFeaturesJSON[qualityEvaluationFeatureType].features;
+        }
+        if( Object.hasOwn(cellFeaturesJSON, projectionFeatureType) ) {
+          projectionFeature = cellFeaturesJSON[projectionFeatureType].features;
+        }
+      }
+
+      // check if we have the quality / score, derived from the same features as desired, in the elite map
+      let genomeQuality;
+      if( doesSourceEliteMapUseSameQualityEvaluationFeatureType ) {
+        genomeQuality = { fitness: genomeIdsToScores[genomeId] };
+      }
+
       while (attempt < maxRetries && !success) {
         try {
-          if (qualityEvaluationFeatureExtractionEndpoint === projectionFeatureExtractionEndpoint) {
+          if(
+              qualityEvaluationFeatureExtractionEndpoint === projectionFeatureExtractionEndpoint
+              && ( ! qualityEvaluationFeature || ! projectionFeature )
+          ) {
             const featuresResponse = await getFeaturesForGenomeString(
               genomeAndMetaString,
               duration, noteDelta, velocity,
@@ -68,30 +128,36 @@ export async function mapEliteMapToMapWithDifferentBDs(
               sampleRate,
               undefined // ckptDir
             );
-            qualityFeaturesResponse = projectionFeaturesResponse = featuresResponse;
+            qualityEvaluationFeature = projectionFeature = featuresResponse.features;
           } else {
-            qualityFeaturesResponse = await getFeaturesForGenomeString(
-              genomeAndMetaString,
-              duration, noteDelta, velocity,
-              useGPU,
-              antiAliasing,
-              frequencyUpdatesApplyToAllPathcNetworkOutputs,
-              genomeRenderingHost,
-              featureExtractionHost, qualityEvaluationFeatureExtractionEndpoint,
-              sampleRate,
-              undefined // ckptDir
-            );
-            projectionFeaturesResponse = await getFeaturesForGenomeString(
-              genomeAndMetaString,
-              duration, noteDelta, velocity,
-              useGPU,
-              antiAliasing,
-              frequencyUpdatesApplyToAllPathcNetworkOutputs,
-              genomeRenderingHost,
-              featureExtractionHost, projectionFeatureExtractionEndpoint,
-              sampleRate,
-              undefined // ckptDir
-            );
+            if( ! qualityEvaluationFeature ) {
+              qualityFeaturesResponse = await getFeaturesForGenomeString(
+                genomeAndMetaString,
+                duration, noteDelta, velocity,
+                useGPU,
+                antiAliasing,
+                frequencyUpdatesApplyToAllPathcNetworkOutputs,
+                genomeRenderingHost,
+                featureExtractionHost, qualityEvaluationFeatureExtractionEndpoint,
+                sampleRate,
+                undefined // ckptDir
+              );
+              qualityEvaluationFeature = qualityFeaturesResponse.features;
+            }
+            if( ! projectionFeature ) {
+              projectionFeaturesResponse = await getFeaturesForGenomeString(
+                genomeAndMetaString,
+                duration, noteDelta, velocity,
+                useGPU,
+                antiAliasing,
+                frequencyUpdatesApplyToAllPathcNetworkOutputs,
+                genomeRenderingHost,
+                featureExtractionHost, projectionFeatureExtractionEndpoint,
+                sampleRate,
+                undefined // ckptDir
+              );
+              projectionFeature = projectionFeaturesResponse.features;
+            }
           }
           success = true;
         } catch (error) {
@@ -100,23 +166,27 @@ export async function mapEliteMapToMapWithDifferentBDs(
         if (attempt < maxRetries) {
           console.log(`Retrying... (${attempt + 1}/${maxRetries})`);
         } else {
-          throw new Error(`Failed to get features after ${maxRetries} attempts for eliteGenomeId: ${genomneId}`);
+          throw new Error(`Failed to get features after ${maxRetries} attempts for eliteGenomeId: ${genomeId}`);
         }
         }
       }
-      if( ! qualityFeaturesResponse.features || ! projectionFeaturesResponse.features ) {
-        throw new Error("Features not found for eliteGenomeId:", genomneId);
+      if( ! qualityEvaluationFeature || ! projectionFeature ) {
+        throw new Error("Features not found for eliteGenomeId:", genomeId);
       }
-      qualityEvaluationFeatures.push( qualityFeaturesResponse.features );
-      projectionFeatures.push( projectionFeaturesResponse.features );
-      const genomeQuality = await getQualityFromWebsocketForEmbedding(
-        qualityFeaturesResponse.features,
-        undefined, //refSetEmbedsPath,
-        undefined, //querySetEmbedsPath,
-        undefined, //measureCollectivePerformance,
-        qualityEvaluationHost + qualityEvaluationEndpoint,
-        undefined, //ckptDir
-      );
+      qualityEvaluationFeatures.push( qualityEvaluationFeature );
+      projectionFeatures.push( projectionFeature );
+
+      if( ! genomeQuality ) {
+        genomeQuality = await getQualityFromWebsocketForEmbedding(
+          qualityFeaturesResponse.features,
+          undefined, //refSetEmbedsPath,
+          undefined, //querySetEmbedsPath,
+          undefined, //measureCollectivePerformance,
+          qualityEvaluationHost + qualityEvaluationEndpoint,
+          undefined, //ckptDir
+        );
+      }
+
       scores.push( genomeQuality.fitness );
       // collect vectors from projectionFeatures where any value is larger than 1
       if( projectionFeaturesResponse.features.some( v => v > 1 ) ) {
@@ -204,6 +274,23 @@ export async function mapEliteMapToMapWithDifferentBDs(
       };
     }
   }
+
+  // compute grid mean fitness, surprise and novelty
+  const occupiedCellKeys = Object.keys(newEliteMap.cells).filter( k => newEliteMap.cells[k].elts.length );
+  const gridMeanFitness = occupiedCellKeys.reduce((acc, k) => {
+    return acc + (newEliteMap.cells[k].elts[0].s === undefined ? 0 : newEliteMap.cells[k].elts[0].s);
+  }, 0) / occupiedCellKeys.length;
+
+  const gridMeanSurprise = occupiedCellKeys.reduce((acc, k) => {
+    return acc + (newEliteMap.cells[k].elts[0].ss === undefined ? 0 : newEliteMap.cells[k].elts[0].ss);
+  }, 0) / occupiedCellKeys.length;
+
+  const gridMeanNovelty = occupiedCellKeys.reduce((acc, k) => {
+    return acc + (newEliteMap.cells[k].elts[0].ns === undefined ? 0 : newEliteMap.cells[k].elts[0].ns);
+  }, 0) / occupiedCellKeys.length;
+  newEliteMap.gridMeanFitness = gridMeanFitness;
+  newEliteMap.gridMeanSurprise = gridMeanSurprise;
+  newEliteMap.gridMeanNovelty = gridMeanNovelty;
 
   saveEliteMapToDisk( newEliteMap, evoRunDirPath, evolutionRunId, terrainNameTo );
 }

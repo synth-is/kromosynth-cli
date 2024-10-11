@@ -1,6 +1,7 @@
 import itertools
 import subprocess
 import argparse
+import os
 
 # List of features
 features = [
@@ -12,11 +13,11 @@ features = [
     "spectral_decrease",
     "spectral_slope",
     "spectral_flux",
-    "spectral_crest_factor",
-    "spectral_flatness",
-    "tonal_power_ratio",
-    "max_autocorrelation",
-    "zero_crossing_rate"
+    # "spectral_crest_factor",
+    # "spectral_flatness",
+    # "tonal_power_ratio",
+    # "max_autocorrelation",
+    # "zero_crossing_rate"
 ]
 
 def parse_arguments():
@@ -53,6 +54,17 @@ def main():
         # Create the feature combination name
         feature_combo_name = f"{feature1}X{feature2}"
         
+        # Create the filename for this combination
+        filename = f"elites_{args.evo_run_id}_{feature_combo_name}.json"
+        filepath = os.path.join(args.base_path, args.evo_run_id, filename)
+
+        print(f"Processing combination: {feature_combo_name} at {filepath}")
+
+        # Check if the file already exists
+        if os.path.exists(filepath):
+            print(f"File {filename} already exists. Skipping this combination.")
+            continue
+
         # Create the feature extraction endpoint
         feature_extraction_endpoint = f"/manual?features={feature1},{feature2}"
         
@@ -79,4 +91,4 @@ if __name__ == "__main__":
     main()
 
 # Run as:
-# python generate_2d_combinations.py "./evoruns" "01J9AFWBC69ZNM2SKPEKHPXH60_evoConf_singleMap_nsynthTopScore_x100_mfcc_pca_retrain__2024-09" "customRef1" "mfcc" "/raw"
+# python remap-to-container-combinations.py "./evoruns" "01J9AFWBC69ZNM2SKPEKHPXH60_evoConf_singleMap_nsynthTopScore_x100_mfcc_pca_retrain__2024-09" "customRef1" "mfcc" "/raw"

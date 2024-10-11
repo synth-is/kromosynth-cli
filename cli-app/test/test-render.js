@@ -143,9 +143,9 @@ async function spawnGenomeAndRenderSound() {
     );
 
     // rendering memory leak test:
-    for( let i=0; i<10000; i++ ) {
+    for( let i=0; i<100000; i++ ) {
       console.log("leak test", i);
-      let offlineAudioContext = getNewOfflineAudioContext( duration );
+      let offlineAudioContext = undefined; // getNewOfflineAudioContext( duration );
       let tempAudioData = await getAudioBufferFromGenomeAndMeta( // debouncedGetAudioBufferFromGenomeAndMeta(
         genomeAndMeta,
         duration, noteDelta, velocity, reverse,
@@ -158,11 +158,12 @@ async function spawnGenomeAndRenderSound() {
         frequencyUpdatesApplyToAllPathcNetworkOutputs
       );
       offlineAudioContext = null;
+      tempAudioData.fill(0);
       tempAudioData = null;
-      // if (global.gc) {
-      //   global.gc();
-      // }
-      // if( i % 100 === 0 ) await new Promise(resolve => setTimeout(resolve, 2000));
+      if (global.gc) {
+        global.gc();
+      }
+      if( i % 1000 === 0 ) await new Promise(resolve => setTimeout(resolve, 10000));
     }
 
     console.log("audioData.length", audioData.length);
