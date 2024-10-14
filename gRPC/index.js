@@ -65,7 +65,8 @@ async function mutatedGenome( call, callback ) {
     probabilityMutatingPatch,
     audioGraphMutationParams,
     evolutionaryHyperparameters,
-    patchFitnessTestDuration
+    patchFitnessTestDuration,
+    useGPU
   } = call.request;
   let error = null;
   let newGenome;
@@ -86,7 +87,8 @@ async function mutatedGenome( call, callback ) {
       audioGraphMutationParamsDecoded,
       evolutionaryHyperparametersDecoded,
       OfflineAudioContext,
-      patchFitnessTestDuration
+      patchFitnessTestDuration,
+      useGPU
     );
     genomes = undefined;
   } catch (e) {

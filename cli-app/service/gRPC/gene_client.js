@@ -42,7 +42,8 @@ export function callGeneVariationService(
   audioGraphMutationParams,
   evolutionaryHyperparameters,
   patchFitnessTestDuration,
-  gRPCHost
+  gRPCHost,
+  useGPU
 ) {
   console.log("callGeneVariationService gRPC:", gRPCHost);
   return new Promise((resolve, reject) => {
@@ -59,7 +60,8 @@ export function callGeneVariationService(
       probabilityMutatingPatch,
       audioGraphMutationParams: struct.encode( audioGraphMutationParams ),
       evolutionaryHyperparameters: struct.encode( evolutionaryHyperparameters ),
-      patchFitnessTestDuration
+      patchFitnessTestDuration,
+      useGPU
     };
     
     getClient( gRPCHost ).GenomeVariation( payload, (err, response) => {

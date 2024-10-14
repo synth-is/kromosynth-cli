@@ -23,6 +23,7 @@
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/umap",
           "shouldRetrainProjection": true,
+          "projectionRetrainingLinearGapIncrement": 50,
           "shouldCalculateNovelty": false,
           "shouldCalculateSurprise": true,
           "shouldTrackDiversity": true,
