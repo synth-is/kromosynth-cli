@@ -14,4 +14,8 @@ From: tensorflow/tensorflow
 
     # download Python evaluation requirements definition file and install dependencies from it
     curl -fsSL https://raw.githubusercontent.com/synth-is/kromosynth-evaluate/main/evaluation/unsupervised/requirements.txt -o /tmp/requirements.txt &&\
+
+    # remove package versions:
+    sed -i 's/==.*$//' /tmp/requirements.txt
+
     pip install -r /tmp/requirements.txt
