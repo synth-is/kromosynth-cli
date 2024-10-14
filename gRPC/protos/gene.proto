@@ -32,6 +32,7 @@ message GenomeVariationRequest {
   google.protobuf.Struct audioGraphMutationParams = 7;
   google.protobuf.Struct evolutionaryHyperparameters = 8;
   double patchFitnessTestDuration = 9;
+  bool useGPU = 10;
 }
 
 message GenomeEvaluationRequest {

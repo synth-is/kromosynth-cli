@@ -138,6 +138,22 @@
       ]
     },
     {
+      "label": "evoConf_single-map_x100_noOsc_spectralCentroidAndFlatness__2024-09",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_spectralCentroidAndFlatness.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01J87SK1G89V2TBAEHWV9NVEB2_evoConf_single-map_x100_noOsc_spectralCentroidAndFlatness__2024-09"
+        },
+        {
+          "id": "01J8GKB6195ZD1FCCPWZ31Y65P_evoConf_single-map_x100_noOsc_spectralCentroidAndFlatness__2024-09"
+        },
+        {
+          "id": "01J8XBM86BYFRJCPA68QR9PN7C_evoConf_single-map_x100_noOsc_spectralCentroidAndFlatness__2024-09"
+        }
+      ]
+    },
+    {
       "label": "evoConf_singleMap_nsynthTopScore_x100_mfcc_pca_retrain__2024-09",
       "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_nsynthTopScore_x100_mfcc_pca_retrain.jsonc",
       "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
@@ -153,7 +169,7 @@
       "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
       "iterations": [
         {
-          "id": null
+          "id": "01JA0MZ52BSX7R09V7DPZ9XXGP_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_umap_surpriseSelector__2024-10"
         }
       ]
     },
@@ -186,24 +202,8 @@
           "id": "01J9FBJJ61V48BJJ8E5JCE4642_evoConf_singleMap_refSingleEmbeddings_x100_vggish_pca_retrain__2024-10"
         }
       ]
-    },
-    {
-      "label": "evoConf_single-map_x100_noOsc_spectralCentroidAndFlatness__2024-09",
-      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_spectralCentroidAndFlatness.jsonc",
-      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
-      "iterations": [
-        {
-          "id": "01J87SK1G89V2TBAEHWV9NVEB2_evoConf_single-map_x100_noOsc_spectralCentroidAndFlatness__2024-09"
-        },
-        {
-          "id": "01J8GKB6195ZD1FCCPWZ31Y65P_evoConf_single-map_x100_noOsc_spectralCentroidAndFlatness__2024-09"
-        },
-        {
-          "id": "01J8XBM86BYFRJCPA68QR9PN7C_evoConf_single-map_x100_noOsc_spectralCentroidAndFlatness__2024-09"
-        }
-      ]
     }
   ],
-  "currentEvolutionRunIndex": 12,
+  "currentEvolutionRunIndex": 16,
   "currentEvolutionRunIteration": 0
 }

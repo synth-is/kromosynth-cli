@@ -973,7 +973,8 @@ async function mapElitesBatch(
                     audioGraphMutationParams,
                     evolutionaryHyperparameters,
                     patchFitnessTestDuration,
-                    geneVariationServerHost
+                    geneVariationServerHost,
+                    useGpuForTensorflow
                   );
                 } catch (e) {
                   console.error("Error from callGeneVariationService", e);
@@ -2700,6 +2701,9 @@ async function retrainProjectionModel(
       cellFeatures[newCellKey]["containerProjection"] = diversityProjection.feature_map[i];
     }
     i++;
+  }
+  if( ! eliteMap.containerLossesPerUpdate ) {
+    eliteMap.containerLossesPerUpdate = []; // handling older runs
   }
   eliteMap.containerLossesPerUpdate.push(containerLossCount);
   eliteMap.averageContainerLosses = eliteMap.containerLossesPerUpdate.reduce((a, b) => a + b, 0) / eliteMap.containerLossesPerUpdate.length;

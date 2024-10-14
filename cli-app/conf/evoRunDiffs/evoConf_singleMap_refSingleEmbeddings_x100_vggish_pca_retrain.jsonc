@@ -23,6 +23,7 @@
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
           "shouldRetrainProjection": true,
+          "projectionRetrainingLinearGapIncrement": 50,
           "shouldUseAutoEncoderForSurprise": false, // for surprise calculation
           "shouldCalculateNovelty": false,
           "shouldCalculateSurprise": false,
