@@ -1245,7 +1245,12 @@ async function mapElitesBatch(
 
 
   let shouldRenderWaveFiles = false;
+  let shouldIncreaseGenrationNumber = false;
   await Promise.all( searchPromises ).then( async (batchIterationResults) => {
+
+    if( batchIterationResults && batchIterationResults.length ) {
+      shouldIncreaseGenrationNumber = true;
+    }
 
     // TODO if evaluationCandidateWavFiles, call getClassScoresForCandidateWavFiles
     // - using an array of classifiers, referencing different python commands to execute
@@ -1505,88 +1510,92 @@ async function mapElitesBatch(
     shouldRenderWaveFiles = true;
   }
 
-  eliteMap.generationNumber++;
+  if( shouldIncreaseGenrationNumber ) {
 
-  if( 
-    isUnsupervisedDiversityEvaluation && ! isSeedRound 
-  ) {
-    const shouldFit = shouldRetrainProjection && getShouldFit(
-      eliteMap.lastProjectionFitIndex, eliteMap.generationNumber*searchBatchSize,
-      projectionRetrainingLinearGapIncrement
-    ); // eliteMap.generationNumber*searchBatchSize === iterationNumber
+    eliteMap.generationNumber++;
+
     if( 
-      shouldFit && 
-      Object.keys(cellFeatures).length > 3 // otherwise UMAP complains
+      isUnsupervisedDiversityEvaluation && ! isSeedRound 
     ) {
-      // TODO: letting getClassKeysFromSeedFeatures handle the retraining
-      await retrainProjectionModel( 
-        cellFeatures, eliteMap, evolutionRunId,
-        _evaluationProjectionServers, evoRunDirPath, 
-        classScoringVariationsAsContainerDimensions,
-        shouldCalculateSurprise, shouldUseAutoEncoderForSurprise,
-        shouldTrackDiversity,
-        eliteRemappingCompetitionCriteria,
-        noveltyArchive
+      const shouldFit = shouldRetrainProjection && getShouldFit(
+        eliteMap.lastProjectionFitIndex, eliteMap.generationNumber*searchBatchSize,
+        projectionRetrainingLinearGapIncrement
+      ); // eliteMap.generationNumber*searchBatchSize === iterationNumber
+      if( 
+        shouldFit && 
+        Object.keys(cellFeatures).length > 3 // otherwise UMAP complains
+      ) {
+        // TODO: letting getClassKeysFromSeedFeatures handle the retraining
+        await retrainProjectionModel( 
+          cellFeatures, eliteMap, evolutionRunId,
+          _evaluationProjectionServers, evoRunDirPath, 
+          classScoringVariationsAsContainerDimensions,
+          shouldCalculateSurprise, shouldUseAutoEncoderForSurprise,
+          shouldTrackDiversity,
+          eliteRemappingCompetitionCriteria,
+          noveltyArchive
+        );
+        // we've done the fitting, so we can set shouldFit to false
+        // eliteMap.shouldFit = true;
+      }
+      if( shouldTrackDiversity === true && shouldRetrainProjection === false ) {
+        trackDiversity( 
+          eliteMap, cellFeatures, _evaluationProjectionServers[0], evoRunDirPath
+        );
+      }
+    }
+  
+    const countNonEmptyCells = Object.values(eliteMap.cells).filter( cell => cell.elts.length > 0 ).length;
+    eliteMap.coverages.push( countNonEmptyCells );
+  
+    if( shouldRenderWaveFiles ) {
+      // TODO this seems to get stuck in a loop
+      // await renderEliteMapToWavFiles(
+      //   eliteMap, evolutionRunId, evoRunDirPath, evoRenderDirPath, eliteMap.generationNumber,
+      //   classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+      //   _geneRenderingServers, renderSampleRateForClassifier
+      // );
+    }
+  
+    eliteMap.searchBatchSize = searchBatchSize;
+    eliteMap.timestamp = Date.now();
+  
+    const saveEliteMapToDiskStartTime = performance.now();
+    saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, terrainName ); // the main / latest map
+    const saveEliteMapToDiskEndTime = performance.now();
+    console.log("saveEliteMapToDisk duration", saveEliteMapToDiskEndTime - saveEliteMapToDiskStartTime);
+  
+    if( classConfiguration.useNoveltyArchive && ! isSeedRound ) {
+      noveltyArchive.saveToFile(evoRunDirPath);
+  
+      if( eliteMap.generationNumber % 100/* TODO hardcoding for now */ === 0 ) {
+        noveltyArchive.saveCheckpoint(evoRunDirPath, eliteMap.generationNumber);
+      }
+  
+      // TODO fewer DimensionalityReductionModel instantiations?
+      console.log("Updating projections and scores in novelty archive");
+      const projectionHost = _evaluationProjectionServers[ 0 ];
+      const dimensionalityReductionModel = new DimensionalityReductionModel(
+        projectionHost + classConfiguration.projectionEndpoint,
+        evoRunDirPath,
+        false, //shouldFit,
+        classConfiguration.pcaComponents,
+        shouldCalculateSurprise,
+        shouldUseAutoEncoderForSurprise
       );
-      // we've done the fitting, so we can set shouldFit to false
-      // eliteMap.shouldFit = true;
+      await noveltyArchive.updateProjectionsAndScores( eliteMap, dimensionalityReductionModel );
+      console.log("Done updating projections and scores in novelty archive");
     }
-    if( shouldTrackDiversity === true && shouldRetrainProjection === false ) {
-      trackDiversity( 
-        eliteMap, cellFeatures, _evaluationProjectionServers[0], evoRunDirPath
-      );
+  
+    const commitEliteMapToGitStartTime = performance.now();
+    if( commitEliteMapToGitEveryNIterations && eliteMap.generationNumber % commitEliteMapToGitEveryNIterations === 0 ) {
+      // git commit iteration
+      runCmd(`git -C ${evoRunDirPath} commit -a -m "Iteration ${eliteMap.generationNumber}"`);
     }
+    const commitEliteMapToGitEndTime = performance.now();
+    console.log("commitEliteMapToGit duration", commitEliteMapToGitEndTime - commitEliteMapToGitStartTime);
+
   }
-
-  const countNonEmptyCells = Object.values(eliteMap.cells).filter( cell => cell.elts.length > 0 ).length;
-  eliteMap.coverages.push( countNonEmptyCells );
-
-  if( shouldRenderWaveFiles ) {
-    // TODO this seems to get stuck in a loop
-    // await renderEliteMapToWavFiles(
-    //   eliteMap, evolutionRunId, evoRunDirPath, evoRenderDirPath, eliteMap.generationNumber,
-    //   classScoringDurations[0], classScoringNoteDeltas[0], classScoringVelocities[0], useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
-    //   _geneRenderingServers, renderSampleRateForClassifier
-    // );
-  }
-
-  eliteMap.searchBatchSize = searchBatchSize;
-  eliteMap.timestamp = Date.now();
-
-  const saveEliteMapToDiskStartTime = performance.now();
-  saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, terrainName ); // the main / latest map
-  const saveEliteMapToDiskEndTime = performance.now();
-  console.log("saveEliteMapToDisk duration", saveEliteMapToDiskEndTime - saveEliteMapToDiskStartTime);
-
-  if( classConfiguration.useNoveltyArchive && ! isSeedRound ) {
-    noveltyArchive.saveToFile(evoRunDirPath);
-
-    if( eliteMap.generationNumber % 100/* TODO hardcoding for now */ === 0 ) {
-      noveltyArchive.saveCheckpoint(evoRunDirPath, eliteMap.generationNumber);
-    }
-
-    // TODO fewer DimensionalityReductionModel instantiations?
-    console.log("Updating projections and scores in novelty archive");
-    const projectionHost = _evaluationProjectionServers[ 0 ];
-    const dimensionalityReductionModel = new DimensionalityReductionModel(
-      projectionHost + classConfiguration.projectionEndpoint,
-      evoRunDirPath,
-      false, //shouldFit,
-      classConfiguration.pcaComponents,
-      shouldCalculateSurprise,
-      shouldUseAutoEncoderForSurprise
-    );
-    await noveltyArchive.updateProjectionsAndScores( eliteMap, dimensionalityReductionModel );
-    console.log("Done updating projections and scores in novelty archive");
-  }
-
-  const commitEliteMapToGitStartTime = performance.now();
-  if( commitEliteMapToGitEveryNIterations && eliteMap.generationNumber % commitEliteMapToGitEveryNIterations === 0 ) {
-    // git commit iteration
-    runCmd(`git -C ${evoRunDirPath} commit -a -m "Iteration ${eliteMap.generationNumber}"`);
-  }
-  const commitEliteMapToGitEndTime = performance.now();
-  console.log("commitEliteMapToGit duration", commitEliteMapToGitEndTime - commitEliteMapToGitStartTime);
 
 } // async function mapElitesBatch( ...
 
