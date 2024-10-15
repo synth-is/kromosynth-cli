@@ -196,26 +196,31 @@ export default class DiversityTracker {
       });
 
       ws.on('message', (message) => {
-        const response = JSON.parse(message);
-        if (response.status === 'OK') {
-          if (response.diversity_metrics) {
-            console.log('Received diversity metrics:', response.diversity_metrics);
-            this.storeMetrics(response.generation, response.diversity_metrics, response.stage);
-          } else if (response.cluster_analysis) {
-            console.log('Received cluster analysis:', response.cluster_analysis);
-            this.storeClusterAnalysis(response.generation, response.cluster_analysis, response.stage);
-          } else if (response.performance_spread) {
-            console.log('Received performance spread:', response.performance_spread);
-            this.storePerformanceSpread(response.generation, response.performance_spread, response.stage);
-          } else if (response.message) {
-            console.log('Visualization message:', response.message);
+        try {
+          const response = JSON.parse(message);
+          if (response.status === 'OK') {
+            if (response.diversity_metrics) {
+              console.log('Received diversity metrics:', response.diversity_metrics);
+              this.storeMetrics(response.generation, response.diversity_metrics, response.stage);
+            } else if (response.cluster_analysis) {
+              console.log('Received cluster analysis:', response.cluster_analysis);
+              this.storeClusterAnalysis(response.generation, response.cluster_analysis, response.stage);
+            } else if (response.performance_spread) {
+              console.log('Received performance spread:', response.performance_spread);
+              this.storePerformanceSpread(response.generation, response.performance_spread, response.stage);
+            } else if (response.message) {
+              console.log('Visualization message:', response.message);
+            }
+            resolve();
+          } else {
+            console.error('Error:', response.error);
+            reject(response.error);
           }
-          resolve();
-        } else {
-          console.error('Error:', response.error);
-          reject(response.error);
+        } catch( error ) {
+          console.error("Error receiving diversity metrics:", error);
+        } finally {
+          ws.close(1000); // Close the websocket connection
         }
-        ws.close(1000); // Close the websocket connection
       });
 
       ws.on('error', (error) => {

@@ -61,7 +61,7 @@ export function callGeneVariationService(
       audioGraphMutationParams: struct.encode( audioGraphMutationParams ),
       evolutionaryHyperparameters: struct.encode( evolutionaryHyperparameters ),
       patchFitnessTestDuration,
-      useGPU
+      useGPU: true
     };
     
     getClient( gRPCHost ).GenomeVariation( payload, (err, response) => {
