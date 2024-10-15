@@ -122,11 +122,15 @@ export function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
       sampleRate: renderSampleRateForClassifier
     };
     const ws = getClient( geneRenderingWebsocketServerHost );
+    let timeout;
     ws.on('open', () => {
       ws.send( JSON.stringify( payload ) );
+      timeout = setTimeout(() => {
+        reject(new Error('WebSocket request timed out'));
+      }, 60000); // Set timeout to 60 seconds
     });
     ws.on('message', (message) => {
-
+      clearTimeout(timeout); // Clear the timeout when a message is received
       // is this a buffer or a string?
       if( message instanceof Buffer ) {
         const buffer = new Uint8Array( message );
@@ -140,14 +144,15 @@ export function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
       }
     });
     ws.on('error', (error) => {
+      clearTimeout(timeout); // Clear the timeout on error
       delete clients[geneRenderingWebsocketServerHost];
       reject( error );
     });
     ws.on('close', function handleClose(code, reason) { // this actually catches the case when the server encounters WS_ERR_UNSUPPORTED_MESSAGE_LENGTH
+      clearTimeout(timeout); // Clear the timeout on close
       console.log(`WebSocket connection closed with code: ${code}`);
       reject( code );
     });
-    
   });
 }
 
