@@ -1,0 +1,18 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "evoConf_singleMap_refSingleEmb_spectralSpreadAndFlux__2024-10",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/diffs/evoConf_singleMap_refSingleEmbeddings_x100_spectralSpreadAndFlux.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/diffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JA6KRDQ1JR9A8BKRXCBGBYYB_evoConf_singleMap_refSingleEmb_spectralSpreadAndFlux__2024-10"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

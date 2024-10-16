@@ -1,0 +1,18 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50__2024-09",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/diffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/diffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JA6KS8H4FQMDFX5SD89TF5Q1_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50__2024-09"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

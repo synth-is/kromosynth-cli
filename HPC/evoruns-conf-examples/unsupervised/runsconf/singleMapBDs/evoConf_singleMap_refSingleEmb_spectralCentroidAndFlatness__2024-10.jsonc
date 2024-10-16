@@ -1,0 +1,18 @@
+{
+  "baseEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/evolution-run-config.jsonc",
+  "baseEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/evolutionary-hyperparameters.jsonc",
+  "evoRuns": [
+    {
+      "label": "evoConf_singleMap_refSingleEmb_spectralCentroidAndFlatness__2024-10",
+      "diffEvolutionRunConfigFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/diffs/evoConf_singleMap_refSingleEmbeddings_x100_spectralCentroidAndFlatness.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs/diffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JA654MZET68M56S709F9XKF4_evoConf_singleMap_refSingleEmb_spectralCentroidAndFlatness__2024-10"
+        }
+      ]
+    }
+  ],
+  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIteration": 0
+}

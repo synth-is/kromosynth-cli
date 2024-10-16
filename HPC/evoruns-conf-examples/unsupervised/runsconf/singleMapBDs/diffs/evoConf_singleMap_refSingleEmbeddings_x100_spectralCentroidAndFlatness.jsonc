@@ -1,0 +1,75 @@
+{
+  "seedEvals": 512,
+  "batchSize": 64, // 625, // 0,0625 * 10000 (32/512)
+  // "seedEvals": 64,
+  // "batchSize": 16, // 625, // 0,0625 * 10000 (32/512)
+  "maxNumberOfParents": 1,
+
+  "renderElitesToWavFiles": false,
+
+  "oneCPPNPerFrequency": true,
+
+  "classifiers": [
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "customRef1",
+          // "featureExtractionEndpoint": "/manual?features=spectral_centroid,spectral_flatness",
+          // "featureExtractionType": "spectral_centroid,spectral_flatness",
+
+          "qualityFeatureExtractionEndpoint": "/mfcc",
+          "qualityFeatureType": "mfcc",
+          "projectionFeatureExtractionEndpoint": "/manual?features=spectral_centroid,spectral_flatness",
+          "projectionFeatureType": "spectral_centroid,spectral_flatness",
+
+          "qualityEvaluationEndpoint": "/adaptive?reference_embedding_path=/fp/projects01/ec29/bthj/dataset-features/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=mfcc",
+          "qualityFromFeatures": true,
+          "usingQueryEmbeddings": false, // e.g. for a FAD reference set
+          "projectionEndpoint": "/raw",
+          "shouldRetrainProjection": false,
+          "shouldCalculateNovelty": false,
+          "shouldCalculateSurprise": false,
+          "shouldTrackDiversity": true,
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+          "eliteRemappingCompetitionCriteria": "score" // one of: 'score', 'novelty' or 'surprise',
+        }
+      ],
+      "classificationDimensions": [100, 100]
+    }
+  ],
+  "classifierIndex" : 0,
+  // "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
+  // "mapSwitchingCondition": {
+  //   // "coverageGradientThreshold": 0.01,
+  //   "qdScoreGradientThreshold": 0.01,
+  //   "gradientWindowSize": 10
+  // },
+
+  "terminationCondition": {
+    "numberOfEvals": 300000
+  //  or
+  // "coverageGradientThreshold": 0.01
+  //  or
+  //  "qdScoreGradientThreshold": 0.01
+  // or
+  //  "averageFitnessInMap": 0.1
+  // or
+  //  "medianFitnessInMap": 0.1
+  // or
+  //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
+  },
+  "gradientWindowSize": 10,
+
+  "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-evoConf_singleMap_refSingleEmb_spectralCentroidAndFlatness__2024-10.jsonc-host-",
+  "gRpcServerCount": 4,
+  "renderingSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-evoConf_singleMap_refSingleEmb_spectralCentroidAndFlatness__2024-10.jsonc-host-",
+  "renderingSocketServerCount": 16,
+
+  "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-evoConf_singleMap_refSingleEmb_spectralCentroidAndFlatness__2024-10.jsonc-host-",
+  "evaluationFeatureSocketServerCount": 4,
+  "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-quality-socket-evoConf_singleMap_refSingleEmb_spectralCentroidAndFlatness__2024-10.jsonc-host-",
+  "evaluationQualitySocketServerCount": 4,
+  "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/evaluation-projection-socket-evoConf_singleMap_refSingleEmb_spectralCentroidAndFlatness__2024-10.jsonc-host-",
+  "evaluationProjectionSocketServerCount": 4
+}

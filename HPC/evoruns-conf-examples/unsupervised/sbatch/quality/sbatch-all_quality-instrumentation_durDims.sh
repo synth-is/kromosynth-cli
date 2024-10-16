@@ -3,7 +3,7 @@
 ACCOUNT="ec29"
 PARTITION="normal"
 FEATURES_SCRIPT="/fp/projects01/ec29/bthj/kromosynth-evaluate/evaluation/unsupervised/features.py"
-QUALITY_SCRIPT="/fp/projects01/ec29/bthj/kromosynth-evaluate/evaluation/unsupervised/quality_instrumentation.py --sample-rate 16000 --quality-methods 'nsynth_instrument' --models-path '/fp/projects01/ec29/bthj/kromosynth-evaluate/measurements/models'"
+QUALITY_SCRIPT="/fp/projects01/ec29/bthj/kromosynth-evaluate/evaluation/unsupervised/quality_instrumentation.py --sample-rate 16000 --quality-methods 'nsynth_instrument' --models-path '/localscratch/<job-ID>/models'"
 PROJECTION_SCRIPT="/fp/projects01/ec29/bthj/kromosynth-evaluate/evaluation/unsupervised/projection_pca_quantised.py --dimensions 2 --dimension-cells 50"
 VARIATION_SERVER_COUNT=2
 RENDERING_SERVER_COUNT=4

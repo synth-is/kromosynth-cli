@@ -39,7 +39,7 @@
   "mapSwitchingCondition": {
     "switchEveryNGenerations": 500
   },
-  "ckptDir": "/cluster/work/projects/ec29/bthj/checkpoints",
+  "ckptDir": "/localscratch/<job-ID>j/checkpoints",
 
   "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-switch-fitness.jsonc-host-",
   "gRpcServerCount": 1,

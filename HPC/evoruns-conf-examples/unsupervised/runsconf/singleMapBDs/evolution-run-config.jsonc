@@ -1,0 +1,334 @@
+{
+  "algorithm": "mapElites_with_uBC", // uBC = unproductive bias count
+  "evoRunsGroup": "generalTestEvoruns", // for grouping runs, e.g. in a UI
+  // "algorithm": "Deep-Grid-MAP-Elites",
+  "seedEvals": 50,
+  // if true, only the highest scoring cell is potentially populated by the elite, if it scores higher than the existing solution, 
+  // otherwise the individual becomes elite in all cells where it scores higher than existing solutions (or if there are none present):
+  "eliteWinsOnlyOneCell": false,
+  "classRestriction": null, // ["Angry music"], // if a non-empty array, only the listed classes are considered (for e.g. a single-class run: 5.2 in http://dx.doi.org/10.1145/2739480.2754703)
+  "batchSize": 50,
+  "maxNumberOfParents": 1,
+  // "mapSelectorBias": - is in classConfigurations
+  "terminationCondition": {
+    // "numberOfEvals": 300000
+  //  or
+  // "coverageGradientThreshold": 0.01
+  //  or
+   "qdScoreGradientThreshold": 0.01
+  // or
+  //  "averageFitnessInMap": 0.1
+  // or
+  //  "medianFitnessInMap": 0.1
+  // or
+  //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
+  },
+  "gradientWindowSize": 10,
+  "scoreProportionalToNumberOfEvalsTerminationCondition": false,
+  // Deep-Grid MAP-Elites specific:
+  "populationSize": 20,
+  "gridDepth": 50,
+  "evoRunsDirPath": "/fp/projects01/ec29/bthj/evoruns/singleMapBDs/",
+  "favoritesDirPath": "/Users/bjornpjo/iCloud/Documents/synth.is/favoriteGenomes",
+  "geneEvaluationProtocol": "websocket", // grpc, websocket or worker
+  "childProcessBatchSize": 1,
+  "evaluationCandidateWavFilesDirPath": null, // "/Users/bjornpjo/Documents/synth.is/evaluationCandidates",
+  "probabilityMutatingWaveNetwork": 0.5,
+  "probabilityMutatingPatch": 0.5,
+  "oneCPPNPerFrequency": true,
+  // "classScoringDurations": [0.5, 1, 2, 5],
+  // "classScoringDurations": [3, 5, 10],
+  "classScoringDurations": [4],
+  // "classScoringNoteDeltas": [-36, -24, -12, 0, 12, 24, 36],
+  // "classScoringVelocities": [0.25, 0.5, 0.75, 1],
+  // "classScoringDurations": [4],
+  "classScoringNoteDeltas": [0],
+  "classScoringVelocities": [1],
+  "antiAliasing": true,
+  "frequencyUpdatesApplyToAllPathcNetworkOutputs": false,
+  "classScoringVariationsAsContainerDimensions": false,
+  "classifiers": [
+    "yamnet",
+    ["nsynth","yamnet","mtg_jamendo_instrument"],
+    "ws://127.0.0.1:40051",
+    [50, 50], // feature map to project the bahaviour space to, e.g. with dimensionality reduction
+    [100, 100],
+    // classes as a third dimension, depends on classifier returning the top class and its score, like { 'top_score': 0.9, 'top_score_class': 'mallet' }
+    [50, 50, ["mallet", "string", "reed", "guitar", "synth_lead", "vocal", "bass", "flute", "keyboard", "brass", "organ"]],
+    // classes still as a third dimension, but with different endpoints for feature extraction and classification for each class:
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "mallet",
+          "refSetEmbedsPath": "/Users/bthj/embeds/malletRef.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "shouldRetrainProjection": true, // wether to periodically retrain the chosen dimensionality reduction (PCA, UMAP, VAE, etc.)
+          "projectionRetrainingLinearGapIncrement": 10,
+          "shouldCalculateSurprise": false,
+          "shouldUseAutoEncoderForSurprise": false, // if true, the autoencoder is used to calculate novelty scores, otherwise the PCA inverse_transform is used
+          "shouldCalculateNovelty": true, // wether to calculate novelty scores, while projecting into the feature map
+          "shouldTrackDiversity": true,
+          "useNoveltyArchive": true, // wether to use a novelty archive, for intermitent inspiration when retraining unsupervised projections
+          "inspirationRate": 0.2, // the rate at which to draw from the novelty archive, when selecting an individual for mutation
+          "noveltyArchiveSizePercentage": 0.2, // the size of the novelty archive, as a percentage of the population size
+          "pcaComponents": "0,1", // to allow selection of specific projection components, which are ranked by importence in the case of PCA
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+          "eliteRemappingCompetitionCriteria": "score", // one of: 'score', 'novelty' or 'surprise',
+        },
+        {
+          "refSetName": "string",
+          "refSetEmbedsPath": "/Users/bthj/embeds/stringRef.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+          // ...
+        },
+        {
+          "refSetName": "reed",
+          "refSetEmbedsPath": "/Users/bthj/embeds/reedRef.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+        }
+      ],
+      "classificationDimensions": [50, 50, ["mallet", "string", "reed"]]
+    },
+    // if classesAsMaps is true, a "classConfiguration is used for one map each:
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "myFavs0",
+          "featureExtractionEndpoint": "/mfcc",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+        },
+        {
+          "refSetName": "myFavs1",
+          "refSetEmbedsPath": "/Users/bthj/Sounds/favSet1Ref.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+        },
+        {
+          "refSetName": "myFavs2",
+          "refSetEmbedsPath": "/Users/bthj/Sounds/favSet2Ref.npy",
+          "featureExtractionEndpoint": "/pann",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+        },
+        {
+          "refSetName": "myFavs3",
+          "refSetEmbedsPath": "/Users/bthj/Sounds/favSet3Ref.npy",
+          "featureExtractionEndpoint": "/clap",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 48000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+        },
+        {
+          "refSetName": "myFavs4",
+          "refSetEmbedsPath": "/Users/bthj/Sounds/favSet4Ref.npy",
+          "featureExtractionEndpoint": "/encodec",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 24000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+        }
+      ],
+      "classificationDimensions": [50, 50]
+    },
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "customRef1",
+          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef1/embeds.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,2",
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+        },
+        {
+          "refSetName": "customRef2",
+          "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
+          "featureExtractionEndpoint": "/vggish",
+          "qualityEvaluationEndpoint": "/score",
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,2",
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+        }
+      ],
+      "classificationDimensions": [100, 100]
+    },
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "customRef1",
+          "featureExtractionEndpoint": "/wav2vec",
+          "featureExtractionType": "wav2vec",
+          "qualityEvaluationEndpoint": "/cosine?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=wav2vec",
+          "qualityFromFeatures": true,
+          "usingQueryEmbeddings": false, // e.g. for a FAD reference set
+          "projectionEndpoint": "/pca",
+          "pcaComponents": "0,1",
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+        },
+        {
+          "refSetName": "customRef2",
+          "featureExtractionEndpoint": "/manual?features=spectral_centroid,spectral_flatness",
+          "featureExtractionType": "spectral_centroid,spectral_flatness",
+          "qualityEvaluationEndpoint": "/cosine?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=manual-spectral_centroid,manual-spectral_flatness",
+          "qualityFromFeatures": true,
+          "usingQueryEmbeddings": false, // e.g. for a FAD reference set
+          "projectionEndpoint": "/umap",
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+        }
+      ],
+      "classificationDimensions": [100, 100]
+    },
+    { // two low-level (or scalar) features, not projected (/raw endpoint)
+      "classConfigurations": [
+        {
+          "refSetName": "customRef1",
+          "featureExtractionEndpoint": "/manual?features=spectral_centroid,spectral_flatness",
+          "featureExtractionType": "mfcc",
+          "qualityEvaluationEndpoint": "/manual?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=manual-spectral_centroid,manual-spectral_flatness",
+          "qualityFromFeatures": true,
+          "usingQueryEmbeddings": false, // e.g. for a FAD reference set
+          "projectionEndpoint": "/raw",
+          "shouldRetrainProjection": false,
+          "shouldCalculateNovelty": false,
+          "shouldTrackDiversity": true,
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity" // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+        }
+      ],
+      "classificationDimensions": [100, 100]
+    }
+  ],
+  "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
+  "mapSwitchingCondition": {
+    // a subset of those conditions can be set at a time:
+    // - for the gradient thresholds, the gradientWindowSize should be set to the number of generations to consider
+    "switchEveryNGenerations": 10,
+    "coverageWithoutIncreaseGenerations": 10,
+    "qdScoreWithoutIncreaseGenerations": 10,
+    "coverageGradientThreshold": 0.6, // 0.01,
+    "qdScoreGradientThreshold": 0.6, // 0.01,
+    "gradientWindowSize": 10
+  }, 
+  "classifierIndex" : 6,
+  "ckptDir": "/Users/bjornpjo/.cache/torch/hub/checkpoints",
+  "yamnetModelUrl": "file:///cluster/projects/nn9648k/bthj/tfjs-model_yamnet_tfjs_1/model.json",
+
+  "measureCollectivePerformance": false, // for FAD scoring: score all embeddings from the map along with the new one (true) or just the candidate (false)
+
+  "useGpuForTensorflow": false,
+  "renderSampleRateForClassifier": 16000,
+  // "batchDurationMs": 60000,
+
+  "commitEliteMapToGitEveryNIterations": 1, // or generations
+  "addGenomesToGit": false,
+  "prunePastEliteGenomesEveryNGenerations": null,// 20,
+  "renderEliteMapToWavFilesEveryNGenerations": 500, // 50000,
+  "renderElitesToWavFiles": true,
+  "evoRendersDirPath": "/cluster/work/projects/ec29/bthj/evorenders/",
+
+  "processingUtilisation": null, // 0.9,
+
+  // "gRpcHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-",
+  // "gRpcServerCount": 1,
+  // "renderingSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/rendering-socket-test-host-",
+  // "renderingSocketServerCount": 1,
+
+  // it's either evaluationSocketHostFilePathPrefix and evaluationSocketServerCount
+  // or evaluationFeatureSocketHostFilePathPrefix, evaluationFeatureSocketServerCount, evaluationQualitySocketHostFilePathPrefix, evaluationQualitySocketServerCount and evaluationProjectionSocketHostFilePathPrefix, evaluationProjectionSocketServerCount
+  
+  // "evaluationSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/evaluation-socket-test-host-",
+  // "evaluationSocketServerCount": 1,
+
+  // "evaluationFeatureSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/evaluation-feature-socket-test-host-",
+  // "evaluationFeatureSocketServerCount": 1,
+  // "evaluationQualitySocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/evaluation-quality-socket-test-host-",
+  // "evaluationQualitySocketServerCount": 1,
+  // "evaluationProjectionSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/evaluation-projection-socket-test-host-",
+  // "evaluationProjectionSocketServerCount": 1,
+  
+  // "geneVariationServerPaths": [
+  //   "/tmp/grpc1.txt"
+  // ],
+  // "geneEvaluationServerPaths": [
+  //   "/tmp/grpc1.txt"
+  // ],
+  "geneVariationServers": [
+    // "127.0.0.1:50051",
+    // "127.0.0.1:50052",
+    // "127.0.0.1:50053"
+  ],
+  "geneRenderingServers": [
+    // "ws://127.0.0.1:30051",
+    // "ws://127.0.0.1:30052",
+    // "ws://127.0.0.1:30053"
+  ],
+
+  // it's either geneEvaluationServers or evaluationFeatureServers, evaluationQualityServers and evaluationProjectionServers
+  // - geneEvaluationServers are for pre-trained classification models
+  // - evaluationFeatureServers, evaluationQualityServers and evaluationProjectionServers are for unsupervised measurements: feature extraction, quality evaluation and projection
+
+  "geneEvaluationServers": [
+    // "ws://127.0.0.1:40051"
+    // "ws://127.0.0.1:40052",
+    // "ws://127.0.0.1:40053"
+
+    // Python based, multi-model classification:
+    // "ws://localhost:8080?classifiers=nsynth,yamnet,mtg_jamendo_instrument"
+  ],
+
+  // evaluationFeatureServers are required when classifiers are the same as geneEvaluationServers (e.g. "ws://127.0.0.1:40051")
+
+  "evaluationFeatureServers": [ // feature extraction
+    // "ws://127.0.0.1:31051",
+    // "ws://127.0.0.1:31052",
+    // "ws://127.0.0.1:31053",
+  ],
+  "evaluationQualityServers": [ // quality evaluation
+    // "ws://127.0.0.1:32051",
+    // "ws://127.0.0.1:32052",
+    // "ws://127.0.0.1:32053"
+  ],
+  "evaluationProjectionServers": [ // projection
+    // "ws://127.0.0.1:33051",
+    // "ws://127.0.0.1:33052",
+    // "ws://127.0.0.1:33053"
+    // "ws://127.0.0.1:33054",
+    // "ws://127.0.0.1:33055"
+  ]
+  // ,
+  // "dummyRun": { // generate dummy data without evaluations
+  //   "cellCount": 10000,
+  //   "iterations": 10000,
+  //   "searchBatchSize": 499
+  // }
+}

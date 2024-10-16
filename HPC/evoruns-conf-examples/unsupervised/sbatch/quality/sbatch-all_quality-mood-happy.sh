@@ -2,7 +2,7 @@
 
 ACCOUNT="ec12"
 FEATURES_SCRIPT="/fp/projects01/ec29/bthj/kromosynth-evaluate/evaluation/unsupervised/features_mfcc.py --sample-rate 16000"
-QUALITY_SCRIPT="/fp/projects01/ec29/bthj/kromosynth-evaluate/evaluation/unsupervised/quality_mood.py --sample-rate 16000 --quality-methods 'mood_happy' --models-path '/fp/projects01/ec29/bthj/kromosynth-evaluate/measurements/models'"
+QUALITY_SCRIPT="/fp/projects01/ec29/bthj/kromosynth-evaluate/evaluation/unsupervised/quality_mood.py --sample-rate 16000 --quality-methods 'mood_happy' --models-path '/localscratch/<job-ID>s/models'"
 PROJECTION_SCRIPT="/fp/projects01/ec29/bthj/kromosynth-evaluate/evaluation/unsupervised/projection_pca_quantised.py --dimensions 2 --dimension-cells 50"
 VARIATION_SERVER_COUNT=8
 RENDERING_SERVER_COUNT=8

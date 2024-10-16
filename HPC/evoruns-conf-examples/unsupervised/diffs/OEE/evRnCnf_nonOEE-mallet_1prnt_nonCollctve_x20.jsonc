@@ -30,7 +30,7 @@
   "mapSwitchingCondition": {
     "switchEveryNGenerations": 15000
   },
-  "ckptDir": "/fp/projects01/ec29/bthj/checkpoints",
+  "ckptDir": "/localscratch/<job-ID>/checkpoints",
 
   "gRpcHostFilePathPrefix": "/fp/projects01/ec29/bthj/gRPC-hosts/grpc-non-oee_mallet.jsonc-host-",
   "gRpcServerCount": 1,

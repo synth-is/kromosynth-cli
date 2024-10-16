@@ -5,10 +5,6 @@ config_file_path=$1
 # set file name as variable
 file_name=$(basename -- "$config_file_path")
 
-# Generate a unique identifier using md5sum
-unique_id=$(echo -n "$config_file_path" | md5sum | awk '{print $1}')
-echo "Unique Identifier: $unique_id"
-
 while [[ $# -gt 1 ]] ; do
     key="$2"
     case $key in
@@ -79,7 +75,7 @@ for (( iteration=1; iteration<=$batch_count; iteration++ )); do
 
     # Generate the SLURM script to be submitted
     # "EOF" means "end of file"
-    cat > submission_script.sh << EOF
+    cat > submission_script.sh << 'EOF'
 #!/usr/bin/env bash
 
 #SBATCH --account=${account}
@@ -90,7 +86,7 @@ for (( iteration=1; iteration<=$batch_count; iteration++ )); do
 #SBATCH --mem-per-cpu=8G
 #SBATCH --cpus-per-task=1
 #SBATCH --dependency=singleton
-#SBATCH --time=01:00:30
+#SBATCH --time=03:00:30
 
 
 ## cast model files to all nodes
@@ -118,12 +114,11 @@ for ((i=1; i<=${variation_server_count}; i++)); do
   key="var_\${i}"
 
   rm /fp/projects01/ec29/bthj/gRPC-hosts/grpc-${file_name}-host-\$i
-  # apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' /fp/projects01/ec29/bthj/kromosynth-runner-CPU.sif node index.js --max-old-space-size=8192 --modelUrl file:///fp/projects01/ec29/bthj/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-evaluation --hostInfoFilePath /fp/projects01/ec29/bthj/gRPC-hosts/grpc-${file_name}-host-\$i &
+  apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' /fp/projects01/ec29/bthj/kromosynth-runner-CPU.sif node index.js --max-old-space-size=8192 --modelUrl file:///fp/projects01/ec29/bthj/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-evaluation --hostInfoFilePath /fp/projects01/ec29/bthj/gRPC-hosts/grpc-${file_name}-host-\$i &
 
   # Assign a value to the associative array using the unique key
-  # pids[\$key]="\$!"
+  pids[\$key]="\$!"
 done
-PM2_HOME="/fp/projects01/ec29/bthj/pm2sockets/.pm_genomevar_${unique_id}" apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' /fp/projects01/ec29/bthj/kromosynth-runner-CPU.sif pm2-runtime --instances ${variation_server_count} --max-old-space-size=8192 --modelUrl file:///fp/projects01/ec29/bthj/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-evaluation --hostInfoFilePath /fp/projects01/ec29/bthj/gRPC-hosts/grpc-${file_name}-host- index.js &
 
 cd /fp/projects01/ec29/bthj/kromosynth-render/render-socket/
 # Loop to create genome rendering server instances
@@ -132,12 +127,11 @@ for ((i=1; i<=${rendering_server_count}; i++)); do
   key="render_\${i}"
 
   rm /fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-${file_name}-host-\$i
-  # apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' /fp/projects01/ec29/bthj/kromosynth-runner-CPU.sif node socket-server-floating-points.js --max-old-space-size=8192 --processTitle kromosynth-render-socket-server --hostInfoFilePath /fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-${file_name}-host-\$i &
+  apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' /fp/projects01/ec29/bthj/kromosynth-runner-CPU.sif node socket-server-floating-points.js --max-old-space-size=8192 --processTitle kromosynth-render-socket-server --hostInfoFilePath /fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-${file_name}-host-\$i &
 
   # Assign a value to the associative array using the unique key
-  # pids[\$key]="\$!"
+  pids[\$key]="\$!"
 done
-PM2_HOME="/fp/projects01/ec29/bthj/pm2sockets/.pm_render_${unique_id}" apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' /fp/projects01/ec29/bthj/kromosynth-runner-CPU.sif pm2-runtime --instances ${rendering_server_count} --max-old-space-size=8192 --processTitle kromosynth-render-socket-server --hostInfoFilePath /fp/projects01/ec29/bthj/gRPC-hosts/rendering-socket-${file_name}-host- socket-server-floating-points.js &
 
 
 # cd not necessary here as the following uses absolute paths
