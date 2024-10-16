@@ -977,7 +977,7 @@ async function mapElitesBatch(
                     useGpuForTensorflow
                   );
                 } catch (e) {
-                  console.error("Error from callGeneVariationService", e);
+                  console.error("Error from callGeneVariationService, at:", geneVariationServerHost, e);
                   clearServiceConnectionList(geneVariationServerHost);
                   reject(e);
                 }
@@ -1398,6 +1398,8 @@ async function mapElitesBatch(
               if( didAddToArchive ) {
                 console.log("Added to archive, genomeId", genomeId, ", classKey", classKey, ", score", score, " - archive size: ", noveltyArchive.archive.length);
               }
+              if( ! eliteMap.noveltyArchiveSizes ) eliteMap.noveltyArchiveSizes = {};
+              eliteMap.noveltyArchiveSizes[eliteMap.generationNumber] = noveltyArchive.archive.length;
             }
             eliteClassKeysIterIdx++;
           }
@@ -2899,6 +2901,7 @@ async function initializeEliteMap(
     projectionModelFitGenerations: [],
     projectionSizes: [],
     coverages: [],
+    noveltyArchiveSizes: {},
     eliteCounts: [],
     containerLossesPerUpdate: [],
     averageContainerLosses: -1,

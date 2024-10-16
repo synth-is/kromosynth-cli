@@ -45,7 +45,7 @@ export function callGeneVariationService(
   gRPCHost,
   useGPU
 ) {
-  console.log("callGeneVariationService gRPC:", gRPCHost);
+  console.log("callGeneVariationService gRPC:", gRPCHost, ", useGPU:", useGPU);
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('callGeneVariationService timed out'));
@@ -61,9 +61,8 @@ export function callGeneVariationService(
       audioGraphMutationParams: struct.encode( audioGraphMutationParams ),
       evolutionaryHyperparameters: struct.encode( evolutionaryHyperparameters ),
       patchFitnessTestDuration,
-      useGPU: true
+      useGPU
     };
-    
     getClient( gRPCHost ).GenomeVariation( payload, (err, response) => {
       clearTimeout(timeout); // Clear the timeout on response
       if( err ) {
