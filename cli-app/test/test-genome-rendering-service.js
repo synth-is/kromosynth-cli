@@ -17,7 +17,12 @@ const frequencyUpdatesApplyToAllPathcNetworkOutputs = true;
 const renderSampleRateForClassifier = 16000;
 const useGPU = false;
 
-const geneRenderingWebsocketServerHost = "ws://c1-28.fox:31520";
+const args = process.argv.slice(2);
+if (args.length < 1) {
+  console.error("Please provide the ws://websocket host as a command line argument.");
+  process.exit(1);
+}
+const geneRenderingWebsocketServerHost = args[0];
 
 let audioBuffer;
 for( let i=0; i < 100000; i++ ) {

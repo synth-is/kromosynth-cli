@@ -81,7 +81,12 @@ const evolutionaryHyperparameters = {
   }
 };
 
-const gRPCHost = "c1-8.fox:9338";
+const args = process.argv.slice(2);
+if (args.length < 1) {
+  console.error("Please provide the gRPC host as a command line argument.");
+  process.exit(1);
+}
+const gRPCHost = args[0];
 
 const useGPU = false;
 
