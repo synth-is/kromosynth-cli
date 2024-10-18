@@ -90,7 +90,7 @@ for (( iteration=1; iteration<=$batch_count; iteration++ )); do
 #SBATCH --mem-per-cpu=8G
 #SBATCH --cpus-per-task=1
 #SBATCH --dependency=singleton
-#SBATCH --time=01:00:30
+#SBATCH --time=06:00:30
 
 
 ## cast model files to all nodes
@@ -181,7 +181,8 @@ done
 
 
 cd /fp/projects01/ec29/bthj/kromosynth-cli/cli-app/
-apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' /fp/projects01/ec29/bthj/kromosynth-runner-CPU.sif node kromosynth.js evolution-runs --evolution-runs-config-json-file ${config_file_path} --max-old-space-size=8192 &
+# apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' /fp/projects01/ec29/bthj/kromosynth-runner-CPU.sif node kromosynth.js evolution-runs --evolution-runs-config-json-file ${config_file_path} --max-old-space-size=8192 &
+PM2_HOME="/fp/projects01/ec29/bthj/pm2sockets/.pm_qd_${unique_id}" apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' /fp/projects01/ec29/bthj/kromosynth-runner-CPU.sif pm2-runtime kromosynth.js -- evolution-runs --evolution-runs-config-json-file ${config_file_path} --max-old-space-size=8192 &
 
 wait
 
