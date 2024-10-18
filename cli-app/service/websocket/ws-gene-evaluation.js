@@ -342,7 +342,7 @@ export function getDiversityFromWebsocket(
       ws.send( JSON.stringify( diversityMessage ), { timeout: 120000 } );
       timeout = setTimeout(() => {
         reject(new Error('WebSocket request timed out'));
-      }, 600000); // Set timeout to 10 minutes; e.g. UMAP can take a long time to train
+      }, 1200000); // Set timeout to 10 minutes; e.g. UMAP can take a long time to train
     });
     ws.on('message', (message) => {
       clearTimeout(timeout); // Clear the timeout when a message is received

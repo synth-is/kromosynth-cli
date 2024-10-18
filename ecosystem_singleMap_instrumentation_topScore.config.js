@@ -57,7 +57,7 @@ module.exports = {
       interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3', // NB: different python environment
       cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
       script : "quality_instrumentation.py",
-      args: "--host 127.0.0.1",
+      args: "--host 127.0.0.1 --models-path /Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models",
       instances : 3,
       exec_mode : "fork",
       max_memory_restart: '2G',

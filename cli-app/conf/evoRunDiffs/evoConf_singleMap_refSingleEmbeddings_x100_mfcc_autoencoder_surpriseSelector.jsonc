@@ -1,5 +1,5 @@
 {
-  "processingUtilisation": 0.6,
+  "processingUtilisation": 0.99,
 
   "seedEvals": 512,
   "batchSize": 64, // 625, // 0,0625 * 10000 (32/512)

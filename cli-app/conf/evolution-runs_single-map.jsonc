@@ -134,6 +134,9 @@
       "iterations": [
         {
           "id": "01J9HQWK1F5JP0RY8F91AQY2FV_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50__2024-09"
+        },
+        {
+          "id": "01JAFTAC3V2RJ5HJ94WYAHQR0F_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50__2024-09"
         }
       ]
     },
@@ -169,7 +172,7 @@
       "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
       "iterations": [
         {
-          "id": "01JA0MZ52BSX7R09V7DPZ9XXGP_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_umap_surpriseSelector__2024-10"
+          "id": "01JAF0ZQTT5W6DGH523ZRHHJKJ_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_umap_surpriseSelector__2024-10"
         }
       ]
     },
@@ -204,6 +207,6 @@
       ]
     }
   ],
-  "currentEvolutionRunIndex": 16,
-  "currentEvolutionRunIteration": 0
+  "currentEvolutionRunIndex": 11,
+  "currentEvolutionRunIteration": 1
 }
