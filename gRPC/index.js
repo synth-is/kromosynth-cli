@@ -184,8 +184,6 @@ async function main() {
     // const freePort = await findFreePorts(1, {startPort: 50051});
     // port = freePort[0];
     console.log("--- argv.hostInfoFilePath:", argv.hostInfoFilePath);
-    port = await filepathToPort( argv.hostInfoFilePath );
-    hostname = `${os.hostname()}:${port}`;
     console.log("--- hostname:", hostname);
     let hostInfoFilePath;
     if( process.env.pm_id ) { // being managed by PM2
@@ -193,6 +191,10 @@ async function main() {
     } else {
       hostInfoFilePath = argv.hostInfoFilePath;
     }
+    port = await filepathToPort( hostInfoFilePath );
+    let host = argv.host || os.hostname();
+    hostname = `${host}:${port}`;
+    console.log("--- port ", port, ", for ", hostInfoFilePath);
     console.log("process.env.PM2_HOME", process.env.PM2_HOME);
     fs.writeFile(hostInfoFilePath, hostname, () => console.log(`Wrote hostname to ${hostInfoFilePath}`));
   } else {
