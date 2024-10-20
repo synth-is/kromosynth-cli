@@ -55,6 +55,7 @@ import { calculateQDScoreForEliteMap, getCoverageForEliteMap } from './qd-run-an
 import DiversityTracker from './util/diversity-tracker.js';
 import NoveltyArchive from './util/novelty-archive.js';
 import DimensionalityReductionModel from './util/dimensionality-reduction-model.js';
+import { logGenerationNumberAsAsciiArt } from './util/qd-common.js';
 
 const chance = new Chance();
 
@@ -398,6 +399,8 @@ export async function qdSearch(
       &&
       ! ( batchDurationMs && batchDurationMs < Date.now() - startTimeMs )
   ) {
+
+    logGenerationNumberAsAsciiArt(eliteMap.generationNumber)
 
     // optionally ramping up the fitness values, to avoid premature convergence
     let scoreProportion;

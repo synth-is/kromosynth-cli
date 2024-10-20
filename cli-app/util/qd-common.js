@@ -2,6 +2,7 @@ import { execSync, exec, spawn } from 'child_process';
 // import fs from 'fs';
 import fs from 'fs-extra';
 import nthline from 'nthline';
+import figlet from 'figlet';
 import { renderAudio } from 'kromosynth';
 import { 
   getAudioBufferChannelDataForGenomeAndMetaFromWebsocet,
@@ -525,4 +526,15 @@ export function getGradient(values, windowSize = 5, measurementType) {
   const slope = (windowSize * sumXY - sumX * sumY) / (windowSize * sumXX - sumX * sumX);
   console.log('slope:', slope, "measurementType:", measurementType);
   return slope;
+}
+
+export function logGenerationNumberAsAsciiArt( generationNumber ) {
+  figlet("Generation " + generationNumber, function(err, data) {
+    if (err) {
+        console.log('Something went wrong priting geration number as ASCII Art...');
+        console.dir(err);
+        return;
+    }
+    console.log(data);
+  });
 }
