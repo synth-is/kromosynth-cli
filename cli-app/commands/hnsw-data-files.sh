@@ -3,3 +3,9 @@
 
 # node cli-app/test/test-hnswlib-node.js mfcc-statistics /Users/bjornpjo/Downloads/audio-features/filtered /Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models/hnsw-indexes/NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc-statistics 3
 node cli-app/test/test-hnswlib-node.js vggish /Users/bjornpjo/Downloads/audio-features/filtered /Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models/hnsw-indexes/NSynth_1Billion_-_filtered_-_vggish 3
+
+node cli-app/test/test-hnswlib-node.js mfcc-sans0 /Users/bjornpjo/Downloads/audio-features/filtered /Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models/hnsw-indexes/NSynth_1Billion_-_filtered_-_mfcc-sans0 3
+
+node cli-app/test/test-hnswlib-node.js mfcc-sans0 /Users/bjornpjo/Downloads/audio-features/filtered_nsynth /Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models/hnsw-indexes/NSynth_-_filtered_-_mfcc-sans0 3
+
+node cli-app/test/test-hnswlib-node.js vggish /Users/bjornpjo/Downloads/audio-features/filtered_nsynth /Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models/hnsw-indexes/NSynth_-_filtered_-_vggish 3

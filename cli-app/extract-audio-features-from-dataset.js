@@ -9,6 +9,7 @@ import { readWavFile } from "./util/file-common.js";
 
 const featureTypes = [
   'mfcc', 
+  'mfcc-sans0',
   'mfcc-statistics',
   'vggish', 
   'vggishessentia',
@@ -105,6 +106,7 @@ async function extractFeatures(audioDataBuffer, wavFilename, datasetPath, featur
   } else {
     features = {
       mfcc: [],
+      'mfcc-sans0': [],
       'mfcc-statistics': [],
       vggish: [],
       vggishessentia: [],
@@ -152,6 +154,7 @@ async function extractFeatures(audioDataBuffer, wavFilename, datasetPath, featur
   } else {
     time = {
       mfcc: [],
+      'mfcc-sans0': [],
       'mfcc-statistics': [],
       vggish: [],
       vggishessentia: [],

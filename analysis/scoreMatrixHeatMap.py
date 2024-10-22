@@ -28,31 +28,33 @@ else:
     save_dir = './'
 data = plotUtil.read_data_from_json(json_file_path)
 
-# TODO read the matrix from aggregation
-# - for now just from the first iteration
+# Iterate over all iterations
+for iteration in data['evoRuns'][0]['iterations']:
+    scoreMatrix = iteration['scoreMatrix']
+    iteration_id = iteration['id']
+    
+    # if scoreMatrix is an array
+    if isinstance(scoreMatrix, list):
+        scoreMatrix = {'oneMap': scoreMatrix}
+    for oneMap in scoreMatrix:
 
-scoreMatrix = data['evoRuns'][0]['iterations'][0]['scoreMatrix']
-# if scoreMatrix is an array
-if isinstance(scoreMatrix, list):
-    scoreMatrix = {'oneMap': scoreMatrix}
-for oneMap in scoreMatrix:
+        print('Plotting ' + oneMap + ' for iteration ' + str(iteration_id))
 
-  print('Plotting ' + oneMap)
+        matrix = np.array(scoreMatrix[oneMap])
 
-  matrix = np.array( scoreMatrix[oneMap] )
+        matrix = [[0 if x is None else x for x in row] for row in matrix]
 
-  matrix = [[0 if x is None else x for x in row] for row in matrix]
+        plt.imshow(matrix, cmap='coolwarm', interpolation='nearest', aspect='auto')
+        plt.gca().invert_yaxis()
+        plt.colorbar(label='Score')
 
-  plt.imshow(matrix, cmap='coolwarm', interpolation='nearest', aspect='auto')
-  plt.gca().invert_yaxis()
-  plt.colorbar(label='Score')
+        plt.xlabel('Cell index')
+        plt.ylabel('Cell index')
 
-  plt.xlabel('Cell index')
-  plt.ylabel('Cell index')
+        filename = f"{save_dir}{oneMap}_iteration_{iteration_id}"
+        print('Saving figure to ' + filename + '.ext')
 
-  print('Saving figure to ' + save_dir + oneMap + '.ext')
+        # plt.savefig(filename + '.png', dpi=300)
+        plt.savefig(filename + '.pdf')
 
-  plt.savefig(save_dir + oneMap + '.png', dpi=300)
-  plt.savefig(save_dir + oneMap + '.pdf')
-
-  plt.clf()
+        plt.clf()

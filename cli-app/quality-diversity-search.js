@@ -390,6 +390,8 @@ export async function qdSearch(
   // as automatic background runs seem to affect performance when performing rapid successive commits
   // - gc will be triggered manually at regular intervals below
 // TODO temporarily commenting out:  runCmd('git config --global gc.auto 0');
+// ... turn on
+runCmd('git config --global gc.auto 1');
 
 
   let seedFeaturesAndScores = [];
