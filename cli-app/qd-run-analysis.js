@@ -349,12 +349,12 @@ async function getScoreMatrixForOneIteration( evoRunConfig, evoRunId, iterationI
 
 export async function getScoreMatrixForLastIteration( evoRunConfig, evoRunId, terrainName, includeGenomeId ) {
   const terrainNames = getTerrainNames( evoRunConfig );
-  let scoreMatrixes;
+  let scoreMatrixes = {};
   if( terrainName ) {
     console.log(`Calculating score matrix for terrain ${terrainName}...`);  
-    scoreMatrixes = await getScoreMatrixForOneIteration( evoRunConfig, evoRunId, undefined/*iteration*/, terrainName );
+    // scoreMatrixes = await getScoreMatrixForOneIteration( evoRunConfig, evoRunId, undefined/*iteration*/, terrainName );
+    scoreMatrixes[terrainName] = await getScoreMatrixForTerrain( evoRunConfig, evoRunId, terrainName, includeGenomeId );
   } else if( terrainNames.length ) {
-    scoreMatrixes = {};
     for( const oneTerrainName of terrainNames ) {
       console.log(`Calculating score matrix for terrain ${oneTerrainName}...`);
       // const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, oneTerrainName );
