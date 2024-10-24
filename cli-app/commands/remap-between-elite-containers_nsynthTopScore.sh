@@ -21,9 +21,9 @@ kromosynth map-elite-map-to-map-with-different-bd \
   --evolution-run-id "${EVO_RUN_ID}" \
   --evo-run-dir-path "${EVO_RUN_DIR_PATH}" \
   --terrain-name-from "${TERRAIN_NAME_FROM}" --terrain-name-to "${TERRAIN_NAME_TO}" \
-  --genome-rendering-host ws://127.0.0.1:30051 \
+  --genome-rendering-host ws://127.0.0.1:60051 \
   --feature-extraction-host ws://127.0.0.1:31051 --quality-evaluation-feature-extraction-endpoint "/${QUALITY_EVALUATION_FEATURE_TYPE}" --projection-feature-extraction-endpoint "${PROJECTION_FEATURE_EXTRACTION_ENDPOINT_TYPE}" \
-  --quality-evaluation-host ws://127.0.0.1:32051 --quality-evaluation-endpoint "/adaptive?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=${QUALITY_EVALUATION_FEATURE_TYPE}" \
+  --quality-evaluation-host ws://127.0.0.1:32051 --quality-evaluation-endpoint "/nsynth_instrument_topscore" \
   --projection-host ws://127.0.0.1:33051 --projection-endpoint "${PROJECTION_ENDPOINT}" \
   --use-gpu true --sample-rate 16000
 
@@ -35,4 +35,4 @@ kromosynth map-elite-map-to-map-with-different-bd \
 
 # or 
 # pm2 start ecosystem_services_only__instrumentation-nsynth.config.js
-# ./kromosynth-cli/cli-app/commands/remap-between-elite-containers.sh /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/evoruns 01J9AFWBC69ZNM2SKPEKHPXH60_evoConf_singleMap_nsynthTopScore_x100_mfcc_pca_retrain__2024-09 customRef1 spectralCentroidXflatnessNsynthDNNtopScore mfcc "/nsynth_instrument_topscore" "/raw"
+# ./kromosynth-cli/cli-app/commands/remap-between-elite-containers.sh /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/evoruns 01J9AFWBC69ZNM2SKPEKHPXH60_evoConf_singleMap_nsynthTopScore_x100_mfcc_pca_retrain__2024-09 customRef1 spectralCentroidXflatnessNsynthDNNtopScore mfcc "/manual?features=spectral_centroid,spectral_flatness" "/raw"

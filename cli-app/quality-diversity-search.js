@@ -1205,49 +1205,53 @@ async function mapElitesBatch(
 
     let batchIterationFeatures;
     let batchIterationFitnessValues;
-    if( 
-      isUnsupervisedDiversityEvaluation 
-      && ! shouldPopulateCellFeatures // otherwise we have already projected the features
-      && batchIterationResults && batchIterationResults.length 
-    ) {
+    if( batchIterationResults && batchIterationResults.length ) {
 
       // take all features and fitness values from the batch iteration results obtained from getGenomeClassScoresByDiversityProjectionWithNewGenomes and project them
 
       shouldIncreaseGenrationNumber = true;
 
-      // remove newGenomeClassScores array elements from any batchIterationResults array element, where newGenomeClassScores does not have the property "features" set
-      batchIterationResults = batchIterationResults.filter(r => 
-        r.newGenomeClassScores && r.newGenomeClassScores.every(score => score.features)
-      );
+      if( 
+        isUnsupervisedDiversityEvaluation 
+        && ! isSeedRound // only after seed rounds
+        && ! shouldPopulateCellFeatures // otherwise we have already projected the features
+      ) {
 
-      batchIterationFeatures = batchIterationResults.flatMap( r => r.newGenomeClassScores.map( s => s.features ) );
-      batchIterationFitnessValues = batchIterationResults.flatMap( r => r.newGenomeClassScores.map( s => s.newGenomeFitnessValue ) );
+        // remove newGenomeClassScores array elements from any batchIterationResults array element, where newGenomeClassScores does not have the property "features" set
+        batchIterationResults = batchIterationResults.filter(r => 
+          r.newGenomeClassScores && r.newGenomeClassScores.every(score => score.features)
+        );
 
-      const diversityProjections = await getDiverstyProjectionsFromFeatures(
-        batchIterationFeatures,
-        batchIterationFitnessValues,
-        _evaluationProjectionServers[0],
-        eliteMap,
-        evoRunDirPath,
-        evolutionRunId,
-        shouldCalculateSurprise,
-        shouldUseAutoEncoderForSurprise
-      );
-      for( let i=0; i < batchIterationResults.length; i++ ) {
-        let newGenomeClassScores = {}; // for compatibility with the API below
-        for( let j=0; j < batchIterationResults[i].newGenomeClassScores.length; j++ ) {
-          const k = i + j;
-          // const { genomeId, newGenomeClassScores } = batchIterationResults[i];
-          const { score, surprise } = diversityProjections[k];
-          let {  diversityMapKey } = diversityProjections[k];
-          if( batchIterationResults[i].newGenomeClassScores[j].oneClassKeySuffix ) diversityMapKey += batchIterationResults[i].newGenomeClassScores[j].oneClassKeySuffix; // when classScoringVariationsAsContainerDimensions
-          let newGenomeClassScoresValue = batchIterationResults[i].newGenomeClassScores[j];
-          newGenomeClassScoresValue.score = score;
-          newGenomeClassScoresValue.surprise = surprise;
-          // massage newGenomeClassScores into something compatible with the API below
-          newGenomeClassScores[diversityMapKey] = newGenomeClassScoresValue;
+        batchIterationFeatures = batchIterationResults.flatMap( r => r.newGenomeClassScores.map( s => s.features ) );
+        batchIterationFitnessValues = batchIterationResults.flatMap( r => r.newGenomeClassScores.map( s => s.newGenomeFitnessValue ) );
+
+        const diversityProjections = await getDiverstyProjectionsFromFeatures(
+          batchIterationFeatures,
+          batchIterationFitnessValues,
+          _evaluationProjectionServers[0],
+          eliteMap,
+          evoRunDirPath,
+          evolutionRunId,
+          shouldCalculateSurprise,
+          shouldUseAutoEncoderForSurprise
+        );
+        for( let i=0; i < batchIterationResults.length; i++ ) {
+          let newGenomeClassScores = {}; // for compatibility with the API below
+          for( let j=0; j < batchIterationResults[i].newGenomeClassScores.length; j++ ) {
+            const k = i + j;
+            // const { genomeId, newGenomeClassScores } = batchIterationResults[i];
+            const { score, surprise } = diversityProjections[k];
+            let {  diversityMapKey } = diversityProjections[k];
+            if( batchIterationResults[i].newGenomeClassScores[j].oneClassKeySuffix ) diversityMapKey += batchIterationResults[i].newGenomeClassScores[j].oneClassKeySuffix; // when classScoringVariationsAsContainerDimensions
+            let newGenomeClassScoresValue = batchIterationResults[i].newGenomeClassScores[j];
+            newGenomeClassScoresValue.score = score;
+            newGenomeClassScoresValue.surprise = surprise;
+            // massage newGenomeClassScores into something compatible with the API below
+            newGenomeClassScores[diversityMapKey] = newGenomeClassScoresValue;
+          }
+          batchIterationResults[i].newGenomeClassScores = newGenomeClassScores;
         }
-        batchIterationResults[i].newGenomeClassScores = newGenomeClassScores;
+        
       }
     }
 
