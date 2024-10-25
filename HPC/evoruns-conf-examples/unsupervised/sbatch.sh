@@ -149,7 +149,7 @@ for ((i=1; i<=${features_server_count}; i++)); do
   key="features_\${i}"
 
   rm /fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-${file_name}-host-\$i
-  apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' --env PYTHONPATH=$PYTHONPATH:/fp/projects01/ec29/bthj/kromosynth-evaluate /fp/projects01/ec29/bthj/kromosynth-runner-python-CPU_2024-10.sif python -u ${features_script} --host-info-file /fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-${file_name}-host-\$i &
+  apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects01' --env PYTHONPATH=$PYTHONPATH:/fp/projects01/ec29/bthj/kromosynth-evaluate /fp/projects01/ec29/bthj/kromosynth-runner-python-CPU_2024-10.sif python -u ${features_script} --models-path /fp/projects01/ec29/bthj/kromosynth-evaluate/measurements/models --host-info-file /fp/projects01/ec29/bthj/gRPC-hosts/evaluation-feature-socket-${file_name}-host-\$i &
 
   # Assign a value to the associative array using the unique key
   pids[\$key]="\$!"

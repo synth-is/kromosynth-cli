@@ -171,14 +171,16 @@ export async function mapEliteMapToMapWithDifferentBDs(
         }
       }
       if( ! qualityEvaluationFeature || ! projectionFeature ) {
-        throw new Error("Features not found for eliteGenomeId:", genomeId);
+        // throw new Error("Features not found for eliteGenomeId:", genomeId);
+        console.error("Features not found for eliteGenomeId:", genomeId);
+      } else {
+        qualityEvaluationFeatures.push( qualityEvaluationFeature );
+        projectionFeatures.push( projectionFeature );
       }
-      qualityEvaluationFeatures.push( qualityEvaluationFeature );
-      projectionFeatures.push( projectionFeature );
 
       if( ! genomeQuality ) {
         genomeQuality = await getQualityFromWebsocketForEmbedding(
-          qualityFeaturesResponse.features,
+          qualityEvaluationFeature,
           undefined, //refSetEmbedsPath,
           undefined, //querySetEmbedsPath,
           undefined, //measureCollectivePerformance,
@@ -189,7 +191,7 @@ export async function mapEliteMapToMapWithDifferentBDs(
 
       scores.push( genomeQuality.fitness );
       // collect vectors from projectionFeatures where any value is larger than 1
-      if( projectionFeaturesResponse.features.some( v => v > 1 ) ) {
+      if( projectionFeaturesResponse.features && projectionFeaturesResponse.features.some( v => v > 1 ) ) {
         invalidProjectionVectors.push( projectionFeatures[i] );
       }
     }

@@ -28,7 +28,7 @@ export async function getClassLabels( evoRunConfig, evoRunId ) {
 
 // checks if the evoRunConfig contains classConfigurations, each with a "refSetName" defining a "terrain" for one eliteMap
 // - if so, returns the terrain names, indicating that there are multiple eliteMaps
-function getTerrainNames( evoRunConfig ) {
+export function getTerrainNames( evoRunConfig ) {
   const classConfigurations = evoRunConfig.classifiers[evoRunConfig.classifierIndex].classConfigurations;
   if( classConfigurations ) {
     return classConfigurations.map( classConfiguration => classConfiguration.refSetName );

@@ -49,7 +49,8 @@ import {
 	getDurationPitchDeltaVelocityCombinations,
 	getClassLabels,
 	getNewEliteCountForAllIterations,
-	getDiversityFromEmbeddingFiles
+	getDiversityFromEmbeddingFiles,
+	getTerrainNames
 } from './qd-run-analysis.js';
 import { yamnetTags_non_musical, yamnetTags_musical } from './util/classificationTags.js';
 import {
@@ -1500,18 +1501,25 @@ async function qdAnalysis_percentCompletion() {
 		const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
 		const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
 		const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
-		if( evoRunConfig.terminationCondition.numberOfEvals ) {
-			for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
-				sumTerminationConditionNumberOfEvals += evoRunConfig.terminationCondition.numberOfEvals;
-				let { id: evolutionRunId } = currentEvoConfig.iterations[currentEvolutionRunIteration];
-				if( evolutionRunId ) {
-					const evoRunDirPath = `${evoRunConfig.evoRunsDirPath}${evolutionRunId}/`;
-					const eliteMapFileName = `${evoRunDirPath}elites_${evoRunsConfig.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].id}.json`;
-					const eliteMap = JSON.parse(fs.readFileSync( eliteMapFileName, "utf8" ));
-					const generationNumber = eliteMap.generationNumber;
-					sumNumberOfGenerations += generationNumber * eliteMap.searchBatchSize;
-					const percentCompleted = (generationNumber * eliteMap.searchBatchSize) / evoRunConfig.terminationCondition.numberOfEvals;
-					evoRunsPercentCompleted.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].percentCompleted = percentCompleted;
+		let terrainNames = getTerrainNames( evoRunConfig );
+		if( !terrainNames || !terrainNames.length ) {
+			terrainNames = [''];
+		}
+		for( const oneTerraineName of terrainNames ) {
+			const terrainNameSuffix = oneTerraineName ? '_' + oneTerraineName : '';
+			if( evoRunConfig.terminationCondition.numberOfEvals ) {
+				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+					sumTerminationConditionNumberOfEvals += evoRunConfig.terminationCondition.numberOfEvals;
+					let { id: evolutionRunId } = currentEvoConfig.iterations[currentEvolutionRunIteration];
+					if( evolutionRunId ) {
+						const evoRunDirPath = `${evoRunConfig.evoRunsDirPath}${evolutionRunId}/`;
+						const eliteMapFileName = `${evoRunDirPath}elites_${evoRunsConfig.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].id}${terrainNameSuffix}.json`;
+						const eliteMap = JSON.parse(fs.readFileSync( eliteMapFileName, "utf8" ));
+						const generationNumber = eliteMap.generationNumber;
+						sumNumberOfGenerations += generationNumber * eliteMap.searchBatchSize;
+						const percentCompleted = (generationNumber * eliteMap.searchBatchSize) / evoRunConfig.terminationCondition.numberOfEvals;
+						evoRunsPercentCompleted.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].percentCompleted = percentCompleted;
+					}
 				}
 			}
 		}
