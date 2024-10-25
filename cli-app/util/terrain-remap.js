@@ -127,7 +127,9 @@ export async function mapEliteMapToMapWithDifferentBDs(
               featureExtractionHost, qualityEvaluationFeatureExtractionEndpoint,
               sampleRate,
               undefined // ckptDir
-            );
+            ).catch(e => {
+              console.error(`Error getting features for eliteGenomeId: ${genomeId}`, e);
+            });
             qualityEvaluationFeature = projectionFeature = featuresResponse.features;
           } else {
             if( ! qualityEvaluationFeature ) {
@@ -141,7 +143,9 @@ export async function mapEliteMapToMapWithDifferentBDs(
                 featureExtractionHost, qualityEvaluationFeatureExtractionEndpoint,
                 sampleRate,
                 undefined // ckptDir
-              );
+              ).catch(e => {
+                console.error(`Error getting quality features for eliteGenomeId: ${genomeId}`, e);
+              });
               qualityEvaluationFeature = qualityFeaturesResponse.features;
             }
             if( ! projectionFeature ) {
@@ -155,7 +159,9 @@ export async function mapEliteMapToMapWithDifferentBDs(
                 featureExtractionHost, projectionFeatureExtractionEndpoint,
                 sampleRate,
                 undefined // ckptDir
-              );
+              ).catch(e => {
+                console.error(`Error getting projection features for eliteGenomeId: ${genomeId}`, e);
+              });
               projectionFeature = projectionFeaturesResponse.features;
             }
           }
