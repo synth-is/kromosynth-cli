@@ -18,8 +18,8 @@
           // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
           "featureExtractionEndpoint": "/mfcc",
           "featureExtractionType": "mfcc",
-          "qualityEvaluationEndpoint": "/nsynth_instrument_topscore", // quality_instrumentation.py
-          "qualityFromFeatures": false,
+          "qualityEvaluationEndpoint": "?k=15&power=1.5&useAdaptive=true",
+          "qualityFromFeatures": true,
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
           "shouldRetrainProjection": true,
@@ -75,13 +75,13 @@
     "ws://127.0.0.1:31053"
   ],
   "evaluationQualityServers": [ // quality evaluation
-    "ws://127.0.0.1:32051",
-    "ws://127.0.0.1:32052",
-    "ws://127.0.0.1:32053"
+    "ws://127.0.0.1:40051",
+    // "ws://127.0.0.1:32052",
+    // "ws://127.0.0.1:32053"
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
-    "ws://127.0.0.1:33052",
-    "ws://127.0.0.1:33053"
+    // "ws://127.0.0.1:33052",
+    // "ws://127.0.0.1:33053"
   ]
 }

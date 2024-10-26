@@ -16,9 +16,9 @@
           "refSetName": "customRef1",
           // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
           // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
-          "featureExtractionEndpoint": "/mfcc",
-          "featureExtractionType": "mfcc",
-          "qualityEvaluationEndpoint": "/nsynth_instrument_topscore", // quality_instrumentation.py
+          "featureExtractionEndpoint": "/mfcc-sans0-statistics",
+          "featureExtractionType": "mfcc-sans0-statistics",
+          "qualityEvaluationEndpoint": "/",
           "qualityFromFeatures": false,
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
@@ -27,7 +27,7 @@
           "shouldCalculateNovelty": false,
           "shouldCalculateSurprise": false,
           "shouldTrackDiversity": true,
-          "sampleRate": 16000,
+          "sampleRate": 48000,
           "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
           "eliteRemappingCompetitionCriteria": "score" // one of: 'score', 'novelty' or 'surprise',
         }
@@ -59,9 +59,9 @@
   "gradientWindowSize": 10,
 
   "geneVariationServers": [
-    "127.0.0.1:50051",
-    "127.0.0.1:50052",
-    "127.0.0.1:50053"
+    "ws://127.0.0.1:50051",
+    "ws://127.0.0.1:50052",
+    "ws://127.0.0.1:50053"
   ],
   "geneRenderingServers": [
     "ws://127.0.0.1:60051",
@@ -76,12 +76,12 @@
   ],
   "evaluationQualityServers": [ // quality evaluation
     "ws://127.0.0.1:32051",
-    "ws://127.0.0.1:32052",
-    "ws://127.0.0.1:32053"
+    // "ws://127.0.0.1:32052",
+    // "ws://127.0.0.1:32053"
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
-    "ws://127.0.0.1:33052",
-    "ws://127.0.0.1:33053"
+    // "ws://127.0.0.1:33052",
+    // "ws://127.0.0.1:33053"
   ]
 }

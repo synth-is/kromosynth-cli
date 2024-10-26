@@ -16,10 +16,10 @@
           "refSetName": "customRef1",
           // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
           // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
-          "featureExtractionEndpoint": "/mfcc",
-          "featureExtractionType": "mfcc",
-          "qualityEvaluationEndpoint": "/nsynth_instrument_topscore", // quality_instrumentation.py
-          "qualityFromFeatures": false,
+          "featureExtractionEndpoint": "/mfcc-sans0",
+          "featureExtractionType": "mfcc-sans0",
+          "qualityEvaluationEndpoint": "/adaptive?transformation_power=8&reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=mfcc-sans0",
+          "qualityFromFeatures": true,
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
           "shouldRetrainProjection": true,
@@ -81,7 +81,7 @@
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
-    "ws://127.0.0.1:33052",
-    "ws://127.0.0.1:33053"
+    // "ws://127.0.0.1:33052",
+    // "ws://127.0.0.1:33053"
   ]
 }

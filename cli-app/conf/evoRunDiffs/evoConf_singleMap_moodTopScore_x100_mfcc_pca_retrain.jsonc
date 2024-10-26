@@ -9,6 +9,8 @@
 
   "oneCPPNPerFrequency": true,
 
+  "classScoringDurations": [60],
+
   "classifiers": [
     {
       "classConfigurations": [
@@ -18,7 +20,7 @@
           // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
           "featureExtractionEndpoint": "/mfcc",
           "featureExtractionType": "mfcc",
-          "qualityEvaluationEndpoint": "/nsynth_instrument_topscore", // quality_instrumentation.py
+          "qualityEvaluationEndpoint": "/?quality_methods=top_mood_score_only", // quality_mood.py --quality-methods in ecosystem config
           "qualityFromFeatures": false,
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
           "projectionEndpoint": "/pca",
@@ -81,7 +83,7 @@
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
-    "ws://127.0.0.1:33052",
-    "ws://127.0.0.1:33053"
+    // "ws://127.0.0.1:33052",
+    // "ws://127.0.0.1:33053"
   ]
 }

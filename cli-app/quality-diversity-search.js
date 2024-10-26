@@ -20,11 +20,15 @@ import {
 } from 'kromosynth';
 // import { callRandomGeneService } from './service/gene-random-worker-client.js';
 import {
-  callRandomGeneService,
-  callGeneVariationService,
+  // callRandomGeneService,
+  // callGeneVariationService,
   callGeneEvaluationService,
   clearServiceConnectionList
 } from './service/gRPC/gene_client.js';
+import {
+  callRandomGeneService,
+  callGeneVariationService,
+} from './service/websocket/ws-genome-variation.js';
 import { 
   renderAndEvaluateGenomesViaWebsockets,
   getAudioBufferChannelDataForGenomeAndMetaFromWebsocet,
@@ -151,7 +155,7 @@ export async function qdSearch(
     _geneVariationServers = [];
     for( let i=1; i <= gRpcServerCount; i++ ) {
       const hostFilePath = `${gRpcHostFilePathPrefix}${i}`;
-      const variationHost = await readFromFileWhenItExists(hostFilePath, 0);
+      const variationHost = "ws://" + await readFromFileWhenItExists(hostFilePath, 0);
       if( variationHost ) _geneVariationServers.push(variationHost);
     }
   } else if( geneVariationServerPaths && geneVariationServerPaths.length ) {

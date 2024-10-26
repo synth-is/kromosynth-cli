@@ -5,12 +5,12 @@ module.exports = {
       interpreter: '/Users/bjornpjo/.nvm/versions/node/v18.20.3/bin/node',
       script : "gRPC/genomeVariationWS.js",
       args: "--max-old-space-size=1024 --modelUrl file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-variation",
-      instances : 1,
+      instances : 3,
       exec_mode : "cluster",
       // max_memory_restart: '700M',
       max_memory_restart: '2G',
       // cron_restart: '*/30 * * * *',
-      // cron_restart: '0 * * * *', // every hour
+      cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
         "PORT": 50051,
@@ -23,15 +23,14 @@ module.exports = {
       interpreter: '/Users/bjornpjo/.nvm/versions/node/v18.20.3/bin/node',
       script : "/Users/bjornpjo/Developer/apps/kromosynth-render/render-socket/socket-server-floating-points.js",
       args: "--max-old-space-size=1024 --processTitle kromosynth-render-socket-server",
-      node_args: "--expose-gc",
-      instances : 1,
+      instances : 3,
       exec_mode : "cluster",
       max_memory_restart: '2G',
       // cron_restart: '*/30 * * * *',
-      // cron_restart: '0 * * * *', // every hour
+      cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
-        "PORT": 30051,
+        "PORT": 60051,
         "TF_FORCE_GPU_ALLOW_GROWTH": true
       }
     }
@@ -42,11 +41,11 @@ module.exports = {
       cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
       script : "features.py",
       args: "--host 127.0.0.1 --models-path /Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models",
-      instances : 1,
+      instances : 3,
       exec_mode : "fork",
       max_memory_restart: '2G',
       // cron_restart: '*/30 * * * *',
-      // cron_restart: '0 * * * *', // every hour
+      cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
         "PORT": 31051,
@@ -54,16 +53,16 @@ module.exports = {
     }
     ,
     { // see the `kromosynth-evaluate` repository: https://github.com/synth-is/kromosynth-evaluate
-      name   : "kromosynth-evaluation-socket-server_quality_ref_features",
+      name   : "kromosynth-evaluation-socket-server_quality_ref_problems",
       interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3', // NB: different python environment
       cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
-      script : "quality_ref_features.py",
-      args: "--host 127.0.0.1",
-      instances : 1,
+      script : "quality_problems.py",
+      args: "--host 127.0.0.1 --sample-rate 16000 --quality-methods 'click_count_percentage,discontinuity_count_percentage,gaps_count_percentage,saturation_percentage,true_peak_clipping_percentage,noise_burst_percentage,compressibility_percentage,energy'",
+      instances : 3,
       exec_mode : "fork",
       max_memory_restart: '2G',
       // cron_restart: '*/30 * * * *',
-      // cron_restart: '0 * * * *', // every hour
+      cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
         "PORT": 32051,
@@ -78,15 +77,28 @@ module.exports = {
       args: "--host 127.0.0.1 --dimensions 2 --dimension-cells 100",
       instances : 1,
       exec_mode : "fork",
-      max_memory_restart: '8G',
+      max_memory_restart: '4G',
       // cron_restart: '*/30 * * * *',
       // restart every three hours, as UMAP leaks memory: https://github.com/lmcinnes/umap/issues/535
       // cron_restart: '0 */3 * * *',
-      // cron_restart: '0 * * * *', // every hour
+      cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
         "PORT": 33051,
       }
+    }
+    ,
+    {
+      name   : "kromosynth-controller",
+      script : "cli-app/kromosynth.js",
+      args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_single-map.jsonc",
+      instances : 1,
+      // exec_mode : "fork",
+      max_memory_restart: '4G',
+      cron_restart: '0 * * * *' // every * hours
+      // cron_restart: '*/30 * * * *' // every 30 minutes
+      // cron restart every three hours
+      // cron_restart: '0 */3 * * *'
     }
   ]
 }

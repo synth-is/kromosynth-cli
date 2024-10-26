@@ -3,7 +3,7 @@ module.exports = {
     {
       name   : "kromosynth-gRPC-variation",
       interpreter: '/Users/bjornpjo/.nvm/versions/node/v18.20.3/bin/node',
-      script : "gRPC/index.js",
+      script : "gRPC/genomeVariationWS.js",
       args: "--max-old-space-size=1024 --modelUrl file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-variation",
       instances : 3,
       exec_mode : "cluster",
@@ -30,7 +30,7 @@ module.exports = {
       cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
-        "PORT": 30051,
+        "PORT": 60051,
         "TF_FORCE_GPU_ALLOW_GROWTH": true
       }
     }
@@ -75,7 +75,7 @@ module.exports = {
       cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
       script : "projection_quantised.py",
       args: "--host 127.0.0.1 --dimensions 2 --dimension-cells 100",
-      instances : 3, // only one instance for ParametricUMAP
+      instances : 1, // only one instance for ParametricUMAP
       exec_mode : "fork",
       max_memory_restart: '4G',
       // cron_restart: '*/30 * * * *',

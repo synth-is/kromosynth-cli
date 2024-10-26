@@ -10,6 +10,7 @@ module.exports = {
       // max_memory_restart: '700M',
       max_memory_restart: '2G',
       // cron_restart: '*/30 * * * *',
+      cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
         "PORT": 50051,
@@ -26,9 +27,10 @@ module.exports = {
       exec_mode : "cluster",
       max_memory_restart: '2G',
       // cron_restart: '*/30 * * * *',
+      cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
-        "PORT": 30051,
+        "PORT": 60051,
         "TF_FORCE_GPU_ALLOW_GROWTH": true
       }
     }
@@ -43,55 +45,58 @@ module.exports = {
       exec_mode : "fork",
       max_memory_restart: '2G',
       // cron_restart: '*/30 * * * *',
+      // cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
         "PORT": 31051,
       }
     }
-    ,
-    { // see the `kromosynth-evaluate` repository: https://github.com/synth-is/kromosynth-evaluate
-      name   : "kromosynth-evaluation-socket-server_quality_ref_features",
-      interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3', // NB: different python environment
-      cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
-      script : "quality_ref_features.py",
-      args: "--host 127.0.0.1",
-      instances : 3,
-      exec_mode : "fork",
-      max_memory_restart: '2G',
-      // cron_restart: '*/30 * * * *',
-      increment_var : 'PORT',
-      env: {
-        "PORT": 32051,
-      }
-    }
-    ,
-    { // see the `kromosynth-evaluate` repository: https://github.com/synth-is/kromosynth-evaluate
-      name   : "kromosynth-evaluation-socket-server_projection_pca_quantised",
-      interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3',
-      cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
-      script : "projection_quantised.py",
-      args: "--host 127.0.0.1 --dimensions 2 --dimension-cells 100",
-      instances : 3,
-      exec_mode : "fork",
-      max_memory_restart: '4G',
-      // cron_restart: '*/30 * * * *',
-      increment_var : 'PORT',
-      env: {
-        "PORT": 33051,
-      }
-    }
+  // ,
+  // { // see the `kromosynth-evaluate` repository
+  //   name   : "kromosynth-evaluation-socket-server",
+  //   script : "/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/supervised/Node-socket/hnsw-knn-avg-score.js",
+  //   args: "--processTitle kromosynth-evaluation-hnsw-socket-server --modelUrl file:///Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models/hnsw-indexes/NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc --spaceName cosine
+  //   instances : 1,
+  //   exec_mode : "cluster",
+  //   max_memory_restart: '700M',
+  //   cron_restart: '0 * * * *',
+  //   increment_var : 'PORT',
+  //   env: {
+  //     "PORT": 40051,
+  //     "TF_FORCE_GPU_ALLOW_GROWTH": true
+  //   }
+  // }
+  // ,
+  //   { // see the `kromosynth-evaluate` repository: https://github.com/synth-is/kromosynth-evaluate
+  //     name   : "kromosynth-evaluation-socket-server_projection_pca_quantised",
+  //     interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3',
+  //     cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
+  //     script : "projection_quantised.py",
+  //     args: "--host 127.0.0.1 --dimensions 2 --dimension-cells 100",
+  //     instances : 1, // only one instance for ParametricUMAP
+  //     exec_mode : "fork",
+  //     max_memory_restart: '4G',
+  //     // cron_restart: '*/30 * * * *',
+  //     // restart every three hours, as UMAP leaks memory: https://github.com/lmcinnes/umap/issues/535
+  //     // cron_restart: '0 */3 * * *',
+  //     cron_restart: '0 * * * *', // every * hours
+  //     increment_var : 'PORT',
+  //     env: {
+  //       "PORT": 33051,
+  //     }
+  //   }
     // ,
     // {
     //   name   : "kromosynth-controller",
     //   script : "cli-app/kromosynth.js",
-    //   args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_map-switch.jsonc",
+    //   args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_single-map.jsonc",
     //   instances : 1,
     //   // exec_mode : "fork",
     //   max_memory_restart: '4G',
-    //   // cron_restart: '0 */3 * * *' // every 3 hours
+    //   cron_restart: '0 * * * *' // every * hours
     //   // cron_restart: '*/30 * * * *' // every 30 minutes
-    //   // cont restart every hour
-    //   // cron_restart: '0 * * * *'
+    //   // cron restart every three hours
+    //   // cron_restart: '0 */3 * * *'
     // }
   ]
 }

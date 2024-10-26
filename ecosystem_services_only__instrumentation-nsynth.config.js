@@ -31,7 +31,7 @@ module.exports = {
       // cron_restart: '0 * * * *', // every hour
       increment_var : 'PORT',
       env: {
-        "PORT": 30051,
+        "PORT": 60051,
         "TF_FORCE_GPU_ALLOW_GROWTH": true
       }
     }
@@ -57,13 +57,13 @@ module.exports = {
       name   : "kromosynth-evaluation-socket-server_quality_ref_features",
       interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3', // NB: different python environment
       cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
-      script : "quality_ref_features.py",
-      args: "--host 127.0.0.1",
-      instances : 1,
+      script : "quality_instrumentation.py",
+      args: "--host 127.0.0.1 --models-path /Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models",
+      instances : 3,
       exec_mode : "fork",
       max_memory_restart: '2G',
       // cron_restart: '*/30 * * * *',
-      // cron_restart: '0 * * * *', // every hour
+      cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
         "PORT": 32051,
