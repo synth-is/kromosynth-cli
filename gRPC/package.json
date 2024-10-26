@@ -15,7 +15,8 @@
     "kromosynth": "^1.0.34",
     "minimist": "^1.2.7",
     "node-web-audio-api": "^0.21.3",
-    "pb-util": "^1.0.3"
+    "pb-util": "^1.0.3",
+    "ws": "^8.18.0"
   },
   "repository": {
     "type": "git",
