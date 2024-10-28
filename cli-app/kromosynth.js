@@ -2131,6 +2131,8 @@ async function qdAnalysis_evoRuns() {
 
 function writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis ) {
 	const evoRunsAnalysisJSONString = JSON.stringify( evoRunsAnalysis, null, 2 );
+	// if analysisResultFilePath does not exist, create it
+	if( !fs.existsSync( analysisResultFilePath ) ) fs.mkdirSync( analysisResultFilePath, {recursive: true} );
 	fs.writeFileSync( analysisResultFilePath, evoRunsAnalysisJSONString );
 	console.log(`Wrote: ${analysisResultFilePath}`);
 }
