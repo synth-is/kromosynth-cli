@@ -1097,12 +1097,20 @@ async function renderLineageTree() {
 		// latestDescendants.forEach( async (oneDescendant, index) => {
 		let descendantIndex = 0;
 		let lineageIndex = 0;
+		let lastDuration, lastNoteDelta, lastVelocity;
+		console.log("-----latestDescendants.length", latestDescendants.length);
 		descendantIterationLoop:
 		for( const oneDescendant of latestDescendants ) {
 			const lineage = traceLineage( lineageData, oneDescendant, Infinity/*maxDepth*/, iterationIndex );
 			// lineage.forEach( async (oneLineageItem) => {
 			for( const oneLineageItem of lineage ) {
-				const { id: genomeId, eliteClass, s, gN, uBC, duration, noteDelta, velocity, parents } = oneLineageItem;
+				let { id: genomeId, eliteClass, s, gN, uBC, duration, noteDelta, velocity, parents } = oneLineageItem;
+
+				// hack to handle missing variation values due to remapping (see "lineage" analysis operation)
+				if( duration===undefined ) duration = lastDuration; else lastDuration = duration;
+				if( noteDelta===undefined ) noteDelta = lastNoteDelta; else lastNoteDelta = noteDelta;
+				if( velocity===undefined ) velocity = lastVelocity; else lastVelocity = velocity;
+
 				const renderedDescendantFileName = `${genomeId}-${duration}_${noteDelta}_${velocity}.wav`;
 				console.log("Collecting", renderedDescendantFileName);
 				genomesToRender[renderedDescendantFileName] = { 
