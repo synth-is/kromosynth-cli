@@ -1,6 +1,7 @@
 import fs from 'fs';
 import hnswPkg from 'hnswlib-node';
 const { HierarchicalNSW } = hnswPkg;
+import { findFiles, getFeaturesFromFile, getFeaturesFromFileTree } from './test-common.js';
 
 function getHnswIndexWithFeatures( spaceName, featureType, pathToTree, numberOfFilePathPartsAsKey, indexPersistencePath, indexFileName = 'hnswIndex.dat', indexToKeyFileName = 'indexToKey.json' ) {
   let index;
@@ -43,53 +44,12 @@ function getHnswIndexWithFeatures( spaceName, featureType, pathToTree, numberOfF
   return { index, indexToKey};
 }
 
-function getFeaturesFromFileTree( featureType, pathToTree, numberOfFilePathPartsAsKey = 1 ) {
-  // find all .json files in the tree
-  const files = findFiles( pathToTree, '.json' );
-  // read each file and extract the features
-  const features = {};
-  for( let i = 0; i < files.length; i++ ) {
-    const file = files[i];
-    const parts = file.split('/');
-    const key = parts.slice( -numberOfFilePathPartsAsKey ).join('/');
-    // console.log( "fileName:", fileName );
-    const feature = getFeaturesFromFile( featureType, file );
-    // console.log( "featureType", featureType, ":", feature );
-    features[key] = feature;
-  }
-  return features;
-}
-
 function getFirstFeatureFromFileTree( featureType, pathToTree ) {
   const files = findFiles( pathToTree, '.json', 1 );
   const file = files[0];
   return getFeaturesFromFile( featureType, file );
 }
 
-function findFiles( pathToTree, extension, maxFiles ) {
-  const files = [];
-  const tree = fs.readdirSync( pathToTree );
-  for( let i = 0; i < tree.length; i++ ) {
-    if( maxFiles && files.length >= maxFiles ) {
-      break;
-    }
-    const item = tree[i];
-    const itemPath = `${pathToTree}/${item}`;
-    const stats = fs.statSync( itemPath );
-    if( stats.isDirectory() ) {
-      const subFiles = findFiles( itemPath, extension, maxFiles );
-      subFiles.forEach( subFile => files.push( subFile ) );
-    } else if( stats.isFile() && item.endsWith( extension ) ) {
-      files.push( itemPath );
-    }
-  }
-  return files;
-}
-
-function getFeaturesFromFile( featureType, file ) {
-  const data = JSON.parse( fs.readFileSync( file, 'utf8' ) );
-  return data[featureType];
-}
 
 // get featureType from command line argument
 const featureType = process.argv[2];

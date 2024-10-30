@@ -3,7 +3,7 @@ module.exports = {
     {
       name   : "kromosynth-gRPC-variation",
       interpreter: '/Users/bjornpjo/.nvm/versions/node/v18.20.3/bin/node',
-      script : "gRPC/index.js",
+      script : "gRPC/genomeVariationWS.js",
       args: "--max-old-space-size=1024 --modelUrl file:///Users/bjornpjo/Developer/vendor/tfjs-model_yamnet_tfjs_1/model.json --processTitle kromosynth-gRPC-variation",
       instances : 1,
       exec_mode : "cluster",

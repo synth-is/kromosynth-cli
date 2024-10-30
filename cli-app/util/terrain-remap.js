@@ -288,17 +288,17 @@ export async function mapEliteMapToMapWithDifferentBDs(
   const gridMeanFitness = occupiedCellKeys.reduce((acc, k) => {
     return acc + (newEliteMap.cells[k].elts[0].s === undefined ? 0 : newEliteMap.cells[k].elts[0].s);
   }, 0) / occupiedCellKeys.length;
-
   const gridMeanSurprise = occupiedCellKeys.reduce((acc, k) => {
     return acc + (newEliteMap.cells[k].elts[0].ss === undefined ? 0 : newEliteMap.cells[k].elts[0].ss);
   }, 0) / occupiedCellKeys.length;
-
   const gridMeanNovelty = occupiedCellKeys.reduce((acc, k) => {
     return acc + (newEliteMap.cells[k].elts[0].ns === undefined ? 0 : newEliteMap.cells[k].elts[0].ns);
   }, 0) / occupiedCellKeys.length;
+  const coveragePercentage = occupiedCellKeys.length / (Object.keys(newEliteMap.cells).length) * 100;
   newEliteMap.gridMeanFitness = gridMeanFitness;
   newEliteMap.gridMeanSurprise = gridMeanSurprise;
   newEliteMap.gridMeanNovelty = gridMeanNovelty;
+  newEliteMap.coveragePercentage = coveragePercentage;
 
   saveEliteMapToDisk( newEliteMap, evoRunDirPath, evolutionRunId, terrainNameTo );
 }

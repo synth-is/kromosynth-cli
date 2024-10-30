@@ -1609,26 +1609,30 @@ async function qdAnalysis_evoRuns() {
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "score-matrices" ) {
-						const scoreMatrices = await getScoreMatricesForAllIterations( evoRunConfig, evolutionRunId, stepSize, terrainName, false/*includeGenomeId*/ );
+						const {scoreMatrices, coveragePercentage} = await getScoreMatricesForAllIterations( evoRunConfig, evolutionRunId, stepSize, terrainName, false/*includeGenomeId*/ );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreMatrices = scoreMatrices;
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].coveragePercentage = coveragePercentage;
 						console.log(`Added score matrices to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "score-and-genome-matrices" ) {
-						const scoreMatrices = await getScoreMatricesForAllIterations( evoRunConfig, evolutionRunId, stepSize, terrainName, true/*includeGenomeId*/ );
+						const {scoreMatrices, coveragePercentage} = await getScoreMatricesForAllIterations( evoRunConfig, evolutionRunId, stepSize, terrainName, true/*includeGenomeId*/ );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreMatrices = scoreMatrices;
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].coveragePercentage = coveragePercentage;
 						console.log(`Added score matrices to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "score-matrix" ) {
-						const scoreMatrix = await getScoreMatrixForLastIteration( evoRunConfig, evolutionRunId, terrainName );
+						const {scoreMatrix, coveragePercentage} = await getScoreMatrixForLastIteration( evoRunConfig, evolutionRunId, terrainName );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreMatrix = scoreMatrix;
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].coveragePercentage = coveragePercentage;
 						console.log(`Added score matrix to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "score-and-genome-matrix" ) {
-						const scoreMatrix = await getScoreMatrixForLastIteration( evoRunConfig, evolutionRunId, terrainName, true/*includeGenomeId*/ );
+						const {scoreMatrix, coveragePercentage} = await getScoreMatrixForLastIteration( evoRunConfig, evolutionRunId, terrainName, true/*includeGenomeId*/ );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreMatrix = scoreMatrix;
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].coveragePercentage = coveragePercentage;
 						console.log(`Added score matrix to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
@@ -2139,6 +2143,8 @@ async function qdAnalysis_evoRuns() {
 
 function writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis ) {
 	const evoRunsAnalysisJSONString = JSON.stringify( evoRunsAnalysis, null, 2 );
+	// if analysisResultFilePath does not exist, create it
+	if( !fs.existsSync( analysisResultFilePath ) ) fs.mkdirSync( path.dirname(analysisResultFilePath), {recursive: true} );
 	fs.writeFileSync( analysisResultFilePath, evoRunsAnalysisJSONString );
 	console.log(`Wrote: ${analysisResultFilePath}`);
 }

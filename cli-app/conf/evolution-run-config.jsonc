@@ -65,6 +65,7 @@
           "qualityEvaluationEndpoint": "/score",
           "projectionEndpoint": "/pca",
           "shouldRetrainProjection": true, // wether to periodically retrain the chosen dimensionality reduction (PCA, UMAP, VAE, etc.)
+          "retrainWithAllDiscoveredFeatures": false, // if true, all discovered features are used for retraining the projection, otherwise only the features in the container are used
           "projectionRetrainingLinearGapIncrement": 10,
           "shouldCalculateSurprise": false,
           "shouldUseAutoEncoderForSurprise": false, // if true, the autoencoder is used to calculate novelty scores, otherwise the PCA inverse_transform is used
@@ -76,7 +77,7 @@
           "pcaComponents": "0,1", // to allow selection of specific projection components, which are ranked by importence in the case of PCA
           "sampleRate": 16000,
           "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
-          "eliteRemappingCompetitionCriteria": "score", // one of: 'score', 'novelty' or 'surprise',
+          "eliteRemappingCompetitionCriteria": "score" // one of: 'score', 'novelty' or 'surprise',
         },
         {
           "refSetName": "string",

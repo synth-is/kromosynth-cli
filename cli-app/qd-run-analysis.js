@@ -299,39 +299,56 @@ export async function getCoverageForAllIterations( evoRunConfig, evoRunId, stepS
 export async function getScoreMatricesForAllIterations( evoRunConfig, evoRunId, stepSize = 1, terrainName, includeGenomeId ) {
   const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
-  const terrainNames = getTerrainNames( evoRunConfig );
-  let scoreMatrixes;
-  if( terrainNames.length && ! terrainName ) {
-    scoreMatrixes = {};
+  let terrainNames;
+  if( "ALL" === terrainName ) {
+    // terrainNames as the difference between files at evoRunConfig.evoRunsDirPath starting with "elites_" and ending with ".json"
+    const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+    const evoRunDirFiles = fs.readdirSync(evoRunDirPath);
+    terrainNames = evoRunDirFiles.filter( 
+      fileName => fileName.startsWith("elites_"+evoRunId) && fileName.endsWith(".json")
+    ).map( fileName => fileName.match(new RegExp(`elites_${evoRunId}_(.*)\\.json`))[1] );
+  } else {
+    terrainNames = getTerrainNames( evoRunConfig );
+  }
+  console.log("--- terrainNames:", terrainNames);
+  let scoreMatrices;
+  let coveragePercentage;
+  if( terrainNames.length && (! terrainName || "ALL"===terrainName) ) {
+    scoreMatrices = {};
+    coveragePercentage = {};
     for( const oneTerrainName of terrainNames ) {
-      scoreMatrixes[oneTerrainName] = new Array(Math.ceil(commitCount / stepSize));
+      scoreMatrices[oneTerrainName] = new Array(Math.ceil(commitCount / stepSize));
+      coveragePercentage[oneTerrainName] = new Array(Math.ceil(commitCount / stepSize));
     }
     for( let iterationIndex = 0, scoreMatrixIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, scoreMatrixIndex++ ) {
       if( iterationIndex % stepSize === 0 ) {
         console.log(`Calculating score matrix for iteration ${iterationIndex}...`);
         for( const oneTerrainName of terrainNames ) {
-          scoreMatrixes[oneTerrainName][scoreMatrixIndex] = await getScoreMatrixForOneIteration(
+          scoreMatrices[oneTerrainName][scoreMatrixIndex] = await getScoreMatrixForOneIteration(
             evoRunConfig, evoRunId, iterationIndex, oneTerrainName, includeGenomeId
           );
+          coveragePercentage[oneTerrainName][scoreMatrixIndex] = await getCoveragePercentageForOneTerrain( evoRunConfig, evoRunId, oneTerrainName, iterationIndex );
         }
       }
     }
   } else {
-    scoreMatrixes = new Array(Math.ceil(commitCount / stepSize));
+    scoreMatrices = new Array(Math.ceil(commitCount / stepSize));
+    coveragePercentage = new Array(Math.ceil(commitCount / stepSize));
     for( let iterationIndex = 0, scoreMatrixIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, scoreMatrixIndex++ ) {
       if( iterationIndex % stepSize === 0 ) {
         console.log(`Calculating score matrix for iteration ${iterationIndex}...`);
-        scoreMatrixes[scoreMatrixIndex] = await getScoreMatrixForOneIteration(
+        scoreMatrices[scoreMatrixIndex] = await getScoreMatrixForOneIteration(
           evoRunConfig, evoRunId, iterationIndex, terrainName, includeGenomeId
         );
+        coveragePercentage[scoreMatrixIndex] = await getCoveragePercentageForOneTerrain( evoRunConfig, evoRunId, terrainName, iterationIndex );
       }
     }
   }
-  const scoreMatrixesStringified = JSON.stringify(scoreMatrixes);
+  const scoreMatrixesStringified = JSON.stringify(scoreMatrices);
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const scoreMatrixesFilePath = `${evoRunDirPath}score-matrixes_step-${stepSize}.json`;
   fs.writeFileSync( scoreMatrixesFilePath, scoreMatrixesStringified );
-  return scoreMatrixes;
+  return { scoreMatrices, coveragePercentage };
 }
 
 async function getScoreMatrixForOneIteration( evoRunConfig, evoRunId, iterationIndex, terrainName, includeGenomeId ) {
@@ -348,23 +365,37 @@ async function getScoreMatrixForOneIteration( evoRunConfig, evoRunId, iterationI
 }
 
 export async function getScoreMatrixForLastIteration( evoRunConfig, evoRunId, terrainName, includeGenomeId ) {
-  const terrainNames = getTerrainNames( evoRunConfig );
+  let terrainNames;
+  if( "ALL" === terrainName ) {
+    // terrainNames as the difference between files at evoRunConfig.evoRunsDirPath starting with "elites_" and ending with ".json"
+    const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+    const evoRunDirFiles = fs.readdirSync(evoRunDirPath);
+    terrainNames = evoRunDirFiles.filter( 
+      fileName => fileName.startsWith("elites_"+evoRunId) && fileName.endsWith(".json")
+    ).map( fileName => fileName.match(new RegExp(`elites_${evoRunId}_(.*)\\.json`))[1] );
+  } else {
+    terrainNames = getTerrainNames( evoRunConfig );
+  }
   let scoreMatrixes = {};
-  if( terrainName ) {
+  let coveragePercentage = {};
+  if( terrainName && "ALL" !== terrainName ) {
     console.log(`Calculating score matrix for terrain ${terrainName}...`);  
     // scoreMatrixes = await getScoreMatrixForOneIteration( evoRunConfig, evoRunId, undefined/*iteration*/, terrainName );
     scoreMatrixes[terrainName] = await getScoreMatrixForTerrain( evoRunConfig, evoRunId, terrainName, includeGenomeId );
+    coveragePercentage[terrainName] = await getCoveragePercentageForOneTerrain( evoRunConfig, evoRunId, terrainName );
   } else if( terrainNames.length ) {
     for( const oneTerrainName of terrainNames ) {
       console.log(`Calculating score matrix for terrain ${oneTerrainName}...`);
       // const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, oneTerrainName );
       scoreMatrixes[oneTerrainName] = await getScoreMatrixForTerrain( evoRunConfig, evoRunId, oneTerrainName, includeGenomeId );
+      // coveragePercentage[oneTerrainName] = getCoverageForEliteMap( eliteMap );
+      coveragePercentage[oneTerrainName] = await getCoveragePercentageForOneTerrain( evoRunConfig, evoRunId, oneTerrainName );
     }
   } else {
     // const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false );
     scoreMatrixes = await getScoreMatrixForTerrain( evoRunConfig, evoRunId, undefined/*terrainName*/, includeGenomeId );
   }
-  return scoreMatrixes;
+  return { scoreMatrix: scoreMatrixes, coveragePercentage };
 }
 
 export async function getScoreMatrixForTerrain( evoRunConfig, evoRunId, terrainName, includeGenomeId ) {
@@ -374,6 +405,17 @@ export async function getScoreMatrixForTerrain( evoRunConfig, evoRunId, terrainN
   } else {
     return getScoreMatrixFromEliteMap( eliteMap );
   }
+}
+
+async function getCoveragePercentageForOneTerrain( evoRunConfig, evoRunId, terrainName, iterationIndex ) {
+  const eliteMap = await getEliteMap( 
+    evoRunConfig, evoRunId, iterationIndex,
+    false, // forceCreateCommitIdsList
+    terrainName
+  );
+  // return getCoverageForEliteMap( eliteMap, scoreThreshold );
+  // TODO might want to do that calculation, but we should also have this pre-computed:
+  return eliteMap.coveragePercentage;
 }
 
 export async function getScoreMatrixFromEliteMap(eliteMap) {
@@ -436,7 +478,7 @@ export async function getScoreMatrixFromEliteMap(eliteMap) {
   return resultArray;
 }
 
-export async function getScoreAndGenomeMatrixFromEliteMap(eliteMap) {
+export function getScoreAndGenomeMatrixFromEliteMap(eliteMap) {
   let dataArray = {};
   let is3D = false;
 

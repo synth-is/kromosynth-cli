@@ -44,6 +44,9 @@ export function saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, ter
     const eliteMapFilePath = `${evoRunDirPath}${evoRunDirPathSeparator}${eliteMapFileName}`;
     const eliteMapStringified = JSON.stringify(eliteMap, null, 2); // prettified to obtain the benefits (compression of git diffs)
     // await fsPromise.writeFile( eliteMapFilePath, eliteMapStringified );
+    if( ! fs.existsSync(eliteMapFilePath) ) {
+      fs.mkdirSync( evoRunDirPath, { recursive: true } );
+    }
     fs.writeFileSync( eliteMapFilePath, eliteMapStringified );
 
     if( addToGit ) {
@@ -142,6 +145,39 @@ export function readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRun
     }
   }
   return cellFeatures;
+}
+
+export function saveLostFeaturesToDisk( lostFeatures, eliteMap, evoRunDirPath ) {
+  const lostFeaturesDirPath = `${evoRunDirPath}lostFeatures/`;
+  if( ! fs.existsSync(lostFeaturesDirPath) ) fs.mkdirSync( lostFeaturesDirPath, { recursive: true } );
+  const featuresKey = `lostFeatures_generation_${eliteMap.generationNumber}`;
+  const lostFeaturesFileName = `${featuresKey}.json`;
+  const lostFeaturesFilePath = `${lostFeaturesDirPath}${lostFeaturesFileName}`;
+  const lostFeaturesStringified = JSON.stringify(lostFeatures, null, 2); // prettified to obtain the benefits (compression of git diffs)
+  fs.writeFileSync( lostFeaturesFilePath, lostFeaturesStringified );
+}
+export function readAllLostFeaturesFromDisk( evoRunDirPath, projectionFeatureType ) {
+  const lostFeaturesDirPath = `${evoRunDirPath}lostFeatures/`;
+  let allLostFeatures = [];
+
+  if (fs.existsSync(lostFeaturesDirPath)) {
+    const files = fs.readdirSync(lostFeaturesDirPath);
+    const lostFeaturesFiles = files.filter(file => file.startsWith('lostFeatures_generation_'));
+
+    for (const file of lostFeaturesFiles) {
+      const filePath = `${lostFeaturesDirPath}${file}`;
+      const lostFeaturesJSONString = fs.readFileSync(filePath, 'utf8');
+      const lostFeatures = JSON.parse(lostFeaturesJSONString);
+
+      for (const key in lostFeatures) {
+        if (lostFeatures.hasOwnProperty(key) && lostFeatures[key][projectionFeatureType] && lostFeatures[key][projectionFeatureType].features) {
+          allLostFeatures.push(lostFeatures[key][projectionFeatureType].features);
+        }
+      }
+    }
+  }
+
+  return allLostFeatures;
 }
 
 export function readFeaturesForGenomeIdsFromDisk( evoRunDirPath, evolutionRunId, genomeIds ) {

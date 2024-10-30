@@ -124,6 +124,9 @@
       "iterations": [
         {
           "id": "01J9MHFP1TQ7R6FDQKHP0AQJWS_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50_noveltyArchv__2024-09"
+        },
+        {
+          "id": "01JAHYE86K92G5R80FR0H8AJMJ_evoConf_singleMap_refSingleEmbeddings_x100_mfcc_pca_retrainIncr50_noveltyArchv__2024-09"
         }
       ]
     },
@@ -205,8 +208,128 @@
           "id": "01J9FBJJ61V48BJJ8E5JCE4642_evoConf_singleMap_refSingleEmbeddings_x100_vggish_pca_retrain__2024-10"
         }
       ]
+    },
+    {
+      "label": "evoConf_singleMap_moodTopScore_x100_mfcc_pca_retrain__2024-10",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_moodTopScore_x100_mfcc_pca_retrain.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": null
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_moodSad_x100_mfcc_pca_retrain__2024-10",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_moodSad_x100_mfcc_pca_retrain.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JAJ4WNKBXJRQ64QQ9KHYACEM_evoConf_singleMap_moodSad_x100_mfcc_pca_retrain__2024-10"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_hnsw-knn_x100_mfcc_pca_retrainIncr50",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_hnsw-knn_x100_mfcc_pca_retrainIncr50.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JAQQZAT5TCY1CJTB896EMVQR_evoConf_singleMap_hnsw-knn_x100_mfcc_pca_retrainIncr50"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_hnsw-knn_x100_mfcc-sans0_pca_retrainIncr50",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_hnsw-knn_x100_mfcc-sans0_pca_retrainIncr50.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JARW9RPDVDMWNB9DADKPE2HV_evoConf_singleMap_hnsw-knn_x100_mfcc-sans0_pca_retrainIncr50"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_hnsw-knn_nsynthOnly_x100_mfcc-sans0_pca_retrainIncr50",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_hnsw-knn_x100_mfcc-sans0_pca_retrainIncr50.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JARXHC6FXYKBVYS1T6ANBMHY_evoConf_singleMap_hnsw-knn_nsynthOnly_x100_mfcc-sans0_pca_retrainIncr50"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_hnsw-knn_nsynthOneBillion_x100_vggish_pca_retrainIncr50",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_hnsw-knn_x100_vggish_pca_retrainIncr50.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JARY3BJXDX249BQS9DXAZJ4H_evoConf_singleMap_hnsw-knn_nsynthOneBillion_x100_vggish_pca_retrainIncr50"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_pca_retrainIncr50",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_pca_retrainIncr50.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JAZMK6F112EG5KB46CEKSXYR_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_pca_retrainIncr50"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_umap_retrainIncr50",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_umap_retrainIncr50.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JB461BV3E5J51NV28PB4EXZ1_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_umap_retrainIncr50"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refProblems_x100_mfcc-sans0-statistics_pca_retrainIncr50",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refProblems_x100_mfcc-sans0-statistics_pca_retrainIncr50.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JB5ACC2WQ3NZ56VGE9M8ZFD9_evoConf_singleMap_refProblems_x100_mfcc-sans0-statistics_pca_retrainIncr50"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refPsychoacoustic_x100_mfcc-sans0-statistics_pca_retrainIncr50",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refPsychoacoustic_x100_mfcc-sans0-statistics_pca_retrainIncr50.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JB5DEEPK3YZB39M3VR4BBNGS_evoConf_singleMap_refPsychoacoustic_x100_mfcc-sans0-statistics_pca_retrainIncr50"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_pca_retrainIncr50withAllDiscoveredFeatures",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_pca_retrainIncr50withAllDiscoveredFeatures.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JBEGT6JFT1VQNE83WH4N6869_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_pca_retrainIncr50withAllDiscoveredFeatures"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_umap_retrainIncr50withAllDiscoveredFeatures",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_umap_retrainIncr50withAllDiscoveredFeatures.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JBEY1KKWNG5F64K4CBBKJ5TR_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_umap_retrainIncr50withAllDiscoveredFeatures"
+        }
+      ]
     }
   ],
-  "currentEvolutionRunIndex": 11,
-  "currentEvolutionRunIteration": 1
+  "currentEvolutionRunIndex": 29,
+  "currentEvolutionRunIteration": 0
 }

@@ -199,6 +199,7 @@ async function extractFeatures(audioDataBuffer, wavFilename, datasetPath, featur
   } else {
     featureTypesToProcess = featureTypes;
   }
+  let hasExtractedFeatures = false;
   for( const featureType of featureTypesToProcess) {
     if( features[featureType] && features[featureType].length > 0 ) {
       // skip if already extracted
@@ -233,6 +234,8 @@ async function extractFeatures(audioDataBuffer, wavFilename, datasetPath, featur
 
       features[featureType] = oneFeatuesVariant.features;
       time[featureType] = oneFeatuesVariant.time;
+
+      hasExtractedFeatures = true;
     }
   };
   if( 
@@ -255,17 +258,21 @@ async function extractFeatures(audioDataBuffer, wavFilename, datasetPath, featur
     ];
   }
 
-  console.log('writing to:', featureFileName);
-  const featureBasePath = path.dirname(featureFileName);
-  if (!fs.existsSync(featureBasePath)) {
-    fs.mkdirSync(featureBasePath, { recursive: true });
+  if( hasExtractedFeatures ) {
+    console.log('writing to:', featureFileName);
+    const featureBasePath = path.dirname(featureFileName);
+    if (!fs.existsSync(featureBasePath)) {
+      fs.mkdirSync(featureBasePath, { recursive: true });
+    }
+    const featureBasePathTime = path.dirname(timeFileName);
+    if (!fs.existsSync(featureBasePathTime)) {
+      fs.mkdirSync(featureBasePathTime, { recursive: true });
+    }
+    fs.writeFileSync(featureFileName, JSON.stringify(features));
+    fs.writeFileSync(timeFileName, JSON.stringify(time));
+  } else {
+    console.log('skipping:', wavFilename, ", no features to extract");
   }
-  const featureBasePathTime = path.dirname(timeFileName);
-  if (!fs.existsSync(featureBasePathTime)) {
-    fs.mkdirSync(featureBasePathTime, { recursive: true });
-  }
-  fs.writeFileSync(featureFileName, JSON.stringify(features));
-  fs.writeFileSync(timeFileName, JSON.stringify(time));
 }
 
 export async function extractFeaturesFromAllAudioFiles(datasetPath, featureFilePath, sampleRate, ckptDir, featureExtractionServerHost, suffixesFilter, featureTypesFilterString) {

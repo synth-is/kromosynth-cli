@@ -20,11 +20,15 @@ import {
 } from 'kromosynth';
 // import { callRandomGeneService } from './service/gene-random-worker-client.js';
 import {
-  callRandomGeneService,
-  callGeneVariationService,
+  // callRandomGeneService,
+  // callGeneVariationService,
   callGeneEvaluationService,
   clearServiceConnectionList
 } from './service/gRPC/gene_client.js';
+import {
+  callRandomGeneService,
+  callGeneVariationService,
+} from './service/websocket/ws-genome-variation.js';
 import { 
   renderAndEvaluateGenomesViaWebsockets,
   getAudioBufferChannelDataForGenomeAndMetaFromWebsocet,
@@ -47,7 +51,8 @@ import {
   saveEliteMapToDisk, readEliteMapFromDisk, saveEliteMapMetaToDisk, readEliteMapMetaFromDisk,
   saveCellFeaturesToDisk, readCellFeaturesFromDiskForEliteMap, readFeaturesForGenomeIdsFromDisk, 
   getEliteGenomeIdsFromEliteMaps, 
-  saveGenomeToDisk, getEliteMapKey
+  saveGenomeToDisk, getEliteMapKey,
+  saveLostFeaturesToDisk, readAllLostFeaturesFromDisk,
 } from './util/qd-common-elite-map-persistence.js';
 import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker } from './service/workers/gene-child-process-forker.js';
 import { getAudioContext, getNewOfflineAudioContext } from './util/rendering-common.js';
@@ -151,7 +156,7 @@ export async function qdSearch(
     _geneVariationServers = [];
     for( let i=1; i <= gRpcServerCount; i++ ) {
       const hostFilePath = `${gRpcHostFilePathPrefix}${i}`;
-      const variationHost = await readFromFileWhenItExists(hostFilePath, 0);
+      const variationHost = "ws://" + await readFromFileWhenItExists(hostFilePath, 0);
       if( variationHost ) _geneVariationServers.push(variationHost);
     }
   } else if( geneVariationServerPaths && geneVariationServerPaths.length ) {
@@ -701,7 +706,8 @@ async function mapElitesBatch(
     shouldTrackDiversity,
     inspirationRate, // in case of a novelty archive
     mapSelectorBias,
-    eliteRemappingCompetitionCriteria
+    eliteRemappingCompetitionCriteria,
+    retrainWithAllDiscoveredFeatures
   } = getWsServiceEndpointsFromClassConfiguration( classConfiguration ); 
 
   if( shouldPopulateCellFeatures ) {
@@ -1534,7 +1540,8 @@ async function mapElitesBatch(
           shouldCalculateSurprise, shouldUseAutoEncoderForSurprise,
           shouldTrackDiversity,
           eliteRemappingCompetitionCriteria,
-          noveltyArchive
+          noveltyArchive,
+          retrainWithAllDiscoveredFeatures
         );
         // we've done the fitting, so we can set shouldFit to false
         // eliteMap.shouldFit = true;
@@ -2437,7 +2444,8 @@ async function retrainProjectionModel(
   shouldCalculateSurprise, shouldUseAutoEncoderForSurprise,
   shouldTrackDiversity,
   eliteRemappingCompetitionCriteria,
-  noveltyArchive
+  noveltyArchive,
+  retrainWithAllDiscoveredFeatures
 ) {
   const evaluationDiversityHost = evaluationDiversityHosts[0]; // if more than other servers, they will pick up the updated model data by checking file timestamps; see dimensionality_reduction.py in kormosynth-evaluate
 
@@ -2512,6 +2520,13 @@ async function retrainProjectionModel(
 
 
   // Retrain projection model
+  if( retrainWithAllDiscoveredFeatures ) {
+    const lostFeatures = readAllLostFeaturesFromDisk( evoRunDirPath, projectionFeatureType );
+    if( lostFeatures && lostFeatures.length ) {
+      // concatenate allFeaturesToProject with lostFeatures
+      allFeaturesToProject.push( ...lostFeatures );
+    }
+  }
   console.log(`Retraining projection with ${allFeaturesToProject.length} features, after generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`);
   const diversityProjection = await getDiversityFromWebsocket(
     allFeaturesToProject,
@@ -2548,6 +2563,7 @@ async function retrainProjectionModel(
   // re-map to the container, with potentially new competition dynamics
   let i = 0;
   let containerLossCount = 0;
+  const containerLossFeatures = {};
   for (const [cellKey, elite] of cellElitesMap) {
     let newCellKey;
     if (classScoringVariationsAsContainerDimensions) {
@@ -2568,6 +2584,7 @@ async function retrainProjectionModel(
         cellFeatures[newCellKey]["containerProjection"] = diversityProjection.feature_map[i];
       } else {
         containerLossCount++;
+        containerLossFeatures[cellKey] = cellFeaturesMap.get(cellKey);
       }
     } else {
       eliteMap.cells[newCellKey].elts = [elite];
@@ -2585,6 +2602,9 @@ async function retrainProjectionModel(
   countNonEmptyCells = Object.values(eliteMap.cells).filter(cell => cell.elts.length > 0).length;
   console.log(`countNonEmptyCells after repopulation: ${countNonEmptyCells}`);
 
+  if( retrainWithAllDiscoveredFeatures ) {
+    saveLostFeaturesToDisk( containerLossFeatures, eliteMap, evoRunDirPath );
+  }
 
   if (shouldTrackDiversity) {
     // repeating above
@@ -3146,6 +3166,7 @@ function getWsServiceEndpointsFromClassConfiguration(classConfiguration) {
       qualityEvaluationEndpoint: "",
       projectionEndpoint: "",
       shouldRetrainProjection: false,
+      retrainWithAllDiscoveredFeatures: false,
       projectionRetrainingLinearGapIncrement: 10,
       shouldCalculateNovelty: false,
       shouldCalculateSurprise: false,
@@ -3170,6 +3191,7 @@ function getWsServiceEndpointsFromClassConfiguration(classConfiguration) {
     qualityEvaluationEndpoint: classConfiguration.qualityEvaluationEndpoint,
     projectionEndpoint: classConfiguration.projectionEndpoint,
     shouldRetrainProjection: classConfiguration.shouldRetrainProjection,
+    retrainWithAllDiscoveredFeatures: classConfiguration.retrainWithAllDiscoveredFeatures,
     projectionRetrainingLinearGapIncrement: classConfiguration.projectionRetrainingLinearGapIncrement,
     shouldCalculateNovelty: classConfiguration.shouldCalculateNovelty,
     shouldCalculateSurprise: classConfiguration.shouldCalculateSurprise,
@@ -3182,6 +3204,7 @@ function getWsServiceEndpointsFromClassConfiguration(classConfiguration) {
     inspirationRate: classConfiguration.inspirationRate,
     noveltyArchiveSizePercentage: classConfiguration.noveltyArchiveSizePercentage,
     mapSelectorBias: classConfiguration.mapSelectorBias,
-    eliteRemappingCompetitionCriteria: classConfiguration.eliteRemappingCompetitionCriteria
+    eliteRemappingCompetitionCriteria: classConfiguration.eliteRemappingCompetitionCriteria,
+    
   };
 }
