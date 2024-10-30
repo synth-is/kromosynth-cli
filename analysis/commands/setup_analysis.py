@@ -70,7 +70,7 @@ def create_and_run_analysis_script(script_path, config_path, analysis_path, anal
     print(f"Generated {len(new_files)} new analysis files")
     return new_files
 
-def create_plot_script(script_path, analysis_files, plot_path, plotting_script_path, iteration=1):
+def create_plot_script(script_path, analysis_files, plot_path, plotting_script_path, transparent_background, color_map, iteration=1):
     """Create the plot.sh script using the actual generated analysis files."""
     commands = []
     
@@ -81,7 +81,7 @@ def create_plot_script(script_path, analysis_files, plot_path, plotting_script_p
     for analysis_file in analysis_files:
         # Ensure plot_path ends with a slash for the plotting script
         plot_path_with_slash = plot_path if plot_path.endswith('/') else f"{plot_path}/"
-        plot_cmd = f'python3 {plotting_script_path} {analysis_file} {iteration} {plot_path_with_slash}'
+        plot_cmd = f'python3 {plotting_script_path} {analysis_file} {iteration} {plot_path_with_slash} {"true" if transparent_background else "false"} {color_map}' 
         commands.append(plot_cmd)
     
     # Write commands to plot.sh
@@ -104,7 +104,7 @@ def create_plot_script(script_path, analysis_files, plot_path, plotting_script_p
             print(f"Error executing command: {cmd}")
             print(f"Error: {e}")
 
-def setup_experiment_structure(config_file, base_output_path, analysis_operation, plotting_script_path=None, step_size=None, terrain_name=None):
+def setup_experiment_structure(config_file, base_output_path, analysis_operation, plotting_script_path=None, step_size=None, terrain_name=None, transparent_background=False, color_map='viridis'):
     """Set up the complete experiment structure for a single config file."""
     # Extract experiment name from config file
     experiment_name = os.path.splitext(os.path.basename(config_file))[0]
@@ -138,7 +138,9 @@ def setup_experiment_structure(config_file, base_output_path, analysis_operation
             plot_script_path,
             generated_files,
             directories['plot'],
-            plotting_script_path
+            plotting_script_path,
+            transparent_background,
+            color_map
         )
 
 def main():
@@ -149,6 +151,8 @@ def main():
     parser.add_argument('--plotting-script', help='Path to the plotting script (optional)', dest='plotting_script_path')
     parser.add_argument('--step-size', type=int, help='Step size for analysis (optional)')
     parser.add_argument('--terrain-name', help='Name of the terrain to analyze (optional)')
+    parser.add_argument('--transparent-background', action='store_true', help='Generate plots with a transparent background (optional)')
+    parser.add_argument('--color-map', default='viridis', help='Color map to use for plotting (default: viridis)')
     
     args = parser.parse_args()
     
@@ -168,7 +172,9 @@ def main():
             args.analysis_operation,
             args.plotting_script_path,
             args.step_size,
-            args.terrain_name
+            args.terrain_name,
+            args.transparent_background,
+            args.color_map
         )
         print(f"Completed setup for {config_file}")
 
