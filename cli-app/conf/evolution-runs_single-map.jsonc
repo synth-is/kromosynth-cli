@@ -308,8 +308,28 @@
           "id": "01JB5DEEPK3YZB39M3VR4BBNGS_evoConf_singleMap_refPsychoacoustic_x100_mfcc-sans0-statistics_pca_retrainIncr50"
         }
       ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_pca_retrainIncr50withAllDiscoveredFeatures",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_pca_retrainIncr50withAllDiscoveredFeatures.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JBEGT6JFT1VQNE83WH4N6869_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_pca_retrainIncr50withAllDiscoveredFeatures"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_umap_retrainIncr50withAllDiscoveredFeatures",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_umap_retrainIncr50withAllDiscoveredFeatures.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JBEY1KKWNG5F64K4CBBKJ5TR_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_umap_retrainIncr50withAllDiscoveredFeatures"
+        }
+      ]
     }
   ],
-  "currentEvolutionRunIndex": 27,
+  "currentEvolutionRunIndex": 29,
   "currentEvolutionRunIteration": 0
 }
