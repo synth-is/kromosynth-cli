@@ -1,3 +1,4 @@
+import fs from 'fs';
 import WebSocket from "ws";
 
 ///// waveform generation
@@ -177,7 +178,7 @@ function getFeaturesFromWebsocket(
 
 ///// projection
 
-const diversityEvaluationServerHost = 'ws://localhost:33051';
+const diversityEvaluationServerHost = 'ws://127.0.0.1:33051';
 
 
 // send websocket message to server, with feature vectors and fitness values and receive diversity
@@ -330,4 +331,53 @@ export async function callQualityEvaluationServiceForAddingEmbedding( embedding,
   const quality = await addEmbeddingToEmbedsFile( embedding, embedsPath );
   console.log('audio quality:', quality);
   return quality;
+}
+
+
+///// file tree traversal
+
+export function findFiles( pathToTree, extension, maxFiles ) {
+  const files = [];
+  const tree = fs.readdirSync( pathToTree );
+  for( let i = 0; i < tree.length; i++ ) {
+    if( maxFiles && files.length >= maxFiles ) {
+      break;
+    }
+    const item = tree[i];
+    const itemPath = `${pathToTree}/${item}`;
+    const stats = fs.statSync( itemPath );
+    if( stats.isDirectory() ) {
+      const subFiles = findFiles( itemPath, extension, maxFiles );
+      subFiles.forEach( subFile => files.push( subFile ) );
+    } else if( stats.isFile() && item.endsWith( extension ) ) {
+      files.push( itemPath );
+    }
+  }
+  return files;
+}
+
+export function getFeaturesFromFile( featureType, file ) {
+  const data = JSON.parse( fs.readFileSync( file, 'utf8' ) );
+  return data[featureType];
+}
+
+export function getFeaturesFromFileTree(featureType, pathToTree, numberOfFilePathPartsAsKey = 1) {
+  // find all .json files in the tree
+  const files = findFiles(pathToTree, '.json');
+  // read each file and extract the features
+  const features = {};
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const parts = file.split('/');
+    const key = parts.slice(-numberOfFilePathPartsAsKey).join('/');
+    // console.log("fileName:", fileName);
+    if (Array.isArray(featureType)) {
+      features[key] = featureType.map(type => getFeaturesFromFile(type, file));
+    } else {
+      const feature = getFeaturesFromFile(featureType, file);
+      // console.log("featureType", featureType, ":", feature);
+      features[key] = feature;
+    }
+  }
+  return features;
 }
