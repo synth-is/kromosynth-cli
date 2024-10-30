@@ -54,7 +54,7 @@ for iteration in data['evoRuns'][0]['iterations']:
           plt.xlabel('Cell index')
           plt.ylabel('Cell index')
 
-          filename = f"{save_dir}matrix_{idx}_iteration_{iteration_id}"
+          filename = f"{save_dir}{oneMap}_{idx}_iteration_{iteration_id}"
           print(f'Saving figure to {filename}.ext')
 
           # plt.savefig(filename + '.png', dpi=300)

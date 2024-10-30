@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 
 # https://github.com/jbmouret/matplotlib_for_papers#setting-the-limits-and-the-ticks
 params = {
-   'axes.labelsize': 18,
-   'font.size': 8,
-   'legend.fontsize': 15,
-   'xtick.labelsize': 18,
-   'ytick.labelsize': 18,
-   'text.usetex': False,
+    'axes.labelsize': 18,
+    'font.size': 15,
+    'legend.fontsize': 15,
+    'xtick.labelsize': 18,
+    'ytick.labelsize': 18,
+    'text.usetex': False,
     'figure.constrained_layout.use': True
-   }
+}
 plt.rcParams.update(params)
 
 cm = 1/2.54  # centimeters in inches
@@ -23,9 +23,15 @@ json_file_path = sys.argv[1]
 title = "scoreMatrix_" + json_file_path.split('/')[4]
 # read save directory path from argument 3 if it exists, otherwise use default of './'
 if len(sys.argv) > 3:
-    save_dir = sys.argv[3]
+     save_dir = sys.argv[3]
 else:
-    save_dir = './'
+     save_dir = './'
+
+# Check for constant color argument
+constant_color = None
+if len(sys.argv) > 4:
+     constant_color = sys.argv[4]
+
 data = plotUtil.read_data_from_json(json_file_path)
 
 # Iterate over all iterations
@@ -44,12 +50,29 @@ for iteration in data['evoRuns'][0]['iterations']:
 
         matrix = [[0 if x is None else x for x in row] for row in matrix]
 
-        plt.imshow(matrix, cmap='coolwarm', interpolation='nearest', aspect='auto')
-        plt.gca().invert_yaxis()
-        plt.colorbar(label='Score')
+        if constant_color:
+             plt.imshow(np.ones_like(matrix), cmap='gray', interpolation='nearest', aspect='auto')
+             plt.gca().invert_yaxis()
+             for (i, j), val in np.ndenumerate(matrix):
+                 if val != 0:
+                     plt.scatter(j, i, color=constant_color, s=10)
+        else:
+             plt.imshow(matrix, cmap='coolwarm', interpolation='nearest', aspect='auto')
+             plt.gca().invert_yaxis()
+             plt.colorbar(label='Score')
 
-        plt.xlabel('Cell index')
-        plt.ylabel('Cell index')
+        if 'X' in oneMap:
+             labels = oneMap.split('X')
+             plt.xlabel(labels[0])
+             plt.ylabel(labels[1])
+        else:
+             plt.xlabel('Cell index')
+             plt.ylabel('Cell index')
+
+        # Set title if coveragePercentage exists
+        if 'coveragePercentage' in iteration and oneMap in iteration['coveragePercentage']:
+             coverage = iteration['coveragePercentage'][oneMap]
+             plt.title(f"Coverage: {coverage}%")
 
         filename = f"{save_dir}{oneMap}_iteration_{iteration_id}"
         print('Saving figure to ' + filename + '.ext')
