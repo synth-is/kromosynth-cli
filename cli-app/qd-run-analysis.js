@@ -1450,7 +1450,8 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
             // if genome contains a tags attribute, referencing an array, find an object with a tag attribute that is equal to oneCellKey:
             // if found, add the duration, noteDelta, and velocity attributes to the object at genomeIdClass
             if( genome.tags ) {
-              const tag = genome.tags.find( tag => tag.tag === oneCellKey );
+              let tag = genome.tags.find( tag => tag.tag === oneCellKey );
+              if( ! tag && genome.tags.length===1 ) tag = genome.tags[0].tag; // oneCellKey might not be found in the genome due to e.g. remapping
               if( tag ) {
                 lineageGraphDataObj[genomeIdClass].duration = tag.duration;
                 lineageGraphDataObj[genomeIdClass].noteDelta = tag.noteDelta;
