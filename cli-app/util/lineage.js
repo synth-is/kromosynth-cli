@@ -9,12 +9,12 @@ function isMusicalClass(className) {
   return yamnetTags_musical.some(tag => normalizedName.includes(tag));
 }
 
-export function findLatestDescendantsByClass(data, suffixFilter = null, iteration = 0, inCategoryMusical = true, inCategoryNonMusical = false) {
+export function findLatestDescendantsByClass(data, suffixFilter = null, iteration = 0, inCategoryMusical = true, inCategoryNonMusical = false, shouldNormaliseClassName = false) {
   const classMap = new Map();
   console.log("data.evoRuns[0].iterations.length", data.evoRuns[0].iterations.length)
   console.log("iteration", iteration)
   data.evoRuns[0].iterations[iteration].lineage.forEach(item => {
-      const normalizedClass = normalizeClassName(item.eliteClass);
+      const normalizedClass = shouldNormaliseClassName ? normalizeClassName(item.eliteClass) : item.eliteClass;
       if (
         (!classMap.has(normalizedClass) || item.gN > classMap.get(normalizedClass).gN)
         && (!suffixFilter || normalizedClass.endsWith(suffixFilter))
@@ -25,6 +25,7 @@ export function findLatestDescendantsByClass(data, suffixFilter = null, iteratio
 
   console.log(`Total unique classes: ${classMap.size}`);
   console.log(`Musical classes: ${Array.from(classMap.values()).filter(item => isMusicalClass(item.eliteClass)).length}`);
+  console.log(`Non-musical classes: ${Array.from(classMap.values()).filter(item => !isMusicalClass(item.eliteClass)).length}`);
 
   return Array.from(classMap.values()).filter(item => {
     const isMusical = isMusicalClass(item.eliteClass);

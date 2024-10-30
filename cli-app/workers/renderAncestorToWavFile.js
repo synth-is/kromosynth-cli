@@ -1,4 +1,4 @@
-import { readGenomeAndMetaFromDisk } from '../util/qd-common.js';
+import { readGenomeAndMetaFromDisk } from '../util/qd-common-elite-map-persistence.js';
 import {
 	getAudioContext, getNewOfflineAudioContext
 } from '../util/rendering-common.js';
