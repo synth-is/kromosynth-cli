@@ -127,7 +127,7 @@ export function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
       ws.send( JSON.stringify( payload ) );
       timeout = setTimeout(() => {
         reject(new Error('WebSocket request timed out'));
-      }, 60000); // Set timeout to 60 seconds
+      }, 120000); // Set timeout to 60 seconds
     });
     ws.on('message', (message) => {
       clearTimeout(timeout); // Clear the timeout when a message is received
@@ -210,7 +210,7 @@ export function getFeaturesFromWebsocket(
       ws.send( audioBufferChannelData );
       timeout = setTimeout(() => {
         reject(new Error('WebSocket request timed out'));
-      }, 60000); // Set timeout to 60 seconds
+      }, 120000); // Set timeout to 60 seconds
     });
     ws.on('message', (message) => {
       clearTimeout(timeout); // Clear the timeout when a message is received
