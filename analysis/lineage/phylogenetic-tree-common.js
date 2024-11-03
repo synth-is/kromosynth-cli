@@ -9,18 +9,23 @@ function isMusicalClass(className) {
   return yamnetTags_musical.some(tag => normalizedName.includes(tag));
 }
 
-function findLatestDescendantsByClass(data, suffixFilter = null, iteration = 0, inCategoryMusical = true, inCategoryNonMusical = false) {
+function findLatestDescendantsByClass(data, suffixFilter = null, iteration = 0, inCategoryMusical = true, inCategoryNonMusical = false, shouldNormaliseClassName = false) {
   const classMap = new Map();
   
-  data.evoRuns[0].iterations[iteration].lineage.forEach(item => {
-      const normalizedClass = normalizeClassName(item.eliteClass);
+  if( data.evoRuns[0].iterations[iteration].lineage ) {
+    data.evoRuns[0].iterations[iteration].lineage.forEach(item => {
+      const normalizedClass = shouldNormaliseClassName ? normalizeClassName(item.eliteClass) : item.eliteClass;
       if (
         (!classMap.has(normalizedClass) || item.gN > classMap.get(normalizedClass).gN)
         && (!suffixFilter || normalizedClass.endsWith(suffixFilter))
       ) {
           classMap.set(normalizedClass, item);
       }
-  });
+    });
+  } else {
+    console.error("No lineage found at iteration", iteration, "of", data.evoRuns[0].label);
+  }
+  
 
   console.log(`Total unique classes: ${classMap.size}`);
   console.log(`Musical classes: ${Array.from(classMap.values()).filter(item => isMusicalClass(item.eliteClass)).length}`);
