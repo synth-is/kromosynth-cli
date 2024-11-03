@@ -3,9 +3,9 @@
 /Users/bjornpjo/Developer/apps/kromosynth-cli/analysis/commands/setup_analysis.py \
     /Users/bjornpjo/QD/analysis/unsupervised/singleMapBDs-testConfigs \
     /Users/bjornpjo/QD/analysis/unsupervised/singleMapBDs-test \
-    score-matrix \
-    --plotting-script /Users/bjornpjo/Developer/apps/kromosynth-cli/analysis/scoreMatrixHeatMap.py \
-    --transparent-background \
-    --color-map plasma \
+    coverage \
+    --plotting-script /Users/bjornpjo/Developer/apps/kromosynth-cli/analysis/coverage_combined_maps.py \
+    --step-size 100 \
+    --skip-analysis \
     # --terrain-name ALL
-    # --step-size 500
+    

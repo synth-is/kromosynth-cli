@@ -1,7 +1,10 @@
 #!/bin/bash
 
-node cli-app/test/project-dataset-features.js /Users/bjornpjo/Downloads/audio-features/filtered_nsynth/nsynth-train-features_filtered /Users/bjornpjo/QD/analysis/datasetProjections nsynth-train_filtered 100
-node cli-app/test/project-dataset-features.js /Users/bjornpjo/Downloads/audio-features/filtered_OneBillion/OneBillionWav_features_filtered /Users/bjornpjo/QD/analysis/datasetProjections OneBillionWav_features_filtered 100
+# node cli-app/test/project-dataset-features.js /Users/bjornpjo/Downloads/audio-features/filtered_nsynth/nsynth-train-features_filtered /Users/bjornpjo/QD/analysis/datasetProjections nsynth-train_filtered 100
+# node cli-app/test/project-dataset-features.js /Users/bjornpjo/Downloads/audio-features/filtered_OneBillion/OneBillionWav_features_filtered /Users/bjornpjo/QD/analysis/datasetProjections OneBillionWav_features_filtered 100
+
+node cli-app/test/project-dataset-features.js /Users/bjornpjo/Downloads/audio-features/unfiltered/nsynth-train-features /Users/bjornpjo/QD/analysis/datasetProjections nsynth-train 100
+node cli-app/test/project-dataset-features.js /Users/bjornpjo/Downloads/audio-features/unfiltered/OneBillionWav_features_unfiltered /Users/bjornpjo/QD/analysis/datasetProjections OneBillionWav 100
 
 # node cli-app/test/project-dataset-features.js /Users/bjornpjo/Downloads/audio-features/unfiltered/nsynth-train-features /Users/bjornpjo/QD/analysis/datasetProjections nsynth-train 100
 # node cli-app/test/project-dataset-features.js /Users/bjornpjo/Downloads/audio-features/unfiltered/OneBillionWav_features_unfiltered /Users/bjornpjo/QD/analysis/datasetProjections OneBillionWav_features 100

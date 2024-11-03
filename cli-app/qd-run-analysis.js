@@ -39,40 +39,74 @@ export function getTerrainNames( evoRunConfig ) {
 
 ///// elite diversity, from cellFeatures files
 
-function calculateEuclideanDistance(vectorA, vectorB) {
-  let distance = 0.0;
+// Calculate average pairwise Euclidean distance without storing full matrix
+function calculateAveragePairwiseDistanceEuclidean(embeddings) {
+  let sumDistances = 0;
+  let pairCount = 0;
+  
+  // Calculate pairwise distances on the fly
+  for (let i = 0; i < embeddings.length; i++) {
+    for (let j = i + 1; j < embeddings.length; j++) {
+      const distance = calculateEuclideanDistance(embeddings[i], embeddings[j]);
+      sumDistances += distance;
+      pairCount++;
+      
+      // Periodically free up memory
+      if (pairCount % 10000 === 0) {
+        global.gc && global.gc();
+      }
+    }
+  }
+  
+  return sumDistances / pairCount;
+}
+
+function calculateCosineSimilarity(vectorA, vectorB) {
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  
   for (let i = 0; i < vectorA.length; i++) {
-      distance += Math.pow(vectorA[i] - vectorB[i], 2);
+    dotProduct += vectorA[i] * vectorB[i];
+    normA += vectorA[i] * vectorA[i];
+    normB += vectorB[i] * vectorB[i];
+  }
+  
+  normA = Math.sqrt(normA);
+  normB = Math.sqrt(normB);
+  
+  if (normA === 0 || normB === 0) {
+    return 0;
+  }
+  
+  return dotProduct / (normA * normB);
+}
+
+function calculateEuclideanDistance(vectorA, vectorB) {
+  let distance = 0;
+  for (let i = 0; i < vectorA.length; i++) {
+    distance += Math.pow(vectorA[i] - vectorB[i], 2);
   }
   return Math.sqrt(distance);
 }
-function calculateDistanceMatrix(embeddings) {
-  const numEmbeddings = embeddings.length;
-  const distanceMatrix = Array.from(Array(numEmbeddings), () => new Array(numEmbeddings));
-  for (let i = 0; i < numEmbeddings; i++) {
-      for (let j = i; j < numEmbeddings; j++) { // Start at i to avoid redundant calculations.
-          if (i === j) {
-              distanceMatrix[i][j] = 0; // Distance to itself is 0.
-          } else {
-              const distance = calculateEuclideanDistance(embeddings[i], embeddings[j]);
-              distanceMatrix[i][j] = distance;
-              distanceMatrix[j][i] = distance; // Use symmetry to save computation.
-          }
-      }
-  }
-  return distanceMatrix;
-}
-function calculateAveragePairwiseDistance(distanceMatrix) {
+
+function calculateAveragePairwiseDistanceCosine(embeddings) {
   let sumDistances = 0;
-  let count = 0;
-  for (let i = 0; i < distanceMatrix.length; i++) {
-      for (let j = i + 1; j < distanceMatrix.length; j++) { // Avoid diagonal and redundant pairs.
-          sumDistances += distanceMatrix[i][j];
-          count += 1;
-      }
+  let pairCount = 0;
+  
+  // Calculate pairwise distances on the fly
+  for (let i = 0; i < embeddings.length; i++) {
+    for (let j = i + 1; j < embeddings.length; j++) {
+      const similarity = calculateCosineSimilarity(embeddings[i], embeddings[j]);
+      const distance = 1 - similarity;
+      sumDistances += distance;
+      pairCount++;
+    }
   }
-  return sumDistances / count;
+  
+  return pairCount > 0 ? sumDistances / pairCount : 0;
 }
+
 export function getDiversityFromEmbeddingFiles( evoRunConfig, evoRunId) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const embeddingFilePaths = fs.readdirSync(evoRunDirPath).filter( filePath => filePath.includes("cellFeatures_") );
@@ -107,6 +141,246 @@ export function getDiversityFromEmbeddingFiles( evoRunConfig, evoRunId) {
     }
   }
   return diversity;
+}
+
+export async function getEliteMapDiversityAtLastIteration(evoRunConfig, evoRunId) {
+  const eliteMap = await getEliteMap(evoRunConfig, evoRunId, undefined, false);
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  const cellFeaturesPath = `${evoRunDirPath}cellFeatures`;
+  let featureExtractionType;
+
+  if (!eliteMap.classConfigurations?.length || 
+      !eliteMap.classConfigurations[0].featureExtractionType) {
+    throw new Error("No classConfigurations found in eliteMap");
+  }
+
+  featureExtractionType = eliteMap.classConfigurations[0].featureExtractionType;
+  
+  // Get genome IDs and collect features
+  const featureVectors = [];
+  for (const oneCellKey of Object.keys(eliteMap.cells)) {
+    if (eliteMap.cells[oneCellKey].elts.length) {
+      const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
+      const cellFeatureFilePath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json`;
+      
+      if (fs.existsSync(cellFeatureFilePath)) {
+        const cellFeaturesString = fs.readFileSync(cellFeatureFilePath, 'utf8');
+        const cellFeatures = JSON.parse(cellFeaturesString);
+        if (cellFeatures[featureExtractionType]?.features) {
+          featureVectors.push(cellFeatures[featureExtractionType].features);
+        }
+      } else {
+        console.error("cellFeatures file not found for genomeId", genomeId);
+        // throw new Error("cellFeatures file not found for genomeId " + genomeId);
+      }
+    }
+  }
+
+  return calculateAveragePairwiseDistanceCosine(featureVectors);
+}
+
+export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunId, stepSize = 1) {
+  const commitIdsFilePath = getCommitIdsFilePath(evoRunConfig, evoRunId, true);
+  const commitCount = getCommitCount(evoRunConfig, evoRunId, commitIdsFilePath);
+  const terrainNames = getTerrainNames(evoRunConfig);
+  let diversityMeasures;
+
+  const processIteration = async (eliteMap, featureExtractionType) => {
+    const featureVectors = [];
+    const cellFeaturesPath = `${getEvoRunDirPath(evoRunConfig, evoRunId)}cellFeatures`;
+
+    for (const oneCellKey of Object.keys(eliteMap.cells)) {
+      if (eliteMap.cells[oneCellKey].elts.length) {
+        const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
+        const cellFeatureFilePath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json`;
+        
+        if (fs.existsSync(cellFeatureFilePath)) {
+          const cellFeaturesString = fs.readFileSync(cellFeatureFilePath, 'utf8');
+          const cellFeatures = JSON.parse(cellFeaturesString);
+          if (cellFeatures[featureExtractionType]?.features) {
+            featureVectors.push(cellFeatures[featureExtractionType].features);
+          }
+        } else {
+          console.error("cellFeatures file not found for genomeId", genomeId);
+          // throw new Error("cellFeatures file not found for genomeId " + genomeId);
+        }
+      }
+    }
+
+    return calculateAveragePairwiseDistanceCosine(featureVectors);
+  };
+
+  if (terrainNames.length) {
+    // Handle multiple terrains
+    diversityMeasures = {};
+    for (const oneTerrainName of terrainNames) {
+      diversityMeasures[oneTerrainName] = new Array(Math.ceil(commitCount / stepSize));
+    }
+
+    for (let iterationIndex = 0, diversityIndex = 0; 
+         iterationIndex < commitCount; 
+         iterationIndex += stepSize, diversityIndex++) {
+      
+      if (iterationIndex % stepSize === 0) {
+        console.log(`Calculating diversity for iteration ${iterationIndex}...`);
+        for (const oneTerrainName of terrainNames) {
+          const eliteMap = await getEliteMap(evoRunConfig, evoRunId, iterationIndex, false, oneTerrainName);
+          
+          if (eliteMap.classConfigurations?.length && 
+              eliteMap.classConfigurations[0].featureExtractionType) {
+            const featureExtractionType = eliteMap.classConfigurations[0].featureExtractionType;
+            diversityMeasures[oneTerrainName][diversityIndex] = await processIteration(eliteMap, featureExtractionType);
+          }
+        }
+      }
+    }
+  } else {
+    // Handle single terrain
+    diversityMeasures = new Array(Math.ceil(commitCount / stepSize));
+    
+    for (let iterationIndex = 0, diversityIndex = 0; 
+         iterationIndex < commitCount; 
+         iterationIndex += stepSize, diversityIndex++) {
+      
+      if (iterationIndex % stepSize === 0) {
+        console.log(`Calculating diversity for iteration ${iterationIndex}...`);
+        const eliteMap = await getEliteMap(evoRunConfig, evoRunId, iterationIndex);
+        
+        if (eliteMap.classConfigurations?.length && 
+            eliteMap.classConfigurations[0].featureExtractionType) {
+          const featureExtractionType = eliteMap.classConfigurations[0].featureExtractionType;
+          diversityMeasures[diversityIndex] = await processIteration(eliteMap, featureExtractionType);
+        }
+      }
+    }
+  }
+
+  // Save results
+  const diversityStringified = JSON.stringify(diversityMeasures);
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  const diversityFilePath = `${evoRunDirPath}diversity-measures_step-${stepSize}.json`;
+  fs.writeFileSync(diversityFilePath, diversityStringified);
+
+  return diversityMeasures;
+}
+
+export async function getDiversityFromAllDiscoveredElites(evoRunConfig, evoRunId, useDirectFeatureReading = false) {
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  const cellFeaturesPath = `${evoRunDirPath}cellFeatures`;
+  let featureExtractionType;
+  const featureVectors = [];
+  
+  if (useDirectFeatureReading) {
+    console.log('Reading features directly from cellFeatures directory...');
+    
+    if (!fs.existsSync(cellFeaturesPath)) {
+      throw new Error(`cellFeatures directory not found at ${cellFeaturesPath}`);
+    }
+
+    const featureFiles = fs.readdirSync(cellFeaturesPath)
+      .filter(filename => filename.startsWith('features_'));
+
+    console.log(`Found ${featureFiles.length} feature files`);
+
+    for (let i = 0; i < featureFiles.length; i++) {
+      try {
+        const filename = featureFiles[i];
+        const filePath = `${cellFeaturesPath}/${filename}`;
+        const content = fs.readFileSync(filePath, 'utf8');
+        const features = JSON.parse(content);
+
+        // Get feature extraction type from first valid file if not yet set
+        if (!featureExtractionType && Object.keys(features).length > 0) {
+          featureExtractionType = Object.keys(features)[0];
+        }
+
+        if (features[featureExtractionType]?.features) {
+          featureVectors.push(features[featureExtractionType].features);
+        }
+      } catch (error) {
+        console.warn(`Warning: Could not read features from file ${i + 1}:`, error.message);
+      }
+
+      // Print progress every 100 files
+      if ((i + 1) % 100 === 0) {
+        console.log(`Processed ${i + 1} out of ${featureFiles.length} feature files...`);
+      }
+    }
+
+  } else {
+    console.log('Collecting genome IDs from elite maps...');
+    
+    const commitIdsFilePath = getCommitIdsFilePath(evoRunConfig, evoRunId, true);
+    const commitCount = getCommitCount(evoRunConfig, evoRunId, commitIdsFilePath);
+    const discoveredGenomeIds = new Set();
+
+    // First pass: collect all unique genome IDs
+    for (let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++) {
+      console.log(`Collecting genome IDs from iteration ${iterationIndex}...`);
+      
+      const eliteMap = await getEliteMap(evoRunConfig, evoRunId, iterationIndex);
+      
+      if (!eliteMap.classConfigurations?.length || 
+          !eliteMap.classConfigurations[0].featureExtractionType) {
+        throw new Error("No classConfigurations found in eliteMap");
+      }
+
+      featureExtractionType = eliteMap.classConfigurations[0].featureExtractionType;
+      
+      for (const oneCellKey of Object.keys(eliteMap.cells)) {
+        if (eliteMap.cells[oneCellKey].elts.length) {
+          discoveredGenomeIds.add(eliteMap.cells[oneCellKey].elts[0].g);
+        }
+      }
+    }
+
+    console.log(`Total unique elite genomes discovered: ${discoveredGenomeIds.size}`);
+
+    // Second pass: collect features
+    let processedCount = 0;
+    for (const oneGenomeId of discoveredGenomeIds) {
+      const cellFeatureFilePath = `${cellFeaturesPath}/features_${evoRunId}_${oneGenomeId}.json`;
+      if (fs.existsSync(cellFeatureFilePath)) {
+        try {
+          const cellFeaturesString = fs.readFileSync(cellFeatureFilePath, 'utf8');
+          const features = JSON.parse(cellFeaturesString);
+          if (features[featureExtractionType]?.features) {
+            featureVectors.push(features[featureExtractionType].features);
+          }
+        } catch (error) {
+          console.warn(`Warning: Could not read features for genome ${oneGenomeId}:`, error.message);
+        }
+      }
+
+      processedCount++;
+      if (processedCount % 100 === 0) {
+        console.log(`Processed ${processedCount} out of ${discoveredGenomeIds.size} genomes...`);
+      }
+    }
+  }
+
+  console.log(`Successfully extracted features from ${featureVectors.length} sources`);
+
+  if (featureVectors.length === 0) {
+    throw new Error("No valid feature vectors found");
+  }
+
+  // Calculate diversity using our memory-efficient function
+  const averagePairwiseDistance = calculateAveragePairwiseDistanceCosine(featureVectors);
+
+  // Save results with metadata
+  const results = {
+    averagePairwiseDistance,
+    totalFeaturesProcessed: featureVectors.length,
+    featureExtractionType,
+    method: useDirectFeatureReading ? 'direct_feature_reading' : 'elite_map_traversal'
+  };
+
+  const resultsStringified = JSON.stringify(results);
+  const resultsFilePath = `${evoRunDirPath}all-discovered-elites-diversity.json`;
+  fs.writeFileSync(resultsFilePath, resultsStringified);
+
+  return averagePairwiseDistance;
 }
 
 ///// QD score
@@ -193,6 +467,112 @@ export function calculateQDScoreForEliteMap(
   }
   return qdScore;
 }
+
+
+
+///// Grid Mean Fitness
+
+export async function calculateGridMeanFitnessForAllIterations(
+  evoRunConfig,
+  evoRunId,
+  stepSize = 1,
+  excludeEmptyCells,
+  classRestriction,
+  maxIterationIndex
+) {
+  const commitIdsFilePath = getCommitIdsFilePath(evoRunConfig, evoRunId, true);
+  const commitCount = getCommitCount(evoRunConfig, evoRunId, commitIdsFilePath);
+  let gridMeanScores;
+  const terrainNames = getTerrainNames(evoRunConfig);
+
+  if (terrainNames.length) {
+    gridMeanScores = {};
+    for (const oneTerrainName of terrainNames) {
+      gridMeanScores[oneTerrainName] = new Array(Math.ceil(commitCount / stepSize));
+    }
+    for (let iterationIndex = 0, scoreIndex = 0; iterationIndex < commitCount; iterationIndex += stepSize, scoreIndex++) {
+      if (iterationIndex % stepSize === 0) {
+        console.log(`Calculating grid mean fitness for iteration ${iterationIndex}...`);
+        for (const oneTerrainName of terrainNames) {
+          gridMeanScores[oneTerrainName][scoreIndex] = await calculateGridMeanFitnessForOneIteration(
+            evoRunConfig,
+            evoRunId,
+            iterationIndex,
+            excludeEmptyCells,
+            classRestriction,
+            oneTerrainName
+          );
+        }
+      }
+      if (maxIterationIndex && maxIterationIndex < iterationIndex) break;
+    }
+  } else {
+    gridMeanScores = new Array(Math.ceil((maxIterationIndex || commitCount) / stepSize));
+    for (let iterationIndex = 0, scoreIndex = 0; iterationIndex < commitCount; iterationIndex += stepSize, scoreIndex++) {
+      if (iterationIndex % stepSize === 0) {
+        console.log(`Calculating grid mean fitness for iteration ${iterationIndex}...`);
+        gridMeanScores[scoreIndex] = await calculateGridMeanFitnessForOneIteration(
+          evoRunConfig,
+          evoRunId,
+          iterationIndex,
+          excludeEmptyCells,
+          classRestriction
+        );
+      }
+      if (maxIterationIndex && maxIterationIndex < iterationIndex) break;
+    }
+  }
+
+  const gridMeanScoresStringified = JSON.stringify(gridMeanScores);
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  const scoresFilePath = `${evoRunDirPath}grid-mean-scores_step-${stepSize}.json`;
+  fs.writeFileSync(scoresFilePath, gridMeanScoresStringified);
+  return gridMeanScores;
+}
+
+export async function calculateGridMeanFitnessForOneIteration(
+  evoRunConfig,
+  evoRunId,
+  iterationIndex,
+  excludeEmptyCells,
+  classRestriction,
+  terrainName
+) {
+  const eliteMap = await getEliteMap(
+    evoRunConfig,
+    evoRunId,
+    iterationIndex,
+    false,
+    terrainName
+  );
+  return calculateGridMeanFitnessForEliteMap(eliteMap, excludeEmptyCells, classRestriction);
+}
+
+export function calculateGridMeanFitnessForEliteMap(
+  eliteMap,
+  excludeEmptyCells,
+  classRestriction
+) {
+  const cellKeys = getCellKeys(eliteMap, excludeEmptyCells, classRestriction);
+  let totalFitness = 0;
+  let totalIndividuals = 0;
+
+  for (const oneCellKey of cellKeys) {
+    const cell = eliteMap.cells[oneCellKey];
+    if (cell.elts && cell.elts.length) {
+      // Sum up all individual fitnesses in this cell
+      for (const individual of cell.elts) {
+        totalFitness += parseFloat(individual.s);
+        totalIndividuals++;
+      }
+    }
+  }
+
+  // Return the mean fitness across all individuals
+  // If no individuals were found, return 0 or null depending on your preference
+  return totalIndividuals > 0 ? totalFitness / totalIndividuals : 0;
+}
+
 
 ///// cell scores
 

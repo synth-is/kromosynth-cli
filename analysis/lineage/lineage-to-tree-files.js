@@ -12,8 +12,8 @@ data.evoRuns[0].iterations.forEach((iteration, index) => {
 
   const treeDataAll = buildSimplifiedTree(data, Infinity, false, null, index, true, true);
   saveTreeToJson(treeDataAll, data, index, outputDir, '_all');
-  const treeDataMusical = buildSimplifiedTree(data, Infinity, false, null, index, true, false);
-  saveTreeToJson(treeDataMusical, data, index, outputDir, '_musical');
-  const treeDataNonMusical = buildSimplifiedTree(data, Infinity, false, null, index, false, true);
-  saveTreeToJson(treeDataNonMusical, data, index, outputDir, '_nonmusical');
+  // const treeDataMusical = buildSimplifiedTree(data, Infinity, false, null, index, true, false);
+  // saveTreeToJson(treeDataMusical, data, index, outputDir, '_musical');
+  // const treeDataNonMusical = buildSimplifiedTree(data, Infinity, false, null, index, false, true);
+  // saveTreeToJson(treeDataNonMusical, data, index, outputDir, '_nonmusical');
 });

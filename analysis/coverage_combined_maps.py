@@ -3,18 +3,8 @@ import plotUtil
 import numpy as np
 import matplotlib.pyplot as plt
 from cycler import cycler
-# from palettable.colorbrewer.qualitative import Set1_4
-# colors = Set1_4.mpl_colors
-# from palettable.colorbrewer.qualitative import Paired_4 # _duration-comparison_basic-and-CPPNonly
-# colors = Paired_4.mpl_colors
-# from palettable.colorbrewer.qualitative import Accent_3 # _duration-comparison-singleCellWin
-# colors = Accent_3.mpl_colors
-from palettable.colorbrewer.qualitative import Set1_3 # _duration-comparison-singleCellWin
+from palettable.colorbrewer.qualitative import Set1_3
 colors = Set1_3.mpl_colors
-
-# print possible line styles
-# from matplotlib import lines
-# print(lines.lineStyles.keys())
 
 json_file_path = sys.argv[1]
 x_multiplier = int(sys.argv[2])  # Set this value as the step size in the JSON file name
@@ -24,6 +14,11 @@ if len(sys.argv) > 3:
     save_dir = sys.argv[3]
 else:
     save_dir = './'
+
+if len(sys.argv) > 4:
+    terrain = sys.argv[4]
+else:
+    terrain = "customRef1"
 
 data = plotUtil.read_data_from_json(json_file_path)
 
@@ -35,60 +30,62 @@ legend_lookup = {
     'one_comb-CPPN_only-dur_10.0': 'SIE-CPPN-only 10s',
     'single-class': "SIE-single-class",
 }
-# https://github.com/jbmouret/matplotlib_for_papers#setting-the-limits-and-the-ticks
+
 params = {
-   'axes.labelsize': 18,
-   'font.size': 18,
-   'legend.fontsize': 15,
-   'xtick.labelsize': 18,
-   'ytick.labelsize': 18,
+   'axes.labelsize': 8,
+   'font.size': 8,
+   'legend.fontsize': 4,
+   'xtick.labelsize': 8,
+   'ytick.labelsize': 8,
    'text.usetex': False,
-#    'figure.figsize': [7, 4] # instead of 4.5, 4.5
-    'figure.constrained_layout.use': True
-   }
+   'figure.constrained_layout.use': True
+}
 plt.rcParams.update(params)
 
 cm = 1/2.54  # centimeters in inches
+plt.figure(figsize=(4*cm, 3*cm))
 
-# plt.figure(figsize=(4*cm, 3*cm))
-plt.figure(figsize=(40*cm, 30*cm))
-
-# plt.figure(figsize=(6*cm, 4.5*cm))
-# plt.figure(figsize=(12*cm, 9*cm))
-
+maxIterations = 48  # divided by x_multiplier
+print("maxIterations:" + str(maxIterations) + " (divided by x_multiplier)")
 legend_lines = []
+for oneEvorun in data['evoRuns']:
+    # add oneEvorun to legend_lookup if not already present
+    if oneEvorun['label'] not in legend_lookup:
+        parts = oneEvorun['label'].split('_')
+        if len(parts) > 4:
+            shortened_label = '_'.join(parts[4:7])
+        else:
+            shortened_label = oneEvorun['label']
+        legend_lookup[oneEvorun['label']] = shortened_label
 
-coverage = data['evoRuns'][0]['aggregates']['coverage']
-# check if coverage contains the key 'means' and 'stdDevs'
-if 'means' in coverage and 'stdDevs' in coverage:
-    print("coverage contains 'means' and 'stdDevs'")
-    # add 'means' and 'stdDevs' as elements of 'oneMap' to the 'coverage' dictionary
-    coverage = {'oneMap': {'means': coverage['means'], 'stdDevs': coverage['stdDevs']}}
-for oneMap in coverage:
-    print(oneMap)
-    coverageMeans = np.array(coverage[oneMap]['means'])
-    coverageStdDevs = np.array(coverage[oneMap]['stdDevs'])
+    coverage = oneEvorun['aggregates']['coverage'][terrain]
+    coverageMeans = np.array(coverage['means'])[:maxIterations]
+    coverageStdDevs = np.array(coverage['stdDevs'])[:maxIterations]
 
     print(len(coverageMeans))
 
     x_values = np.arange(len(coverageMeans)) * x_multiplier
-    # linestyle_cycler = cycler('color', colors) + cycler('linestyle',['-','--',':','-.'])
-    linestyle_cycler = cycler('color', colors) + cycler('linestyle',['-','--',':'])
-    #  _duration-comparison_basic-and-CPPNonly
-    # linestyle_cycler = cycler('color', colors) + cycler('linestyle',['-', '--', '-.', ':'])
-    # linestyle_cycler = cycler('color', colors[:2]) + cycler('linestyle',['-','--']) # _duration-comparison-singleCellWin
-    plt.rc('axes', prop_cycle=linestyle_cycler)
 
+    print(len(x_values))
+
+    linestyle_cycler = cycler('color', colors) + cycler('linestyle',['-','--',':'])
+    plt.rc('axes', prop_cycle=linestyle_cycler)
 
     line, = plt.plot(x_values, coverageMeans, linewidth=2)
     fill = plt.fill_between(x_values, coverageMeans - coverageStdDevs, coverageMeans + coverageStdDevs, alpha=0.2)
 
     legend_lines.append((line, fill))
 
-plt.legend(legend_lines, [oneMap for oneMap in data['evoRuns'][0]['aggregates']['qdScores']]) # loc='upper left' 3 title='QD scores'
+plt.legend(legend_lines, [legend_lookup[oneEvorun['label']] for oneEvorun in data['evoRuns']])
 
-plt.xlabel('Generation')
+x_max = maxIterations * x_multiplier
+desired_ticks = np.linspace(0, x_max, 3)  # Creates 3 evenly spaced ticks
+xticklabels = [f"{int(x/1000)}K" for x in desired_ticks]
+plt.xticks(desired_ticks, xticklabels)
+# Set limits with some padding
+plt.xlim(-x_max*0.05, x_max*1.05)  # Add 5% padding on each side
+
+plt.xlabel('Iteration')
 plt.ylabel('Coverage')
 
-plt.savefig(save_dir + title + '_confidenceInterval.png')
 plt.savefig(save_dir + title + '_confidenceInterval.pdf')

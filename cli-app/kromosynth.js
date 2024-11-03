@@ -28,6 +28,7 @@ import { qdSearch } from './quality-diversity-search.js';
 import {
 	calculateQDScoreForOneIteration,
 	calculateQDScoresForAllIterations,
+	calculateGridMeanFitnessForAllIterations,
 	playAllClassesInEliteMap,
 	playOneClassAcrossEvoRun,
 	getGenomeStatisticsAveragedForOneIteration,
@@ -50,7 +51,8 @@ import {
 	getClassLabels,
 	getNewEliteCountForAllIterations,
 	getDiversityFromEmbeddingFiles,
-	getTerrainNames
+	getTerrainNames,
+	getEliteMapDiversityAtLastIteration, getEliteMapDiversityForAllIterations, getDiversityFromAllDiscoveredElites
 } from './qd-run-analysis.js';
 import { yamnetTags_non_musical, yamnetTags_musical } from './util/classificationTags.js';
 import {
@@ -316,7 +318,7 @@ const cli = meow(`
 		$ kromosynth evo-run-lineage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
 		$ kromosynth evo-run-duration-pitch-delta-velocity-combinations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100 --unique-genomes true
 		
-		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,cell-scores,coverage,score-matrix,score-matrices,new-elite-count,elite-generations,genome-statistics,genome-sets,genome-sets-through-rendering-variations,variance,elites-energy,goal-switches,goal-switches-through-lineages,lineage,duration-pitch-delta-velocity-combinations,diversity-from-embeddings --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction '["Narration, monologue"]' --max-iteration-index 300000
+		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,grid-mean-fitness,cell-scores,coverage,score-matrix,score-matrices,new-elite-count,elite-generations,genome-statistics,genome-sets,genome-sets-through-rendering-variations,variance,elites-energy,goal-switches,goal-switches-through-lineages,lineage,duration-pitch-delta-velocity-combinations,diversity-from-embeddings,diversity-at-last-iteration,diversity-measures --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction '["Narration, monologue"]' --max-iteration-index 300000
 		
 		$ kromosynth evo-run-play-elite-map --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --evolution-run-config-json-file conf/evolution-run-config.jsonc --start-cell-key "Narration, monologue" --start-cell-key-index 0
 
@@ -1584,10 +1586,34 @@ async function qdAnalysis_evoRuns() {
 						console.log(`Added diversity from embeddings to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
+					if( oneAnalysisOperation === "diversity-at-last-iteration" ) {
+						const diversityAtLastIteration = await getEliteMapDiversityAtLastIteration( evoRunConfig, evolutionRunId );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].diversityAtLastIteration = diversityAtLastIteration;
+						console.log(`Added diversity at last iteration to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
+					if( oneAnalysisOperation === "diversity-from-all-discovered-elites" ) {
+						const diversityFromAllDiscoveredElites = await getDiversityFromAllDiscoveredElites( evoRunConfig, evolutionRunId, true/* useDirectFeatureReading */ );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].diversityFromAllDiscoveredElites = diversityFromAllDiscoveredElites;
+						console.log(`Added diversity from all discovered elites to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
+					if( oneAnalysisOperation === "diversity-measures" ) { // across all iterations
+						const diversityMeasures = await getEliteMapDiversityForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].diversityMeasures = diversityMeasures;
+						console.log(`Added diversity measures to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
 					if( oneAnalysisOperation === "qd-scores" ) {
 						const qdScores = await calculateQDScoresForAllIterations( evoRunConfig, evolutionRunId, stepSize, excludeEmptyCells, classRestrictionList, maxIterationIndex );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].qdScores = qdScores;
 						console.log(`Added ${qdScores.length} QD scores to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
+					if( oneAnalysisOperation === "grid-mean-fitness" ) {
+						const gridMeanFitness = await calculateGridMeanFitnessForAllIterations( evoRunConfig, evolutionRunId, stepSize );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].gridMeanFitness = gridMeanFitness;
+						console.log(`Added grid mean fitness to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "genome-statistics" ) {
@@ -1707,6 +1733,48 @@ async function qdAnalysis_evoRuns() {
 		// aggregate iterations
 		evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"] = {};
 		for( const oneAnalysisOperation of analysisOperationsList ) {
+			if( oneAnalysisOperation === "diversity-measures" ) {
+				// assume diversityMeasures is an object with keys for each terrain / eliteMap
+				const diversityMeasuresAcrossIterations = {};
+				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+					const { diversityMeasures } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+					for( const oneTerrainName in diversityMeasures ) {
+						if( ! diversityMeasuresAcrossIterations[oneTerrainName] ) {
+							diversityMeasuresAcrossIterations[oneTerrainName] = [];
+						}
+						diversityMeasuresAcrossIterations[oneTerrainName].push( diversityMeasures[oneTerrainName] );
+					}
+				}
+				for( const oneTerrainName in diversityMeasuresAcrossIterations ) {
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["diversityMeasures"] = {};
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["diversityMeasures"][oneTerrainName] = {};
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["diversityMeasures"][oneTerrainName]["means"] = mean( diversityMeasuresAcrossIterations[oneTerrainName], 0 );
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["diversityMeasures"][oneTerrainName]["variances"] = variance( diversityMeasuresAcrossIterations[oneTerrainName], 0 );
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["diversityMeasures"][oneTerrainName]["stdDevs"] = std( diversityMeasuresAcrossIterations[oneTerrainName], 0 );
+				}
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+			}
+			if( oneAnalysisOperation === "grid-mean-fitness" ) {
+				// assume gridMeanFitness is an object with keys for each terrain / eliteMap
+				const gridMeanFitnessAcrossIterations = {};
+				for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
+					const { gridMeanFitness } = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+					for( const oneTerrainName in gridMeanFitness ) {
+						if( ! gridMeanFitnessAcrossIterations[oneTerrainName] ) {
+							gridMeanFitnessAcrossIterations[oneTerrainName] = [];
+						}
+						gridMeanFitnessAcrossIterations[oneTerrainName].push( gridMeanFitness[oneTerrainName] );
+					}
+				}
+				for( const oneTerrainName in gridMeanFitnessAcrossIterations ) {
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["gridMeanFitness"] = {};
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["gridMeanFitness"][oneTerrainName] = {};
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["gridMeanFitness"][oneTerrainName]["means"] = mean( gridMeanFitnessAcrossIterations[oneTerrainName], 0 );
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["gridMeanFitness"][oneTerrainName]["variances"] = variance( gridMeanFitnessAcrossIterations[oneTerrainName], 0 );
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["gridMeanFitness"][oneTerrainName]["stdDevs"] = std( gridMeanFitnessAcrossIterations[oneTerrainName], 0 );
+				}
+				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+			}
 			if( oneAnalysisOperation === "qd-scores" ) {
 				console.log("aggregating qd scores for evolution run #", currentEvolutionRunIndex, "...");
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["qdScores"] = {};

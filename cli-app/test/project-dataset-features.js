@@ -58,38 +58,43 @@ for (const combination of combinations) {
   const discretisedProjection = projection["feature_map"];
   console.log(discretisedProjection);
 
-  // save the projected feature vectors to a file with an elite-map style structure
+  if ( discretisedProjection ) {
 
-  const eliteMap = { cells: {} };
-  eliteMap._id = evolutionRunId + "__" + combination.join('X');
-  eliteMap.dimensionLabels = combination;
-  // for each dimension cell, instantiate a cell with a single element
-  for( let i = 0; i < dimensionCells; i++ ) {
-    for( let j = 0; j < dimensionCells; j++ ) {
-      const cellKey = i + '_' + j;
-      eliteMap.cells[cellKey] = {
-        "elts": []
+    // save the projected feature vectors to a file with an elite-map style structure
+
+    const eliteMap = { cells: {} };
+    eliteMap._id = evolutionRunId + "__" + combination.join('X');
+    eliteMap.dimensionLabels = combination;
+    // for each dimension cell, instantiate a cell with a single element
+    for( let i = 0; i < dimensionCells; i++ ) {
+      for( let j = 0; j < dimensionCells; j++ ) {
+        const cellKey = i + '_' + j;
+        eliteMap.cells[cellKey] = {
+          "elts": []
+        }
       }
     }
-  }
-  for( const oneFeature of discretisedProjection ) {
-    const cellKey = oneFeature.join('_');
-    eliteMap.cells[cellKey].elts.push({
-      "s": 0.75,
-    });
-  }
-  eliteMap.coverage = Object.keys(eliteMap.cells).filter(cellKey => eliteMap.cells[cellKey].elts.length > 0).length;
-  eliteMap._coverage = eliteMap.coverage; // for convenience when opening the file in a text editor
-  eliteMap.coveragePercentage = eliteMap.coverage / (dimensionCells * dimensionCells) * 100;
-  eliteMap._coveragePercentage = eliteMap.coveragePercentage; // for convenience when opening the file in a text editor
-  const eliteMapOrderedKeys = Object.keys(eliteMap).sort().reduce(   // https://stackoverflow.com/a/31102605
-    (obj, key) => { 
-      obj[key] = eliteMap[key]; 
-      return obj;
-    }, 
-    {}
-  );
-  const terrainName = combination.join('X');
-  saveEliteMapToDisk( eliteMapOrderedKeys, pathToEliteMaps+"/"+evolutionRunId, evolutionRunId, terrainName );
+    for( const oneFeature of discretisedProjection ) {
+      const cellKey = oneFeature.join('_');
+      eliteMap.cells[cellKey].elts.push({
+        "s": 0.75,
+      });
+    }
+    eliteMap.coverage = Object.keys(eliteMap.cells).filter(cellKey => eliteMap.cells[cellKey].elts.length > 0).length;
+    eliteMap._coverage = eliteMap.coverage; // for convenience when opening the file in a text editor
+    eliteMap.coveragePercentage = eliteMap.coverage / (dimensionCells * dimensionCells) * 100;
+    eliteMap._coveragePercentage = eliteMap.coveragePercentage; // for convenience when opening the file in a text editor
+    const eliteMapOrderedKeys = Object.keys(eliteMap).sort().reduce(   // https://stackoverflow.com/a/31102605
+      (obj, key) => { 
+        obj[key] = eliteMap[key]; 
+        return obj;
+      }, 
+      {}
+    );
+    const terrainName = combination.join('X');
+    saveEliteMapToDisk( eliteMapOrderedKeys, pathToEliteMaps+"/"+evolutionRunId, evolutionRunId, terrainName );
 
+  } else {
+    console.error("Failed to project the feature vectors to a lower-dimensional space for combination", combination);
+  }
 }
