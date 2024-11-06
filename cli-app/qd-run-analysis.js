@@ -1793,7 +1793,12 @@ export async function getGoalSwitchesThroughLineages( evoRunConfig, evoRunId, ev
     goalSwitches.push( goalSwitchesToCells[oneCellKey] );
     scores.push( scoresToCells[oneCellKey] );
   }
-  const goalSwitchScoreCorrelation = pearsonCorrelation( goalSwitches, scores );
+  let goalSwitchScoreCorrelation;
+  try {
+    goalSwitchScoreCorrelation = pearsonCorrelation(goalSwitches, scores);
+  } catch (error) {
+    goalSwitchScoreCorrelation = "N/A";
+  }
   return {
     goalSwitchesToCells,
     averageGoalSwitchCount,
