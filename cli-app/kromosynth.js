@@ -1642,9 +1642,10 @@ async function qdAnalysis_evoRuns() {
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "score-and-genome-matrices" ) {
-						const {scoreMatrices, coveragePercentage} = await getScoreMatricesForAllIterations( evoRunConfig, evolutionRunId, stepSize, terrainName, true/*includeGenomeId*/ );
-						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreMatrices = scoreMatrices;
+						const {scoreMatrices, coveragePercentage, evolutionRunConfig} = await getScoreMatricesForAllIterations( evoRunConfig, evolutionRunId, stepSize, terrainName, true/*includeGenomeId*/ );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreAndGenomeMatrices = scoreMatrices;
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].coveragePercentage = coveragePercentage;
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].evolutionRunConfig = evolutionRunConfig;
 						console.log(`Added score matrices to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
@@ -1656,9 +1657,10 @@ async function qdAnalysis_evoRuns() {
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "score-and-genome-matrix" ) {
-						const {scoreMatrix, coveragePercentage} = await getScoreMatrixForLastIteration( evoRunConfig, evolutionRunId, terrainName, true/*includeGenomeId*/ );
-						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreMatrix = scoreMatrix;
+						const {scoreMatrix, coveragePercentage, evolutionRunConfig} = await getScoreMatrixForLastIteration( evoRunConfig, evolutionRunId, terrainName, true/*includeGenomeId*/ );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].scoreAndGenomeMatrix = scoreMatrix;
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].coveragePercentage = coveragePercentage;
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].evolutionRunConfig = evolutionRunConfig;
 						console.log(`Added score matrix to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}

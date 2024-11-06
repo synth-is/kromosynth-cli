@@ -728,7 +728,12 @@ export async function getScoreMatricesForAllIterations( evoRunConfig, evoRunId, 
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const scoreMatrixesFilePath = `${evoRunDirPath}score-matrixes_step-${stepSize}.json`;
   fs.writeFileSync( scoreMatrixesFilePath, scoreMatrixesStringified );
-  return { scoreMatrices, coveragePercentage };
+
+  // get the evolutionRunConfig from the eliteMap
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, terrainName );
+  const { evolutionRunConfig } = eliteMap;
+
+  return { scoreMatrices, coveragePercentage, evolutionRunConfig };
 }
 
 async function getScoreMatrixForOneIteration( evoRunConfig, evoRunId, iterationIndex, terrainName, includeGenomeId ) {
@@ -775,7 +780,10 @@ export async function getScoreMatrixForLastIteration( evoRunConfig, evoRunId, te
     // const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false );
     scoreMatrixes = await getScoreMatrixForTerrain( evoRunConfig, evoRunId, undefined/*terrainName*/, includeGenomeId );
   }
-  return { scoreMatrix: scoreMatrixes, coveragePercentage };
+  // get the evolutionRunConfig from the eliteMap
+  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, terrainName );
+  const { evolutionRunConfig } = eliteMap;
+  return { scoreMatrix: scoreMatrixes, coveragePercentage, evolutionRunConfig };
 }
 
 export async function getScoreMatrixForTerrain( evoRunConfig, evoRunId, terrainName, includeGenomeId ) {

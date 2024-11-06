@@ -4,6 +4,7 @@ From: tensorflow/tensorflow
 # Apptainer definition file for building a container to run kromosynth-cli commands _through_ (see README.md)
 # - to control the location of work directories (so you won't get pesky squashfs "No space left on device errors"),
 #   a container can be built with a command like:
+# cd /fp/projects01/ec29/bthj/kromosynth-cli/HPC
 # APPTAINER_LOCALCACHEDIR=/cluster/work/projects/ec29/bthj/apptainer/localcache APPTAINER_CACHEDIR=/cluster/work/projects/ec29/bthj/apptainer/cache APPTAINER_TMPDIR=/cluster/work/projects/ec29/bthj/apptainer/tmp apptainer build /fp/projects01/ec29/bthj/kromosynth-runner-python-CPU_2024-11.sif /fp/projects01/ec29/bthj/kromosynth-cli/HPC/kromosynth-runner-python-CPU.def
 
 %files
@@ -19,6 +20,9 @@ From: tensorflow/tensorflow
     sed -i 's/==.*$//' /tmp/requirements.txt
 
     pip install -r /tmp/requirements.txt
+    
+    # for plotting:
+    pip install palettable
 
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - &&\
     apt-get install -y nodejs
