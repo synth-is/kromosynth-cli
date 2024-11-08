@@ -1886,11 +1886,13 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
             // if found, add the duration, noteDelta, and velocity attributes to the object at genomeIdClass
             if( genome.tags ) {
               let tag = genome.tags.find( tag => tag.tag === oneCellKey );
-              if( ! tag && genome.tags.length===1 ) tag = genome.tags[0].tag; // oneCellKey might not be found in the genome due to e.g. remapping
-              if( tag ) {
+              if( ! tag && genome.tags.length===1 ) tag = genome.tags[0]; // oneCellKey might not be found in the genome due to e.g. remapping
+              if( tag && tag.duration ) {
                 lineageGraphDataObj[genomeIdClass].duration = tag.duration;
                 lineageGraphDataObj[genomeIdClass].noteDelta = tag.noteDelta;
                 lineageGraphDataObj[genomeIdClass].velocity = tag.velocity;
+              } else {
+                throw new Error(`Tag not found for genome ${genomeId} in cell ${oneCellKey}, tag: ${tag}`);
               }
             }
             lineageGraphDataObj[genomeIdClass]["id"] = genomeId;

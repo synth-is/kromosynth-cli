@@ -1079,6 +1079,7 @@ async function renderLineageTree() {
 		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
 		useGpu, sampleRate
 	} = cli.flags;
+	let withoutTracing = true; // TODO hardcoded for now
 	if( ! evoRunDirPath ) {
 		console.error("No evoRunDirPath provided");
 		process.exit();
@@ -1095,24 +1096,11 @@ async function renderLineageTree() {
 		const oneIteration = lineageData.evoRuns[0].iterations[iterationIndex];
 		const evoRunId = oneIteration.id;
 		const oneEvorunPath = evoRunDirPath + "/" + evoRunId;
-		const latestDescendants = findLatestDescendantsByClass( lineageData, null, iterationIndex, true/*inCategoryMusical*/, true/*inCategoryNonMusical*/ );
-		// latestDescendants.forEach( async (oneDescendant, index) => {
-		let descendantIndex = 0;
-		let lineageIndex = 0;
-		let lastDuration, lastNoteDelta, lastVelocity;
-		console.log("-----latestDescendants.length", latestDescendants.length);
-		descendantIterationLoop:
-		for( const oneDescendant of latestDescendants ) {
-			const lineage = traceLineage( lineageData, oneDescendant, Infinity/*maxDepth*/, iterationIndex );
-			// lineage.forEach( async (oneLineageItem) => {
-			for( const oneLineageItem of lineage ) {
-				let { id: genomeId, eliteClass, s, gN, uBC, duration, noteDelta, velocity, parents } = oneLineageItem;
 
-				// hack to handle missing variation values due to remapping (see "lineage" analysis operation)
-				if( duration===undefined ) duration = lastDuration; else lastDuration = duration;
-				if( noteDelta===undefined ) noteDelta = lastNoteDelta; else lastNoteDelta = noteDelta;
-				if( velocity===undefined ) velocity = lastVelocity; else lastVelocity = velocity;
-
+		if( withoutTracing ) {
+			let lineageIndex = 0;
+			for( const oneLineageEntry of oneIteration.lineage ) {
+				let { id: genomeId, eliteClass, s, gN, uBC, duration, noteDelta, velocity, parents } = oneLineageEntry;
 				const renderedDescendantFileName = `${genomeId}-${duration}_${noteDelta}_${velocity}.wav`;
 				console.log("Collecting", renderedDescendantFileName);
 				genomesToRender[renderedDescendantFileName] = { 
@@ -1120,9 +1108,37 @@ async function renderLineageTree() {
 				};
 				lineageIndex++;
 			}
-			descendantIndex++;
+		} else {
+			const latestDescendants = findLatestDescendantsByClass( lineageData, null, iterationIndex, true/*inCategoryMusical*/, true/*inCategoryNonMusical*/ );
+			// latestDescendants.forEach( async (oneDescendant, index) => {
+			let descendantIndex = 0;
+			let lineageIndex = 0;
+			let lastDuration, lastNoteDelta, lastVelocity;
+			console.log("-----latestDescendants.length", latestDescendants.length);
+			descendantIterationLoop:
+			for( const oneDescendant of latestDescendants ) {
+				const lineage = traceLineage( lineageData, oneDescendant, Infinity/*maxDepth*/, iterationIndex );
+				// lineage.forEach( async (oneLineageItem) => {
+				for( const oneLineageItem of lineage ) {
+					let { id: genomeId, eliteClass, s, gN, uBC, duration, noteDelta, velocity, parents } = oneLineageItem;
+	
+					// hack to handle missing variation values due to remapping (see "lineage" analysis operation)
+					if( duration===undefined ) duration = lastDuration; else lastDuration = duration;
+					if( noteDelta===undefined ) noteDelta = lastNoteDelta; else lastNoteDelta = noteDelta;
+					if( velocity===undefined ) velocity = lastVelocity; else lastVelocity = velocity;
+	
+					const renderedDescendantFileName = `${genomeId}-${duration}_${noteDelta}_${velocity}.wav`;
+					console.log("Collecting", renderedDescendantFileName);
+					genomesToRender[renderedDescendantFileName] = { 
+						genomeId, eliteClass, duration, noteDelta, velocity, parents,
+					};
+					lineageIndex++;
+				}
+				descendantIndex++;
+			}
+			console.log("Collected", descendantIndex, "descendants and", lineageIndex, "lineage items");
 		}
-		console.log("Collected", descendantIndex, "descendants and", lineageIndex, "lineage items");
+		
 		const subFolder = writeToFolder + "/" + evoRunId + "/";
 		if( !fs.existsSync(writeToFolder) ) {
 			fs.mkdirSync(writeToFolder);
