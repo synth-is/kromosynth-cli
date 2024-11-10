@@ -946,13 +946,11 @@ export function getScoreAndGenomeMatrixFromEliteMap(eliteMap) {
 ///// (heat) map renders
 
 export async function renderEliteMapsTimeline(
-  evoRunDirPath, writeToFolder, overwriteExistingFiles,
+  oneEvorunPath, evoRunId, writeToFolder, overwriteExistingFiles,
   stepSize, terrainName,
   antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
   useGpu, sampleRate
 ) {
-  // Get evo run ID, from the evoRunDirPath
-  const evoRunId = path.basename(evoRunDirPath);
   // Get commit info
   const commitIdsFilePath = getCommitIdsFilePath(evoRunDirPath, evoRunId, true);
   const commitCount = getCommitCount({}, evoRunId, commitIdsFilePath);
@@ -967,7 +965,7 @@ export async function renderEliteMapsTimeline(
 
     child.send({ 
       evoRunId, 
-      oneEvorunPath: evoRunDirPath,
+      oneEvorunPath,
       fileName, 
       subFolder, 
       ancestorData,
