@@ -1088,7 +1088,7 @@ async function renderLineageTree() {
 		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
 		useGpu, sampleRate
 	} = cli.flags;
-	let withoutTracing = true; // TODO hardcoded for now
+	let withoutTracing = false; // TODO hardcoded for now
 	if( ! evoRunDirPath ) {
 		console.error("No evoRunDirPath provided");
 		process.exit();
