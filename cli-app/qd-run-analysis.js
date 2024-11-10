@@ -1,9 +1,17 @@
 import fs from 'fs';
+import path from 'path';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+import async from 'async';
+import { fork } from 'child_process';
 import {
   runCmd, spawnCmd,
   getEvoRunDirPath,
   calcVariance, calcStandardDeviation, calcMeanDeviation,
-  averageAttributes, standardDeviationAttributes
+  averageAttributes, standardDeviationAttributes,
+  getEliteMap
 } from './util/qd-common.js';
 import { readGenomeAndMetaFromDisk } from './util/qd-common-elite-map-persistence.js';
 import nthline from 'nthline';
@@ -21,7 +29,7 @@ import Statistics from 'statistics.js'
 ///// class labels
 
 export async function getClassLabels( evoRunConfig, evoRunId ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, 0 );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, 0 );
   const cellKeys = Object.keys(eliteMap.cells);
   return cellKeys;
 }
@@ -144,7 +152,7 @@ export function getDiversityFromEmbeddingFiles( evoRunConfig, evoRunId) {
 }
 
 export async function getEliteMapDiversityAtLastIteration(evoRunConfig, evoRunId) {
-  const eliteMap = await getEliteMap(evoRunConfig, evoRunId, undefined, false);
+  const eliteMap = await getEliteMapFromRunConfig(evoRunConfig, evoRunId, undefined, false);
   const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
   const cellFeaturesPath = `${evoRunDirPath}cellFeatures`;
   let featureExtractionType;
@@ -180,7 +188,7 @@ export async function getEliteMapDiversityAtLastIteration(evoRunConfig, evoRunId
 }
 
 export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunId, stepSize = 1) {
-  const commitIdsFilePath = getCommitIdsFilePath(evoRunConfig, evoRunId, true);
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig(evoRunConfig, evoRunId, true);
   const commitCount = getCommitCount(evoRunConfig, evoRunId, commitIdsFilePath);
   const terrainNames = getTerrainNames(evoRunConfig);
   let diversityMeasures;
@@ -224,7 +232,7 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
       if (iterationIndex % stepSize === 0) {
         console.log(`Calculating diversity for iteration ${iterationIndex}...`);
         for (const oneTerrainName of terrainNames) {
-          const eliteMap = await getEliteMap(evoRunConfig, evoRunId, iterationIndex, false, oneTerrainName);
+          const eliteMap = await getEliteMapFromRunConfig(evoRunConfig, evoRunId, iterationIndex, false, oneTerrainName);
           
           if (eliteMap.classConfigurations?.length && 
               eliteMap.classConfigurations[0].featureExtractionType) {
@@ -244,7 +252,7 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
       
       if (iterationIndex % stepSize === 0) {
         console.log(`Calculating diversity for iteration ${iterationIndex}...`);
-        const eliteMap = await getEliteMap(evoRunConfig, evoRunId, iterationIndex);
+        const eliteMap = await getEliteMapFromRunConfig(evoRunConfig, evoRunId, iterationIndex);
         
         if (eliteMap.classConfigurations?.length && 
             eliteMap.classConfigurations[0].featureExtractionType) {
@@ -310,7 +318,7 @@ export async function getDiversityFromAllDiscoveredElites(evoRunConfig, evoRunId
   } else {
     console.log('Collecting genome IDs from elite maps...');
     
-    const commitIdsFilePath = getCommitIdsFilePath(evoRunConfig, evoRunId, true);
+    const commitIdsFilePath = getCommitIdsFilePathFromRunConfig(evoRunConfig, evoRunId, true);
     const commitCount = getCommitCount(evoRunConfig, evoRunId, commitIdsFilePath);
     const discoveredGenomeIds = new Set();
 
@@ -318,7 +326,7 @@ export async function getDiversityFromAllDiscoveredElites(evoRunConfig, evoRunId
     for (let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++) {
       console.log(`Collecting genome IDs from iteration ${iterationIndex}...`);
       
-      const eliteMap = await getEliteMap(evoRunConfig, evoRunId, iterationIndex);
+      const eliteMap = await getEliteMapFromRunConfig(evoRunConfig, evoRunId, iterationIndex);
       
       if (!eliteMap.classConfigurations?.length || 
           !eliteMap.classConfigurations[0].featureExtractionType) {
@@ -386,7 +394,7 @@ export async function getDiversityFromAllDiscoveredElites(evoRunConfig, evoRunId
 ///// QD score
 
 export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction, maxIterationIndex ) {
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   let qdScores;
   const terrainNames = getTerrainNames( evoRunConfig );
@@ -432,7 +440,7 @@ export async function calculateQDScoresForAllIterations( evoRunConfig, evoRunId,
 export async function calculateQDScoreForOneIteration( 
     evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction, terrainName
 ) {
-  const eliteMap = await getEliteMap( 
+  const eliteMap = await getEliteMapFromRunConfig( 
     evoRunConfig, evoRunId, iterationIndex,
     false, // forceCreateCommitIdsList
     terrainName
@@ -480,7 +488,7 @@ export async function calculateGridMeanFitnessForAllIterations(
   classRestriction,
   maxIterationIndex
 ) {
-  const commitIdsFilePath = getCommitIdsFilePath(evoRunConfig, evoRunId, true);
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig(evoRunConfig, evoRunId, true);
   const commitCount = getCommitCount(evoRunConfig, evoRunId, commitIdsFilePath);
   let gridMeanScores;
   const terrainNames = getTerrainNames(evoRunConfig);
@@ -538,7 +546,7 @@ export async function calculateGridMeanFitnessForOneIteration(
   classRestriction,
   terrainName
 ) {
-  const eliteMap = await getEliteMap(
+  const eliteMap = await getEliteMapFromRunConfig(
     evoRunConfig,
     evoRunId,
     iterationIndex,
@@ -577,7 +585,7 @@ export function calculateGridMeanFitnessForEliteMap(
 ///// cell scores
 
 export async function getCellScoresForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const cellScores = new Array(Math.ceil(commitCount / stepSize));
   for( let iterationIndex = 0, cellScoresIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, cellScoresIndex++ ) {
@@ -596,7 +604,7 @@ export async function getCellScoresForAllIterations( evoRunConfig, evoRunId, ste
 }
 
 export async function getCellScoresForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
   const cellScores = cellKeys.map( oneCellKey => {
     if( eliteMap.cells[oneCellKey].elts.length ) {
@@ -626,7 +634,7 @@ export function getCoverageForEliteMap( eliteMap, scoreThreshold = 0 ) {
 }
 
 export async function getCoverageForOneIteration( evoRunConfig, evoRunId, iterationIndex, scoreThreshold = 0, terrainName ) {
-  const eliteMap = await getEliteMap( 
+  const eliteMap = await getEliteMapFromRunConfig( 
     evoRunConfig, evoRunId, iterationIndex,
     false, // forceCreateCommitIdsList
     terrainName
@@ -635,7 +643,7 @@ export async function getCoverageForOneIteration( evoRunConfig, evoRunId, iterat
 }
 
 export async function getCoverageForAllIterations( evoRunConfig, evoRunId, stepSize = 1, scoreThreshold = 0 ) {
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const terrainNames = getTerrainNames( evoRunConfig );
   let coverages;
@@ -677,7 +685,7 @@ export async function getCoverageForAllIterations( evoRunConfig, evoRunId, stepS
 // QD score heatmap
 
 export async function getScoreMatricesForAllIterations( evoRunConfig, evoRunId, stepSize = 1, terrainName, includeGenomeId ) {
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   let terrainNames;
   if( "ALL" === terrainName ) {
@@ -730,14 +738,14 @@ export async function getScoreMatricesForAllIterations( evoRunConfig, evoRunId, 
   fs.writeFileSync( scoreMatrixesFilePath, scoreMatrixesStringified );
 
   // get the evolutionRunConfig from the eliteMap
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, terrainName );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, undefined/*iteration*/, false, terrainName );
   const { evolutionRunConfig } = eliteMap;
 
   return { scoreMatrices, coveragePercentage, evolutionRunConfig };
 }
 
 async function getScoreMatrixForOneIteration( evoRunConfig, evoRunId, iterationIndex, terrainName, includeGenomeId ) {
-  const eliteMap = await getEliteMap( 
+  const eliteMap = await getEliteMapFromRunConfig( 
     evoRunConfig, evoRunId, iterationIndex,
     false, // forceCreateCommitIdsList
     terrainName
@@ -781,13 +789,13 @@ export async function getScoreMatrixForLastIteration( evoRunConfig, evoRunId, te
     scoreMatrixes = await getScoreMatrixForTerrain( evoRunConfig, evoRunId, undefined/*terrainName*/, includeGenomeId );
   }
   // get the evolutionRunConfig from the eliteMap
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, terrainName );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, undefined/*iteration*/, false, terrainName );
   const { evolutionRunConfig } = eliteMap;
   return { scoreMatrix: scoreMatrixes, coveragePercentage, evolutionRunConfig };
 }
 
 export async function getScoreMatrixForTerrain( evoRunConfig, evoRunId, terrainName, includeGenomeId ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, undefined/*iteration*/, false, terrainName );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, undefined/*iteration*/, false, terrainName );
   if( includeGenomeId ) {
     return getScoreAndGenomeMatrixFromEliteMap( eliteMap );
   } else {
@@ -796,7 +804,7 @@ export async function getScoreMatrixForTerrain( evoRunConfig, evoRunId, terrainN
 }
 
 async function getCoveragePercentageForOneTerrain( evoRunConfig, evoRunId, terrainName, iterationIndex ) {
-  const eliteMap = await getEliteMap( 
+  const eliteMap = await getEliteMapFromRunConfig( 
     evoRunConfig, evoRunId, iterationIndex,
     false, // forceCreateCommitIdsList
     terrainName
@@ -933,12 +941,163 @@ export function getScoreAndGenomeMatrixFromEliteMap(eliteMap) {
   return resultArray;
 }
 
+
+
+///// (heat) map renders
+
+export async function renderEliteMapsTimeline(
+  evoRunDirPath, writeToFolder, overwriteExistingFiles,
+  stepSize, terrainName,
+  antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+  useGpu, sampleRate
+) {
+  // Get evo run ID, from the evoRunDirPath
+  const evoRunId = path.basename(evoRunDirPath);
+  // Get commit info
+  const commitIdsFilePath = getCommitIdsFilePath(evoRunDirPath, evoRunId, true);
+  const commitCount = getCommitCount({}, evoRunId, commitIdsFilePath);
+
+  // Setup worker queue for parallel rendering
+  const workerPath = path.join(__dirname, 'workers', 'renderAncestorToWavFile.js');
+  const concurrencyLimit = 4;
+
+  const queue = async.queue((task, done) => {
+    const child = fork(workerPath);
+    const { fileName, subFolder, ancestorData } = task;
+
+    child.send({ 
+      evoRunId, 
+      oneEvorunPath: evoRunDirPath,
+      fileName, 
+      subFolder, 
+      ancestorData,
+      overwriteExistingFiles,
+      useOvertoneInharmonicityFactors, useGpu, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs, sampleRate
+    });
+
+    child.on('message', (message) => {
+      console.log("Message from child:", message);
+      done();
+    });
+
+    child.on('exit', (code) => {
+      if (code !== 0) {
+        console.error(`Child process for ${fileName} exited with code ${code}`);
+        done(new Error(`Child process exited with code ${code}`));
+      }
+    });
+
+    child.on('error', (err) => {
+      console.error(`Error from child process for ${fileName}:`, err);  
+      done(err);
+    });
+  }, concurrencyLimit);
+
+  // Process each iteration based on step size
+  for (let iterationIndex = 0; iterationIndex < commitCount; iterationIndex += stepSize) {
+    console.log(`Processing iteration ${iterationIndex}...`);
+
+    try {
+      // Get elite map for current iteration
+      const eliteMap = await getEliteMap(
+        evoRunDirPath,
+        iterationIndex,
+        false,
+        terrainName
+      );
+
+      // Create output subfolder for this iteration
+      const subFolder = path.join(writeToFolder, evoRunId );
+      if (!fs.existsSync(subFolder)) {
+        fs.mkdirSync(subFolder, { recursive: true });
+      }
+
+      // Get all cell keys
+      const cellKeys = getCellKeys(eliteMap);
+
+      // Process each elite in the map
+      for (const cellKey of cellKeys) {
+        const cell = eliteMap.cells[cellKey];
+        
+        if (cell.elts && cell.elts.length) {
+          const elite = cell.elts[0];
+          const genomeId = elite.g;
+          const score = elite.s;
+
+          // Format filename
+          // let scorePrefix = '';
+          // if (scoreInFileName) {
+          //   const scorePercentRoundedAndPadded = Math.round(score * 100).toString().padStart(3, '0');
+          //   scorePrefix = `${scorePercentRoundedAndPadded}_`;
+          // }
+
+          // Read genome data
+          const genomeString = await readGenomeAndMetaFromDisk(evoRunId, genomeId, evoRunDirPath);
+          const genomeAndMeta = JSON.parse(genomeString);
+          let tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === cellKey);
+          if( !tagForCell && genomeAndMeta.genome.tags.length ) {
+            console.log("No tag found for cell key", cellKey, "in genome", genomeId, ", using first tag");
+            tagForCell = genomeAndMeta.genome.tags[0];
+          }
+          let duration, noteDelta, velocity;
+          if( tagForCell && tagForCell.duration ) {
+            duration = tagForCell.duration;
+            noteDelta = tagForCell.noteDelta;
+            velocity = tagForCell.velocity;
+          } else {
+            throw new Error(`No tag found for cell key ${cellKey} in genome ${genomeId}`);
+          }
+          let parents = null;
+          if( genomeAndMeta.genome.parentGenomes && genomeAndMeta.genome.parentGenomes.length ) {
+            parents = genomeAndMeta.genome.parentGenomes;
+          }
+          // const cellKeyFileNameFriendly = cellKey.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+          // const fileName = `${scorePrefix}${cellKeyFileNameFriendly}_${genomeId}_iter${iterationIndex}.wav`;
+          const fileName = `${genomeId}-${duration}_${noteDelta}_${velocity}.wav`;
+          const fullFilePath = path.join(subFolder, fileName);
+
+          // Skip if file exists and we're not overwriting
+          if (fs.existsSync(fullFilePath) && !overwriteExistingFiles) {
+            console.log("File exists, skipping:", fullFilePath);
+            continue;
+          }
+
+          // Queue rendering task
+          queue.push({
+            fileName,
+            subFolder,
+            ancestorData: {
+              genomeId, cellKey, duration, noteDelta, velocity, parents
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`Error processing iteration ${iterationIndex}:`, error);
+      const errorFileName = `iteration_${iterationIndex}_ERROR.txt`;
+      const errorFilePath = path.join(writeToFolder, 'errors', errorFileName);
+      fs.mkdirSync(path.dirname(errorFilePath), { recursive: true });
+      fs.writeFileSync(errorFilePath, error.message);
+    }
+  }
+
+  // Wait for queue to complete
+  return new Promise((resolve, reject) => {
+    queue.drain(() => {
+      console.log("All rendering complete");
+      resolve();
+    });
+  });
+}
+
+
+
 ///// elite count
 export function getNewEliteCountForEliteMap( eliteMap ) {
   return eliteMap.eliteCountAtGeneration;
 }
 export async function getNewEliteCountForOneIteration( evoRunConfig, evoRunId, iterationIndex, terrainName ) {
-  const eliteMap = await getEliteMap( 
+  const eliteMap = await getEliteMapFromRunConfig( 
     evoRunConfig, evoRunId, iterationIndex,
     false, // forceCreateCommitIdsList
     terrainName
@@ -947,7 +1106,7 @@ export async function getNewEliteCountForOneIteration( evoRunConfig, evoRunId, i
 }
 export async function getNewEliteCountForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
   // NB: stepSize larger than 1 doesn't really make sense for new elite count
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const terrainNames = getTerrainNames( evoRunConfig );
   let eliteCounts;
@@ -987,7 +1146,7 @@ export async function getNewEliteCountForAllIterations( evoRunConfig, evoRunId, 
 ///// genome sets
 
 export async function getGenomeSetsForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
   const genomeKeys = cellKeys.map( oneCellKey => {
     if( eliteMap.cells[oneCellKey].elts.length ) {
@@ -999,7 +1158,7 @@ export async function getGenomeSetsForOneIteration( evoRunConfig, evoRunId, iter
 }
 
 async function getNodeAndConnectionCountSetsForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
   const nodeAndConnectionCountKeys = new Set();
   for (const oneCellKey of cellKeys) {
@@ -1016,7 +1175,7 @@ async function getNodeAndConnectionCountSetsForOneIteration( evoRunConfig, evoRu
 }
 
 export async function getGenomeSetsForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const genomeSets = new Array(Math.ceil(commitCount / stepSize));
   const nodeAndConnectionCountSets = []; // coarser difference metric; where there is actual difference in node and connection count
@@ -1045,7 +1204,7 @@ export async function getGenomeSetsForAllIterations( evoRunConfig, evoRunId, ste
 }
 
 async function getGenomeSetsWithRenderingVariationsAsContainerDimensionsForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
   const renderingVariationKeys = new Set(
     cellKeys.map( oneCellKey => oneCellKey.split("-")[oneCellKey.split("-").length-1] )
@@ -1115,7 +1274,7 @@ async function getGenomeSetsWithRenderingVariationsAsContainerDimensionsForOneIt
 }
 
 export async function getGenomeSetsWithRenderingVariationsAsContainerDimensionsForAllIterations( evoRunConfig, evoRunId, stepSize = 1 ) {
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const genomeSets = new Array(Math.ceil(commitCount / stepSize));
   for( let iterationIndex = 0, genomeSetsIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, genomeSetsIndex++ ) {
@@ -1157,7 +1316,7 @@ export async function getGenomeCountsWithRenderingVariationsAsContainerDimension
 ///// network complexity
 
 export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction, maxIterationIndex ) {
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   let genomeStatistics;
   if( maxIterationIndex ) {
@@ -1188,7 +1347,7 @@ export async function getGenomeStatisticsAveragedForOneIteration(
     evoRunConfig, evoRunId, iterationIndex, excludeEmptyCells, classRestriction,
     calculateNodeTypeStatistics = false
 ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = getCellKeys( eliteMap, excludeEmptyCells, classRestriction );
   // get count of cells where the elts value contains a non empty array
   const cellCount = getCellCount( eliteMap, excludeEmptyCells, classRestriction );
@@ -1418,10 +1577,10 @@ async function getGenomeNodeTypeStatistics( genomeId, evoRunConfig, evoRunId ) {
 
 export async function getCellSaturationGenerations( evoRunConfig, evoRunId ) {
   const cellEliteGenerations = {};
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const iterationIndex = commitCount - 1;
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = getCellKeys( eliteMap );
   for( const oneCellKey of cellKeys ) {
     if( eliteMap.cells[oneCellKey].elts.length ) {
@@ -1442,7 +1601,7 @@ async function getCellScoreVarianceForGenomeIdSet( evoRunConfig, evoRunId, itera
 }
 
 async function getGenomeScores( evoRunConfig, evoRunId, iterationIndex, genomeIds ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
   const cellCount = cellKeys.length;
   // for each unique genomeId, collect all scores
@@ -1504,7 +1663,7 @@ export async function getScoreVarianceForEliteGenomes( evoRunConfig, evoRunId, i
 }
 
 export async function getScoreVarianceForOneIteration( evoRunConfig, evoRunId, iterationIndex ) {
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = Object.keys(eliteMap.cells);
   const cellCount = cellKeys.length;
   const mapScores = new Array( cellCount );
@@ -1566,13 +1725,13 @@ export async function getScoreVarianceForAllIterations( evoRunConfig, evoRunId, 
 ///// elites energy
 
 export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestrictionList, maxIterationIndex ) {
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const eliteEnergies = {};
   const eliteIterationEnergies = [];
   for( let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++ ) {
     if( iterationIndex % stepSize === 0 ) {
-      const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+      const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
       const cellKeys = getCellKeys( eliteMap, excludeEmptyCells, classRestrictionList );
       for( const oneCellKey of cellKeys ) {
         const cell = eliteMap.cells[oneCellKey];
@@ -1621,13 +1780,13 @@ export async function getElitesEnergy( evoRunConfig, evoRunId, stepSize = 1, exc
 
 export async function getGoalSwitches( evoRunConfig, evoRunId, stepSize = 1, evoParams, contextArrays ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const classChampionAndGoalSwitchCount = {};
   for( let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++ ) {
     if( iterationIndex % stepSize === 0 ) { // stepSize > 1 might be misleading here
       log( `Calculating goal switches and goal switches for iteration ${iterationIndex}` );
-      const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+      const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
       const cellKeys = Object.keys(eliteMap.cells);
       for( const oneCellKey of cellKeys ) {
         const cell = eliteMap.cells[oneCellKey];
@@ -1732,10 +1891,10 @@ export async function getGoalSwitchesThroughLineages( evoRunConfig, evoRunId, ev
   const contextSwitchesToCells = {};
   const contextDwellsToCells = {};
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const iterationIndex = commitCount - 1;
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
   const cellKeys = getCellKeys( eliteMap );
   for( const oneCellKey of cellKeys ) {
     if( eliteMap.cells[oneCellKey].elts.length ) {
@@ -1856,13 +2015,13 @@ function pearsonCorrelation(x, y) {
 
 export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const lineageGraphDataObj = {};
   for( let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++ ) {
     if( iterationIndex % stepSize === 0 ) { // stepSize > 1 might be misleading here
       log( `Collecting lineage graph data for iteration ${iterationIndex}` );
-      const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+      const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
       const cellKeys = Object.keys(eliteMap.cells);
       for( const oneCellKey of cellKeys ) {
         const cell = eliteMap.cells[oneCellKey];
@@ -1927,13 +2086,13 @@ export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 
 
 export async function getDurationPitchDeltaVelocityCombinations( evoRunConfig, evoRunId, stepSize = 1, uniqueGenomes ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   const durationPitchDeltaVelocityCombinations = [];
   for( let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++ ) {
     if( iterationIndex % stepSize === 0 ) { // stepSize > 1 might be misleading here
       log( `Collecting duration, delta, pitch combinations for iteration ${iterationIndex}` );
-      const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+      const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
       const cellKeys = Object.keys(eliteMap.cells);
       const genomeSet = new Set();
       const eliteMapDurationPitchDeltaVelocityCombinationCounts = {};
@@ -2098,7 +2257,7 @@ export async function playAllClassesInEliteMap(
 ) {
   bindNavKeys();
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex, true );
+  const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex, true );
   const cellKeys = Object.keys(eliteMap.cells);
   if( startCellKey ) {
     cellKeyIndex = cellKeys.indexOf(startCellKey);
@@ -2160,13 +2319,13 @@ export async function playAllClassesInEliteMap(
 export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, stepSize = 1, ascending = true) {
   bindNavKeys();
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, true );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
   const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
   let lastPlayedGenomeId;
   let iterationIndex = ascending ? 0 : commitCount-1;
   while( ascending ? iterationIndex < commitCount : 0 <= iterationIndex ) {
     if( iterationIndex % stepSize === 0 ) {
-      const eliteMap = await getEliteMap( evoRunConfig, evoRunId, iterationIndex );
+      const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
       if( eliteMap.cells[cellKey] && eliteMap.cells[cellKey].elts.length ) {
         const genomeId = eliteMap.cells[cellKey].elts[0].g;
         const score = eliteMap.cells[cellKey].elts[0].s;
@@ -2212,7 +2371,7 @@ export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, 
   process.exit();
 }
 
-async function getEliteMap( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList, terrainName ) {
+async function getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList, terrainName ) {
   const commitId = await getCommitID( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList );
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const terrainSuffix = terrainName ? `_${terrainName}` : '';
@@ -2255,7 +2414,7 @@ async function getEliteMap( evoRunConfig, evoRunId, iterationIndex, forceCreateC
 }
 
 async function getCommitID( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList ) {
-  const commitIdsFilePath = getCommitIdsFilePath( evoRunConfig, evoRunId, forceCreateCommitIdsList );
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, forceCreateCommitIdsList );
   let commitId;
   if( iterationIndex === undefined ) {
     // get last index
@@ -2274,8 +2433,12 @@ function getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath ) {
   return commitCount;
 }
 
-function getCommitIdsFilePath( evoRunConfig, evoRunId, forceCreateCommitIdsList ) {
+function getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, forceCreateCommitIdsList ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
+  return getCommitIdsFilePath( evoRunDirPath, evoRunId, forceCreateCommitIdsList );
+}
+
+function getCommitIdsFilePath( evoRunDirPath, evoRunId, forceCreateCommitIdsList ) {
   const commitIdsFileName = "commit-ids.txt";
   const commitIdsFilePath = `${evoRunDirPath}${commitIdsFileName}`;
   if( forceCreateCommitIdsList || ! fs.existsSync(`${evoRunDirPath}/commit-ids.txt`) ) {

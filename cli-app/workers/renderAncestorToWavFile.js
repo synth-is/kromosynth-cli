@@ -20,7 +20,7 @@ process.on('message', async (message) => {
       sampleRate
     } = message;
 
-    const fileNamePath = subFolder + fileName;
+    const fileNamePath = subFolder.endsWith('/') ? subFolder + fileName : subFolder + '/' + fileName;
     if( !fs.existsSync(fileNamePath) || overwriteExistingFiles ) {
       console.log("Rendering", fileName);
       const { genomeId, duration, noteDelta, velocity } = ancestorData;

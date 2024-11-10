@@ -52,7 +52,8 @@ import {
 	getNewEliteCountForAllIterations,
 	getDiversityFromEmbeddingFiles,
 	getTerrainNames,
-	getEliteMapDiversityAtLastIteration, getEliteMapDiversityForAllIterations, getDiversityFromAllDiscoveredElites
+	getEliteMapDiversityAtLastIteration, getEliteMapDiversityForAllIterations, getDiversityFromAllDiscoveredElites,
+	renderEliteMapsTimeline
 } from './qd-run-analysis.js';
 import { yamnetTags_non_musical, yamnetTags_musical } from './util/classificationTags.js';
 import {
@@ -179,6 +180,9 @@ const cli = meow(`
 
 		render-lineage-tree
 			Render the lineage tree from a JSON lineage analysis file to WAV files
+
+		render-elite-maps-timeline
+			Render the elite maps timeline from elite maps at specified time steps to WAV files
 
 		extract-features
 			Extract audio features from a dataset of audio files
@@ -329,6 +333,8 @@ const cli = meow(`
 		$ kromosynth render-evorun --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --write-to-folder ~/Downloads/evorenders --every-nth-generation 100 --owerwrite-existing-files true --score-in-file-name true
 
 		$ kromosynth render-lineage-tree --evo-run-dir-path ~/evoruns/01HPW0V4CVCDEJ6VCHCQRJMXWP --lineage-tree-json-file ~/Downloads/lineage.json --write-to-folder ~/Downloads/lineage-renders
+
+		kromosynth render-elite-maps-timeline --evo-run-dir-path ~/evoruns/01JBEY1KKWNG5F64K4CBBKJ5TR_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0_umap_retrainIncr50withAllDiscoveredFeatures --write-to-folder ~/Downloads/render-test --step-size 500 --terrain-name customRef1
 
 		$ kromosynth extract-features --dataset-folder /Users/bjornpjo/Downloads/OneBillionWav --write-to-folder /Users/bjornpjo/Downloads/OneBillionWav_features --sample-rate 44100 --ckpt-dir /Users/bjornpjo/.cache/torch/hub/checkpoints --feature-extraction-server-host 'ws://localhost:31051' --suffixes-filter "020.wav,030.wav,040.wav,050.wav,060.wav,070.wav,080.wav,090.wav,100.wav" --feature-types-filter "mfcc,vggish"
 
@@ -732,6 +738,9 @@ async function executeEvolutionTask() {
 			break;
 		case "render-lineage-tree":
 			renderLineageTree();
+			break;
+		case "render-elite-maps-timeline":
+			callRenderEliteMapsTimeline();
 			break;
 		case "extract-features":
 			extractFeatures();
@@ -1187,6 +1196,21 @@ async function renderLineageTree() {
         process.exit();
     });
 	}
+}
+
+async function callRenderEliteMapsTimeline( ) {
+  let {
+		evoRunDirPath, writeToFolder, overwriteExistingFiles,
+		stepSize, terrainName,
+		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+		useGpu, sampleRate
+	} = cli.flags;
+	await renderEliteMapsTimeline(
+		evoRunDirPath, writeToFolder, overwriteExistingFiles,
+		stepSize, terrainName,
+		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+		useGpu, sampleRate
+	);
 }
 
 async function extractFeatures() {

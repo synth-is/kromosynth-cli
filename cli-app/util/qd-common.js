@@ -115,12 +115,16 @@ return new Promise( async (resolve, reject) => {
 
 ///// functions corresponding to logic in endpoints in the kromosynth-evoruns project
 
-export async function getEliteMap( evoRunDirPath, iterationIndex, forceCreateCommitIdsList ) {
+export async function getEliteMap( evoRunDirPath, iterationIndex, forceCreateCommitIdsList, terrainName ) {
   const commitId = await getCommitID( evoRunDirPath, iterationIndex, forceCreateCommitIdsList );
   const evoRunId = evoRunDirPath.split('/').pop();
-  const eliteMapFilePath = `${evoRunDirPath}/elites_${evoRunId}.json`;
+  let eliteMapFilePath = `${evoRunDirPath}/elites_${evoRunId}`;
+  if (terrainName) {
+    eliteMapFilePath += `_${terrainName}`;
+  }
+  eliteMapFilePath += `.json`;
   if( fs.existsSync(eliteMapFilePath) ) {
-    const eliteMapString = await spawnCmd(`git -C ${evoRunDirPath} show ${commitId}:elites_${evoRunId}.json`, {}, true);
+    const eliteMapString = await spawnCmd(`git -C ${evoRunDirPath} show ${commitId}:${eliteMapFilePath.split('/').pop()}`, {}, true);
     const eliteMap = JSON.parse(eliteMapString);
     return eliteMap;
   } else {
