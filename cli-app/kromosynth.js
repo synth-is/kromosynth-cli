@@ -1200,17 +1200,31 @@ async function renderLineageTree() {
 
 async function callRenderEliteMapsTimeline( ) {
   let {
-		evoRunDirPath, writeToFolder, overwriteExistingFiles,
+		evoRunDirPath, lineageTreeJsonFile, writeToFolder, overwriteExistingFiles,
 		stepSize, terrainName,
 		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
 		useGpu, sampleRate
 	} = cli.flags;
-	await renderEliteMapsTimeline(
-		evoRunDirPath, writeToFolder, overwriteExistingFiles,
-		stepSize, terrainName,
-		antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
-		useGpu, sampleRate
-	);
+
+	if( ! lineageTreeJsonFile ) {
+		console.error("No lineageTreeJsonFile provided");
+		process.exit();
+	}
+	const lineageData = JSON.parse(fs.readFileSync(lineageTreeJsonFile));
+	
+	lineageIterationLoop:
+	for( let iterationIndex = 0; iterationIndex < lineageData.evoRuns[0].iterations.length; iterationIndex++ ) {
+		const oneIteration = lineageData.evoRuns[0].iterations[iterationIndex];
+		const evoRunId = oneIteration.id;
+		const oneEvorunPath = evoRunDirPath + "/" + evoRunId;
+
+		await renderEliteMapsTimeline(
+			oneEvorunPath, evoRunId, writeToFolder, overwriteExistingFiles,
+			stepSize, terrainName,
+			antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
+			useGpu, sampleRate
+		);
+	}
 }
 
 async function extractFeatures() {
