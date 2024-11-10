@@ -946,13 +946,14 @@ export function getScoreAndGenomeMatrixFromEliteMap(eliteMap) {
 ///// (heat) map renders
 
 export async function renderEliteMapsTimeline(
-  oneEvorunPath, evoRunId, writeToFolder, overwriteExistingFiles,
+  evoRunDirPath, evoRunId, writeToFolder, overwriteExistingFiles,
   stepSize, terrainName,
   antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
   useGpu, sampleRate
 ) {
+  const oneEvorunPath = evoRunDirPath + "/" + evoRunId;
   // Get commit info
-  const commitIdsFilePath = getCommitIdsFilePath(evoRunDirPath, evoRunId, true);
+  const commitIdsFilePath = getCommitIdsFilePath(oneEvorunPath+"/", true);
   const commitCount = getCommitCount({}, evoRunId, commitIdsFilePath);
 
   // Setup worker queue for parallel rendering
@@ -998,7 +999,7 @@ export async function renderEliteMapsTimeline(
     try {
       // Get elite map for current iteration
       const eliteMap = await getEliteMap(
-        evoRunDirPath,
+        oneEvorunPath,
         iterationIndex,
         false,
         terrainName
@@ -1030,7 +1031,7 @@ export async function renderEliteMapsTimeline(
           // }
 
           // Read genome data
-          const genomeString = await readGenomeAndMetaFromDisk(evoRunId, genomeId, evoRunDirPath);
+          const genomeString = await readGenomeAndMetaFromDisk(evoRunId, genomeId, oneEvorunPath);
           const genomeAndMeta = JSON.parse(genomeString);
           let tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === cellKey);
           if( !tagForCell && genomeAndMeta.genome.tags.length ) {
@@ -2433,10 +2434,10 @@ function getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath ) {
 
 function getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, forceCreateCommitIdsList ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  return getCommitIdsFilePath( evoRunDirPath, evoRunId, forceCreateCommitIdsList );
+  return getCommitIdsFilePath( evoRunDirPath, forceCreateCommitIdsList );
 }
 
-function getCommitIdsFilePath( evoRunDirPath, evoRunId, forceCreateCommitIdsList ) {
+function getCommitIdsFilePath( evoRunDirPath, forceCreateCommitIdsList ) {
   const commitIdsFileName = "commit-ids.txt";
   const commitIdsFilePath = `${evoRunDirPath}${commitIdsFileName}`;
   if( forceCreateCommitIdsList || ! fs.existsSync(`${evoRunDirPath}/commit-ids.txt`) ) {

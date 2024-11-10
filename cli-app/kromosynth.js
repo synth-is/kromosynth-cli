@@ -1216,10 +1216,9 @@ async function callRenderEliteMapsTimeline( ) {
 	for( let iterationIndex = 0; iterationIndex < lineageData.evoRuns[0].iterations.length; iterationIndex++ ) {
 		const oneIteration = lineageData.evoRuns[0].iterations[iterationIndex];
 		const evoRunId = oneIteration.id;
-		const oneEvorunPath = evoRunDirPath + "/" + evoRunId;
-
+		
 		await renderEliteMapsTimeline(
-			oneEvorunPath, evoRunId, writeToFolder, overwriteExistingFiles,
+			evoRunDirPath, evoRunId, writeToFolder, overwriteExistingFiles,
 			stepSize, terrainName,
 			antiAliasing, useOvertoneInharmonicityFactors, frequencyUpdatesApplyToAllPathcNetworkOutputs,
 			useGpu, sampleRate
