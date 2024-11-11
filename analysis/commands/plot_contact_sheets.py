@@ -1,13 +1,12 @@
 import os
 import re
+import argparse
 from PIL import Image
 from pdf2image import convert_from_path
-from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase.pdfmetrics import stringWidth
-from reportlab.lib.units import inch
 
-# Function to search for PDFs in a directory
 def search_pdfs(root_dir):
     types = {}
     for root, _, files in os.walk(root_dir):
@@ -26,7 +25,6 @@ def search_pdfs(root_dir):
                     types[plot_type][containing_folder].append(full_path)
     return types
 
-# Function to create thumbnails from PDF pages
 def create_thumbnails(pdfs, thumbnail_size):
     thumbnails = []
     for pdf in pdfs:
@@ -48,7 +46,6 @@ def create_thumbnails(pdfs, thumbnail_size):
         thumbnails.append(full_thumb)
     return thumbnails
 
-# Function to create the contact sheet PDF
 def make_contact_sheet(files, output_name, thumbnail_size, margin, cols):
     images = []
     labels = []
@@ -65,7 +62,7 @@ def make_contact_sheet(files, output_name, thumbnail_size, margin, cols):
 
     rows = (num_images + cols - 1) // cols
     page_width = cols * (thumbnail_size[0] + margin) + margin
-    page_height = rows * (thumbnail_size[1] + margin + 25) + (margin)
+    page_height = rows * (thumbnail_size[1] + margin + 25) + margin
 
     c = canvas.Canvas(output_name, pagesize=(page_width, page_height))
     c.setPageSize((page_width, page_height))
@@ -87,11 +84,10 @@ def make_contact_sheet(files, output_name, thumbnail_size, margin, cols):
         x += thumbnail_size[0] + margin
         if x + thumbnail_size[0] > page_width - margin:
             x = margin
-            y -= thumbnail_size[1] + (margin/4) + (len(wrapped_lines) * 12) - 10  # Adjusted additional spacing
+            y -= thumbnail_size[1] + margin + (len(wrapped_lines) * 12) + 10  # Adjusted additional spacing
 
     c.save()
 
-# Function to wrap label text
 def wrap_label(label, max_width, font_name, font_size):
     wrapped_lines = []
     words = label.split(' ')
@@ -107,7 +103,6 @@ def wrap_label(label, max_width, font_name, font_size):
         wrapped_lines.append(line.strip())
     return wrapped_lines
 
-# Main function to run the program
 def main(root_dir, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     pdf_types = search_pdfs(root_dir)
@@ -116,8 +111,14 @@ def main(root_dir, output_dir):
         output_name = os.path.join(output_dir, f"{plot_type}_contact_sheet.pdf")
         make_contact_sheet(files, output_name, (200, 300), 20, 4)
 
-# Entry point of the program
 if __name__ == "__main__":
-    root_directory = "/Users/bjornpjo/QD/analysis/unsupervised/singleMapBDs-test/"
-    output_directory = "/Users/bjornpjo/QD/analysis/unsupervised/singleMapBDs-contactSheets/"
-    main(root_directory, output_directory)
+    parser = argparse.ArgumentParser(description="Generate contact sheets from PDF plots.")
+    parser.add_argument("root_directory", help="The root directory containing the PDF plot files.")
+    parser.add_argument("output_directory", help="The directory where the contact sheet PDFs will be saved.")
+    
+    args = parser.parse_args()
+    
+    # Usage example:
+    # python plot_contact_sheets.py /path/to/root_directory /path/to/output_directory
+    
+    main(args.root_directory, args.output_directory)
