@@ -215,8 +215,51 @@ def create_plot_script(script_path, analysis_files, plot_path, plotting_script_p
             print(f"Error executing command: {plot_cmd}")
             print(f"Error: {e}")
 
+def has_existing_analysis(analysis_path, analysis_operation, step_size=None, terrain_name=None):
+    """Check if there's an existing analysis file of the same type."""
+    print(f"\nChecking for existing analysis in: {analysis_path}")
+    if not os.path.exists(analysis_path):
+        print(f"Analysis path does not exist")
+        return False
+
+    # Get list of all json files
+    json_files = glob.glob(os.path.join(analysis_path, '*.json'))
+    print(f"Found {len(json_files)} JSON files in directory")
+    
+    # Check each file
+    for file_path in json_files:
+        file_name = os.path.basename(file_path)
+        print(f"Checking file: {file_name}")
+        
+        # Get components without timestamp
+        components = file_name.split('_')[:-1]  # Remove timestamp part
+        
+        # Check required components
+        if not (components[0] == "evolution-run-analysis" and
+                components[1] == analysis_operation):
+            continue
+            
+        # Check if step size matches
+        has_matching_step = any(comp == f"step-{step_size}" for comp in components)
+        if step_size and not has_matching_step:
+            continue
+            
+        # Check if terrain matches
+        has_matching_terrain = any(
+            comp == terrain_name or comp == f"terrain-{terrain_name}" 
+            for comp in components
+        )
+        if terrain_name and not has_matching_terrain:
+            continue
+            
+        print(f"Found matching analysis file: {file_path}")
+        return True
+            
+    print("No matching analysis file found")
+    return False
+
 def setup_experiment_structure(config_file, base_output_path, analysis_operation, plotting_script_path=None, 
-                             step_size=None, terrain_name=None, skip_analysis=False, **kwargs):
+                             step_size=None, terrain_name=None, skip_analysis=False, skip_if_exists=False, **kwargs):
     """Set up the complete experiment structure for a single config file."""
     # Extract experiment name from config file
     experiment_name = os.path.splitext(os.path.basename(config_file))[0]
@@ -226,6 +269,11 @@ def setup_experiment_structure(config_file, base_output_path, analysis_operation
     
     # Create directory structure
     directories = create_directory_structure(experiment_path, analysis_operation)
+    
+    # Check if we should skip this config due to existing analysis
+    if skip_if_exists and has_existing_analysis(directories['analysis'], analysis_operation, step_size, terrain_name):
+        print(f"Skipping {experiment_name} - analysis already exists")
+        return
     
     # Copy config file to config directory
     config_dest = os.path.join(directories['config'], os.path.basename(config_file))
@@ -281,7 +329,8 @@ def main():
     parser.add_argument('--color-map', default='viridis', help='Color map to use for plotting (default: viridis)')
     parser.add_argument('--skip-analysis', action='store_true', help='Skip analysis and only run plotting on existing files')
     parser.add_argument('--ylabel', help='Label for the y-axis in plots (optional)')
-    
+    parser.add_argument('--skip-if-exists', action='store_true', 
+                       help='Skip analysis and plotting if results already exist for this configuration')
     
     args = parser.parse_args()
     
@@ -291,7 +340,8 @@ def main():
     # Convert args to dict for kwargs passing
     kwargs = vars(args).copy()
     # Remove non-kwargs arguments
-    for arg in ['config_dir', 'base_output_path', 'analysis_operation', 'plotting_script_path', 'step_size', 'terrain_name', 'skip_analysis']:
+    for arg in ['config_dir', 'base_output_path', 'analysis_operation', 'plotting_script_path', 
+               'step_size', 'terrain_name', 'skip_analysis', 'skip_if_exists']:
         kwargs.pop(arg, None)
     
     # Find all .jsonc files in the config directory
@@ -301,9 +351,6 @@ def main():
         print(f"No .jsonc files found in {args.config_dir}")
         return
     
-    # Print the data path
-    print(f"Data path: {args.data_path}")
-
     # Process each config file
     for config_file in config_files:
         print(f"\nProcessing {config_file}...")
@@ -315,6 +362,7 @@ def main():
             args.step_size,
             args.terrain_name,
             args.skip_analysis,
+            args.skip_if_exists,
             **kwargs
         )
         print(f"Completed setup for {config_file}")
