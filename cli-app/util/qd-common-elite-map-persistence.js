@@ -1,177 +1,202 @@
-///// elite map perisistence
 import fs from 'fs-extra';
-import { promises as fsPromise } from 'fs';
 import { runCmd } from './qd-common.js';
+import { gzipSync, gunzipSync } from 'fflate';
 
-export function createEvoRunDir( evoRunDirPath ) {
-  if( ! fs.existsSync(evoRunDirPath) ) fs.mkdirSync( evoRunDirPath, { recursive: true } );
+// Helper functions for compression
+function writeCompressedJSON(filePath, content) {
+  const jsonString = JSON.stringify(content);
+  const uint8 = new TextEncoder().encode(jsonString);
+  const compressed = gzipSync(uint8);
+  fs.writeFileSync(filePath, compressed);
 }
 
-export function getGenomeKey( evolutionRunId, genomeId ) {
+function readCompressedOrPlainJSON(gzipPath, plainPath) {
+  try {
+    // Try reading compressed file first
+    if (fs.existsSync(gzipPath)) {
+      const compressed = fs.readFileSync(gzipPath);
+      const decompressed = gunzipSync(new Uint8Array(compressed));
+      return JSON.parse(new TextDecoder().decode(decompressed));
+    }
+    // Fall back to plain JSON
+    if (fs.existsSync(plainPath)) {
+      const content = fs.readFileSync(plainPath, 'utf8');
+      return JSON.parse(content);
+    }
+    return null;
+  } catch (err) {
+    console.error("Error reading file:", err);
+    return null;
+  }
+}
+
+export function createEvoRunDir(evoRunDirPath) {
+  if (!fs.existsSync(evoRunDirPath)) fs.mkdirSync(evoRunDirPath, { recursive: true });
+}
+
+export function getGenomeKey(evolutionRunId, genomeId) {
   return `genome_${evolutionRunId}_${genomeId}`;
 }
-export function getFeaturesKey( evolutionRunId, genomeId ) {
+
+export function getFeaturesKey(evolutionRunId, genomeId) {
   return `features_${evolutionRunId}_${genomeId}`;
 }
 
-export async function readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath ) {
+export function readGenomeAndMetaFromDisk(evolutionRunId, genomeId, evoRunDirPath) {
   let genomeJSONString;
   try {
     const genomeKey = getGenomeKey(evolutionRunId, genomeId);
     const evoRunDirPathSeparator = evoRunDirPath.endsWith('/') ? '' : '/';
-    const genomeFilePath = `${evoRunDirPath}${evoRunDirPathSeparator}${genomeKey}.json`;
-    if( fs.existsSync(genomeFilePath) ) {
-      genomeJSONString = fs.readFileSync(genomeFilePath, 'utf8');
-      // console.log(`Genome file found: ${genomeFilePath}`);
+    const gzipPath = `${evoRunDirPath}${evoRunDirPathSeparator}${genomeKey}.json.gz`;
+    const plainPath = `${evoRunDirPath}${evoRunDirPathSeparator}${genomeKey}.json`;
+    
+    const result = readCompressedOrPlainJSON(gzipPath, plainPath);
+    if (result) {
+      genomeJSONString = JSON.stringify(result);
     } else {
-      console.error(`Genome file NOT found: ${genomeFilePath}`);
+      console.error(`Genome file not found at ${gzipPath} or ${plainPath}`);
     }
-  } catch( err ) {
+  } catch (err) {
     console.error("readGenomeFromDisk: ", err);
   }
   return genomeJSONString;
 }
 
-export function saveEliteMapToDisk( eliteMap, evoRunDirPath, evolutionRunId, terrainName, addToGit ) {
-  if( Array.isArray(eliteMap) ) {
-    for( const oneEliteMap of eliteMap ) {
+export function saveEliteMapToDisk(eliteMap, evoRunDirPath, evolutionRunId, terrainName, addToGit) {
+  if (Array.isArray(eliteMap)) {
+    for (const oneEliteMap of eliteMap) {
       const refSetName = oneEliteMap.classConfigurations[0].refSetName;
-      saveEliteMapToDisk( oneEliteMap, evoRunDirPath, evolutionRunId, refSetName, addToGit );
+      saveEliteMapToDisk(oneEliteMap, evoRunDirPath, evolutionRunId, refSetName, addToGit);
     }
   } else {
     const evoRunDirPathSeparator = evoRunDirPath.endsWith('/') ? '' : '/';
     const eliteMapFileName = `${getEliteMapKey(evolutionRunId, terrainName)}.json`;
     const eliteMapFilePath = `${evoRunDirPath}${evoRunDirPathSeparator}${eliteMapFileName}`;
     const eliteMapStringified = JSON.stringify(eliteMap, null, 2); // prettified to obtain the benefits (compression of git diffs)
-    // await fsPromise.writeFile( eliteMapFilePath, eliteMapStringified );
-    if( ! fs.existsSync(eliteMapFilePath) ) {
-      fs.mkdirSync( evoRunDirPath, { recursive: true } );
-    }
-    fs.writeFileSync( eliteMapFilePath, eliteMapStringified );
 
-    if( addToGit ) {
-      // add file to git (possibly redundantly)
+    if (!fs.existsSync(eliteMapFilePath)) {
+      fs.mkdirSync(evoRunDirPath, { recursive: true });
+    }
+    fs.writeFileSync(eliteMapFilePath, eliteMapStringified);
+
+    if (addToGit) {
       runCmd(`git -C ${evoRunDirPath} add ${eliteMapFileName}`);
     }
   }
 }
-export function readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainName ) {
+
+export function readEliteMapFromDisk(evolutionRunId, evoRunDirPath, terrainName) {
   let eliteMap;
   try {
     const evoRunDirPathSeparator = evoRunDirPath.endsWith('/') ? '' : '/';
     const eliteMapFilePath = `${evoRunDirPath}${evoRunDirPathSeparator}${getEliteMapKey(evolutionRunId, terrainName)}.json`;
-    if( fs.existsSync(eliteMapFilePath) ) {
+    if (fs.existsSync(eliteMapFilePath)) {
       const eliteMapJSONString = fs.readFileSync(eliteMapFilePath, 'utf8');
-      eliteMap = JSON.parse( eliteMapJSONString );
+      eliteMap = JSON.parse(eliteMapJSONString);
     }
-  } catch( err ) {
+  } catch (err) {
     console.error("readEliteMapFromDisk: ", err);
     throw new Error("Error reading eliteMap from disk");
   }
   return eliteMap;
 }
 
-export function saveEliteMapMetaToDisk( eliteMapMeta, evoRunDirPath, evolutionRunId ) {
-  const eliteMapMetaFileName = `eliteMapMeta_${evolutionRunId}.json`;
+export function saveEliteMapMetaToDisk(eliteMapMeta, evoRunDirPath, evolutionRunId) {
+  const eliteMapMetaFileName = `eliteMapMeta_${evolutionRunId}.json.gz`;
   const eliteMapMetaFilePath = `${evoRunDirPath}${eliteMapMetaFileName}`;
-  const eliteMapMetaStringified = JSON.stringify(eliteMapMeta, null, 2); // prettified to obtain the benefits (compression of git diffs)
-  fs.writeFileSync( eliteMapMetaFilePath, eliteMapMetaStringified );
+  writeCompressedJSON(eliteMapMetaFilePath, eliteMapMeta);
 }
 
-export function readEliteMapMetaFromDisk( evolutionRunId, evoRunDirPath) {
-  let eliteMapMeta;
+export function readEliteMapMetaFromDisk(evolutionRunId, evoRunDirPath) {
   try {
-    const eliteMapMetaFilePath = `${evoRunDirPath}eliteMapMeta_${evolutionRunId}.json`;
-    if( fs.existsSync(eliteMapMetaFilePath) ) {
-      const eliteMapMetaJSONString = fs.readFileSync(eliteMapMetaFilePath, 'utf8');
-      eliteMapMeta = JSON.parse( eliteMapMetaJSONString );
-    }
-  } catch( err ) {
+    const gzipPath = `${evoRunDirPath}eliteMapMeta_${evolutionRunId}.json.gz`;
+    const plainPath = `${evoRunDirPath}eliteMapMeta_${evolutionRunId}.json`;
+    return readCompressedOrPlainJSON(gzipPath, plainPath);
+  } catch (err) {
     console.error("readEliteMapMetaFromDisk: ", err);
+    return null;
   }
-  return eliteMapMeta;
 }
 
-export async function saveCellFeaturesToDisk( cellFeatures, eliteMap, evoRunDirPath, evolutionRunId ) {
+export function saveCellFeaturesToDisk(cellFeatures, eliteMap, evoRunDirPath, evolutionRunId) {
   const cellFeaturesDirPath = `${evoRunDirPath}cellFeatures/`;
-  if( ! fs.existsSync(cellFeaturesDirPath) ) fs.mkdirSync( cellFeaturesDirPath, { recursive: true } );
-  // for each cell key in cellFeatures, save the features to disk with the corresponding key
+  if (!fs.existsSync(cellFeaturesDirPath)) fs.mkdirSync(cellFeaturesDirPath, { recursive: true });
+
   let featureExtractionType;
-  if( eliteMap.classConfigurations && eliteMap.classConfigurations.length ) {
+  if (eliteMap.classConfigurations && eliteMap.classConfigurations.length) {
     featureExtractionType = eliteMap.classConfigurations[0].featureExtractionType;
   }
-  for( const cellKey in cellFeatures ) {
-    if( ! featureExtractionType || cellFeatures[cellKey][featureExtractionType] ) {
-      // either we're not using classConfigurations or
-      // we're using classConfigurations and the featureExtractionType is present in the cellFeatures;
-      // - this means that the features have already been extracted for this cellKey, in this map
-      if( ! eliteMap.cells[cellKey].elts[0] ) {
-        console.error(`Error: eliteMap.cells[${cellKey}] is undefined`);
-      }
-      if( ! eliteMap.cells[cellKey].elts[0] ) {
+
+  for (const cellKey in cellFeatures) {
+    if (!featureExtractionType || cellFeatures[cellKey][featureExtractionType]) {
+      if (!eliteMap.cells[cellKey].elts[0]) {
         console.error(`Error: eliteMap.cells[${cellKey}].elts[0] is undefined`);
+        continue;
       }
+
       const genomeId = eliteMap.cells[cellKey].elts[0].g;
       const featuresKey = getFeaturesKey(evolutionRunId, genomeId);
-      const cellFeaturesFileName = `${featuresKey}.json`;
+      const cellFeaturesFileName = `${featuresKey}.json.gz`;
       const cellFeaturesFilePath = `${cellFeaturesDirPath}${cellFeaturesFileName}`;
-      // using .stat instead of .existsSync in an effort to speed things up a bit: https://stackoverflow.com/a/67837194/169858
-      const exists = !!(await fs.promises.stat(cellFeaturesFilePath).catch(() => null));
-      if( ! exists ) {
-        const cellFeaturesStringified = JSON.stringify(cellFeatures[cellKey], null, 2); // prettified to obtain the benefits (compression of git diffs)
-        fs.writeFileSync( cellFeaturesFilePath, cellFeaturesStringified );  
+
+      const exists = fs.existsSync(cellFeaturesFilePath);
+      if (!exists) {
+        writeCompressedJSON(cellFeaturesFilePath, cellFeatures[cellKey]);
       }
     }
   }
 }
-export function readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRunId, eliteMap ) {
+
+export function readCellFeaturesFromDiskForEliteMap(evoRunDirPath, evolutionRunId, eliteMap) {
   let cellFeatures = {};
-  // for all populated cells in the eliteMap, read the features from disk
-  for( const cellKey in eliteMap.cells ) {
-    if( eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length ) {
+  for (const cellKey in eliteMap.cells) {
+    if (eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length) {
       const genomeId = eliteMap.cells[cellKey].elts[0].g;
       const featuresKey = getFeaturesKey(evolutionRunId, genomeId);
-      const cellFeaturesFileName = `${featuresKey}.json`;
-      const cellFeaturesFilePath = `${evoRunDirPath}cellFeatures/${cellFeaturesFileName}`;
-      if( fs.existsSync(cellFeaturesFilePath) ) {
-        try {
-          const cellFeaturesJSONString = fs.readFileSync( cellFeaturesFilePath, 'utf8' );
-          const cellFeaturesJSON = JSON.parse( cellFeaturesJSONString );
-          cellFeatures[cellKey] = cellFeaturesJSON;
-        } catch( err ) {
-          console.error("readCellFeaturesFromDiskForEliteMap: ", err);
-        }
+      const gzipPath = `${evoRunDirPath}cellFeatures/${featuresKey}.json.gz`;
+      const plainPath = `${evoRunDirPath}cellFeatures/${featuresKey}.json`;
+
+      const features = readCompressedOrPlainJSON(gzipPath, plainPath);
+      if (features) {
+        cellFeatures[cellKey] = features;
       }
     }
   }
   return cellFeatures;
 }
 
-export function saveLostFeaturesToDisk( lostFeatures, eliteMap, evoRunDirPath ) {
+export function saveLostFeaturesToDisk(lostFeatures, eliteMap, evoRunDirPath) {
   const lostFeaturesDirPath = `${evoRunDirPath}lostFeatures/`;
-  if( ! fs.existsSync(lostFeaturesDirPath) ) fs.mkdirSync( lostFeaturesDirPath, { recursive: true } );
+  if (!fs.existsSync(lostFeaturesDirPath)) fs.mkdirSync(lostFeaturesDirPath, { recursive: true });
+  
   const featuresKey = `lostFeatures_generation_${eliteMap.generationNumber}`;
-  const lostFeaturesFileName = `${featuresKey}.json`;
+  const lostFeaturesFileName = `${featuresKey}.json.gz`;
   const lostFeaturesFilePath = `${lostFeaturesDirPath}${lostFeaturesFileName}`;
-  const lostFeaturesStringified = JSON.stringify(lostFeatures, null, 2); // prettified to obtain the benefits (compression of git diffs)
-  fs.writeFileSync( lostFeaturesFilePath, lostFeaturesStringified );
+  
+  writeCompressedJSON(lostFeaturesFilePath, lostFeatures);
 }
-export function readAllLostFeaturesFromDisk( evoRunDirPath, projectionFeatureType ) {
+
+export function readAllLostFeaturesFromDisk(evoRunDirPath, projectionFeatureType) {
   const lostFeaturesDirPath = `${evoRunDirPath}lostFeatures/`;
   let allLostFeatures = [];
 
   if (fs.existsSync(lostFeaturesDirPath)) {
     const files = fs.readdirSync(lostFeaturesDirPath);
-    const lostFeaturesFiles = files.filter(file => file.startsWith('lostFeatures_generation_'));
+    const lostFeaturesFiles = files.filter(file => 
+      file.startsWith('lostFeatures_generation_') && 
+      (file.endsWith('.json.gz') || file.endsWith('.json'))
+    );
 
     for (const file of lostFeaturesFiles) {
-      const filePath = `${lostFeaturesDirPath}${file}`;
-      const lostFeaturesJSONString = fs.readFileSync(filePath, 'utf8');
-      const lostFeatures = JSON.parse(lostFeaturesJSONString);
-
-      for (const key in lostFeatures) {
-        if (lostFeatures.hasOwnProperty(key) && lostFeatures[key][projectionFeatureType] && lostFeatures[key][projectionFeatureType].features) {
-          allLostFeatures.push(lostFeatures[key][projectionFeatureType].features);
+      const gzipPath = `${lostFeaturesDirPath}${file}`;
+      const plainPath = gzipPath.replace('.json.gz', '.json');
+      
+      const lostFeatures = readCompressedOrPlainJSON(gzipPath, plainPath);
+      if (lostFeatures) {
+        for (const key in lostFeatures) {
+          if (lostFeatures[key][projectionFeatureType]?.features) {
+            allLostFeatures.push(lostFeatures[key][projectionFeatureType].features);
+          }
         }
       }
     }
@@ -180,26 +205,89 @@ export function readAllLostFeaturesFromDisk( evoRunDirPath, projectionFeatureTyp
   return allLostFeatures;
 }
 
-export function readFeaturesForGenomeIdsFromDisk( evoRunDirPath, evolutionRunId, genomeIds ) {
+export function saveCellFeaturesAtGenerationToDisk(cellFeatures, featureType, generation, evoRunDirPath) {
+  const generationFeaturesDirPath = `${evoRunDirPath}generationFeatures/`;
+  if (!fs.existsSync(generationFeaturesDirPath)) fs.mkdirSync(generationFeaturesDirPath, { recursive: true });
+  
+  const featuresKey = `generationFeatures_generation_${generation}`;
+  const generationFeaturesFileName = `${featuresKey}.json.gz`;
+  const generationFeaturesFilePath = `${generationFeaturesDirPath}${generationFeaturesFileName}`;
+  
+  const generationFeatures = Object.keys(cellFeatures).map(cellKey => ({
+    [featureType]: cellFeatures[cellKey][featureType].features
+  }));
+  
+  writeCompressedJSON(generationFeaturesFilePath, generationFeatures);
+  return generationFeaturesFilePath;
+}
+
+export function getCellFeaturesFilePathForLatestGeneration(evoRunDirPath) {
+  const generationFeaturesDirPath = `${evoRunDirPath}generationFeatures/`;
+  if (!fs.existsSync(generationFeaturesDirPath)) {
+    return null;
+  }
+  
+  const files = fs.readdirSync(generationFeaturesDirPath);
+  const generationFeaturesFiles = files
+    .filter(file => file.startsWith('generationFeatures_generation_'))
+    .sort()
+    .reverse();
+    
+  if (generationFeaturesFiles.length === 0) return null;
+  
+  return `${generationFeaturesDirPath}${generationFeaturesFiles[0]}`;
+}
+
+export function readFeaturesForGenomeIdsFromDisk(evoRunDirPath, evolutionRunId, genomeIds) {
   let genomeFeatures = {};
-  for( const genomeId of genomeIds ) {
+  
+  for (const genomeId of genomeIds) {
     const featuresKey = getFeaturesKey(evolutionRunId, genomeId);
-    const featuresFileName = `${featuresKey}.json`;
-    const featuresFilePath = `${evoRunDirPath}cellFeatures/${featuresFileName}`;
-    if( fs.existsSync(featuresFilePath) ) {
-      const featuresJSONString = fs.readFileSync( featuresFilePath, 'utf8' );
-      const featuresJSON = JSON.parse( featuresJSONString );
-      genomeFeatures[genomeId] = featuresJSON;
+    const gzipPath = `${evoRunDirPath}cellFeatures/${featuresKey}.json.gz`;
+    const plainPath = `${evoRunDirPath}cellFeatures/${featuresKey}.json`;
+    
+    const features = readCompressedOrPlainJSON(gzipPath, plainPath);
+    if (features) {
+      genomeFeatures[genomeId] = features;
     }
   }
+  
   return genomeFeatures;
 }
 
-export function getEliteGenomeIdsFromEliteMaps( eliteMaps ) {
+export function saveGenomeToDisk(genome, evolutionRunId, genomeId, evoRunDirPath, addToGit) {
+  const genomeKey = getGenomeKey(evolutionRunId, genomeId);
+  const genomeFileName = `${genomeKey}.json.gz`;
+  const genomeFilePath = `${evoRunDirPath}${genomeFileName}`;
+  
+  if (fs.existsSync(genomeFilePath)) {
+    console.error(`Error: genome file already exists at ${genomeFilePath}`);
+    return;
+  }
+
+  writeCompressedJSON(genomeFilePath, {
+    _id: genomeKey,
+    genome
+  });
+
+  if (addToGit) {
+    runCmd(`git -C ${evoRunDirPath} add ${genomeFileName}`);
+  }
+}
+
+export function getEliteMapKey(evolutionRunId, terrainName) {
+  if (undefined === terrainName) {
+    return `elites_${evolutionRunId}`;
+  } else {
+    return `elites_${evolutionRunId}_${terrainName}`;
+  }
+}
+
+export function getEliteGenomeIdsFromEliteMaps(eliteMaps) {
   let eliteGenomeIds = [];
-  if( Array.isArray(eliteMaps) ) {
-    for( const oneEliteMap of eliteMaps ) {
-      eliteGenomeIds = eliteGenomeIds.concat( getEliteGenomeIdsFromEliteMap(oneEliteMap) );
+  if (Array.isArray(eliteMaps)) {
+    for (const oneEliteMap of eliteMaps) {
+      eliteGenomeIds = eliteGenomeIds.concat(getEliteGenomeIdsFromEliteMap(oneEliteMap));
     }
   } else {
     eliteGenomeIds = getEliteGenomeIdsFromEliteMap(eliteMaps);
@@ -207,48 +295,22 @@ export function getEliteGenomeIdsFromEliteMaps( eliteMaps ) {
   return eliteGenomeIds;
 }
 
-export function getEliteGenomeIdsFromEliteMap( eliteMap ) {
+export function getEliteGenomeIdsFromEliteMap(eliteMap) {
   let eliteGenomeIds = [];
-  for( const cellKey in eliteMap.cells ) {
-    if( eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length ) {
-      eliteGenomeIds.push( eliteMap.cells[cellKey].elts[0].g );
+  for (const cellKey in eliteMap.cells) {
+    if (eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length) {
+      eliteGenomeIds.push(eliteMap.cells[cellKey].elts[0].g);
     }
   }
   return eliteGenomeIds;
 }
 
-export function getMapFromEliteKeysToGenomeIds( eliteMap ) { // similar to getEliteGenomeIdsFromEliteMap; initially implemented for terrain-remap
+export function getMapFromEliteKeysToGenomeIds(eliteMap) {
   const eliteKeysToGenomeIds = new Map();
-  for( const cellKey in eliteMap.cells ) {
-    if( eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length ) {
-      eliteKeysToGenomeIds.set( cellKey, eliteMap.cells[cellKey].elts[0].g );
+  for (const cellKey in eliteMap.cells) {
+    if (eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length) {
+      eliteKeysToGenomeIds.set(cellKey, eliteMap.cells[cellKey].elts[0].g);
     }
   }
   return eliteKeysToGenomeIds;
-}
-
-export async function saveGenomeToDisk( genome, evolutionRunId, genomeId, evoRunDirPath, addToGit ) {
-  const genomeKey = getGenomeKey(evolutionRunId, genomeId);
-  const genomeFileName = `${genomeKey}.json`;
-  const genomeFilePath = `${evoRunDirPath}${genomeFileName}`;
-  if( fs.existsSync(genomeFilePath) ) {
-    console.error(`Error: genome file already exists at ${genomeFilePath}`);
-  }
-  const genomeString = JSON.stringify({
-    _id: genomeKey,
-    genome
-  });
-  await fsPromise.writeFile( genomeFilePath, genomeString );
-  if( addToGit ) {
-    // add file to git (without committing)
-    runCmd(`git -C ${evoRunDirPath} add ${genomeFileName}`);
-  }
-}
-
-export function getEliteMapKey( evolutionRunId, terrainName ) {
-  if( undefined === terrainName ) {
-    return `elites_${evolutionRunId}`;
-  } else {
-    return `elites_${evolutionRunId}_${terrainName}`;
-  }
 }
