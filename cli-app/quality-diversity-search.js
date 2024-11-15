@@ -53,6 +53,7 @@ import {
   getEliteGenomeIdsFromEliteMaps, 
   saveGenomeToDisk, getEliteMapKey,
   saveLostFeaturesToDisk, readAllLostFeaturesFromDisk,
+  saveCellFeaturesAtGenerationToDisk
 } from './util/qd-common-elite-map-persistence.js';
 import { callGeneEvaluationWorker, callRandomGeneWorker, callGeneVariationWorker } from './service/workers/gene-child-process-forker.js';
 import { getAudioContext, getNewOfflineAudioContext } from './util/rendering-common.js';
@@ -401,6 +402,8 @@ runCmd('git config --global gc.auto 1');
 
   let seedFeaturesAndScores = [];
 
+  let zScoreNormalisationTrainFeaturesPathObj = { zScoreNormalisationTrainFeaturesPath: undefined }; // object to pass by reference, to be able to mutate from within mapElitesBatch
+
   while( 
       ! shouldTerminate(terminationCondition, gradientWindowSize, eliteMap, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun)
       &&
@@ -573,7 +576,7 @@ runCmd('git config --global gc.auto 1');
     console.log("algorithmKey",algorithmKey);
     if( algorithmKey === "mapElites_with_uBC" ) {
       await mapElitesBatch(
-        eliteMap, eliteMapIndex, cellFeatures, seedFeaturesAndScores, terrainName,
+        eliteMap, eliteMapIndex, cellFeatures, seedFeaturesAndScores, terrainName, zScoreNormalisationTrainFeaturesPathObj,
         noveltyArchive,
         algorithmKey, evolutionRunId,
         commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNGenerations,
@@ -654,7 +657,7 @@ runCmd('git config --global gc.auto 1');
 }
 
 async function mapElitesBatch(
-  eliteMap, eliteMapIndex, cellFeatures, seedFeaturesAndScores, terrainName,
+  eliteMap, eliteMapIndex, cellFeatures, seedFeaturesAndScores, terrainName, zScoreNormalisationTrainFeaturesPathObj,
   noveltyArchive,
   algorithmKey, evolutionRunId,
   commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNGenerations,
@@ -679,6 +682,7 @@ async function mapElitesBatch(
   scoreProportion,
   dummyRun
 ) {
+  const zScoreNormalisationTrainFeaturesPath = zScoreNormalisationTrainFeaturesPathObj["zScoreNormalisationTrainFeaturesPath"];
   let searchPromises;
   const isUnsupervisedDiversityEvaluation = (_evaluationFeatureServers && _evaluationFeatureServers.length > 0) &&
     (_evaluationProjectionServers && _evaluationProjectionServers.length > 0) &&
@@ -699,6 +703,7 @@ async function mapElitesBatch(
     // featureExtractionEndpoint, 
     // qualityEvaluationEndpoint, 
     // projectionEndpoint,
+    zScoreNormalisationReferenceFeaturesPaths,
     shouldRetrainProjection,
     projectionRetrainingLinearGapIncrement,
     shouldCalculateNovelty, // TODO: currently not using this, as we let the diversity tracker handle that calculation: if shouldTrackDiversity
@@ -707,8 +712,8 @@ async function mapElitesBatch(
     inspirationRate, // in case of a novelty archive
     mapSelectorBias,
     eliteRemappingCompetitionCriteria,
-    retrainWithAllDiscoveredFeatures
-  } = getWsServiceEndpointsFromClassConfiguration( classConfiguration ); 
+    retrainWithAllDiscoveredFeatures,
+  } = getWsServiceEndpointsFromClassConfiguration( classConfiguration );
 
   if( shouldPopulateCellFeatures ) {
     // seed rounds are over, we're doing unsupervised diversity evaluation, but we haven't yet projected the features:
@@ -1040,7 +1045,8 @@ async function mapElitesBatch(
                       geneEvaluationServerHost.quality,
                       scoreProportion,
                       eliteMap.classConfigurations, eliteMapIndex,
-                      measureCollectivePerformance, ckptDir, evoRunDirPath
+                      measureCollectivePerformance, ckptDir, evoRunDirPath,
+                      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
                     );
                     seedFeaturesAndScores.push(seedGenomeScoreAndFeatures);
                     await saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
@@ -1085,7 +1091,8 @@ async function mapElitesBatch(
                         eliteMap, eliteMapIndex,
                         evolutionRunId, evoRunDirPath,
                         scoreProportion,
-                        measureCollectivePerformance, ckptDir
+                        measureCollectivePerformance, ckptDir,
+                        zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
                       ).catch( e => {
                         console.error("Error getting genome class scores by diversity projection with new genomes", e);
                         reject(e);
@@ -1113,7 +1120,8 @@ async function mapElitesBatch(
                     eliteMap, eliteMapIndex,
                     evolutionRunId, evoRunDirPath,
                     scoreProportion,
-                    measureCollectivePerformance, ckptDir
+                    measureCollectivePerformance, ckptDir,
+                    zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
                   ).catch( e => {
                     console.error("Error getting genome class scores by diversity projection with new genomes", e);
                     reject(e);
@@ -1148,7 +1156,8 @@ async function mapElitesBatch(
                       yamnetModelUrl,
                       geneEvaluationProtocol,
                       geneRenderingServerHost, renderSampleRateForClassifier,
-                      geneEvaluationServerHost, featureExtractionHost, ckptDir
+                      geneEvaluationServerHost, featureExtractionHost, ckptDir,
+                      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
                     );
                     for( const oneClassKey in oneCombinationClassScores ) {
                       const oneClassScores = oneCombinationClassScores[oneClassKey];
@@ -1171,7 +1180,8 @@ async function mapElitesBatch(
                 yamnetModelUrl,
                 geneEvaluationProtocol,
                 geneRenderingServerHost, renderSampleRateForClassifier,
-                geneEvaluationServerHost, featureExtractionHost, ckptDir
+                geneEvaluationServerHost, featureExtractionHost, ckptDir,
+                zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
               );
             }
           }
@@ -1533,7 +1543,7 @@ async function mapElitesBatch(
       ); // eliteMap.generationNumber*searchBatchSize === iterationNumber
       if( shouldFit ) {
         // TODO: letting getClassKeysFromSeedFeatures handle the retraining
-        await retrainProjectionModel( 
+        const {generationFeaturesFilePath} = await retrainProjectionModel( 
           cellFeatures, eliteMap, evolutionRunId,
           _evaluationProjectionServers, evoRunDirPath, 
           classScoringVariationsAsContainerDimensions,
@@ -1543,6 +1553,7 @@ async function mapElitesBatch(
           noveltyArchive,
           retrainWithAllDiscoveredFeatures
         );
+        zScoreNormalisationTrainFeaturesPathObj.zScoreNormalisationTrainFeaturesPath = generationFeaturesFilePath;
         // we've done the fitting, so we can set shouldFit to false
         // eliteMap.shouldFit = true;
       }
@@ -1739,7 +1750,8 @@ async function getGenomeClassScores(
   yamnetModelUrl,
   geneEvaluationProtocol,
   geneRenderingServerHost, renderSampleRateForClassifier,
-  geneEvaluationServerHost, featureExtractionHost, ckptDir
+  geneEvaluationServerHost, featureExtractionHost, ckptDir,
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
 ) {
   let newGenomeClassScores;
   // in this case we'll render and evaluate all the rendered combinations in this stack (Node.js)
@@ -1773,7 +1785,9 @@ async function getGenomeClassScores(
       antiAliasing,
       frequencyUpdatesApplyToAllPathcNetworkOutputs,
       geneRenderingServerHost, renderSampleRateForClassifier,
-      geneEvaluationServerHost, featureExtractionHost, ckptDir
+      geneEvaluationServerHost, featureExtractionHost, ckptDir,
+      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+      // TODO geneEvaluationServerHost needs to be augmented with zScore things and also for the unsupervised case
     ).catch(
       e => {
         console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
@@ -1921,7 +1935,8 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
   eliteMap, eliteMapIndex,
   evolutionRunId, evoRunDirPath,
   scoreProportion,
-  measureCollectivePerformance, ckptDir
+  measureCollectivePerformance, ckptDir,
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
 ) {
   // not supporting arrays of durations, noteDeltas and velocities for now, as is done in getGenomeClassScores
   const duration = Array.isArray(durations) ? durations[0] : durations;
@@ -1960,7 +1975,8 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       audioBuffer,
       evaluationFeatureExtractionHost, evaluationQualityHost,
       classConfigurations, eliteMapIndex,
-      measureCollectivePerformance, ckptDir, evoRunDirPath
+      measureCollectivePerformance, ckptDir, evoRunDirPath,
+      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
     );
     newGenomeFeatureVector = features;
     newGenomeFeatureType = featuresType;
@@ -2062,7 +2078,8 @@ async function getGenomeScoreAndFeatures(
   evaluationQualityHost,
   scoreProportion,
   classConfigurations, eliteMapIndex,
-  measureCollectivePerformance, ckptDir, evoRunDirPath
+  measureCollectivePerformance, ckptDir, evoRunDirPath,
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
 ) {
   const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
     genomeString,
@@ -2108,7 +2125,8 @@ async function getGenomeScoreAndFeatures(
       classConfigurations, eliteMapIndex,
       measureCollectivePerformance, 
       ckptDir, 
-      evoRunDirPath
+      evoRunDirPath,
+      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
     );
     newGenomeFeatureVector = features;
     newGenomeFeatureType = featuresType;
@@ -2149,7 +2167,8 @@ async function getFeaturesAndScoreForAudioBuffer(
   eliteMapIndex,
   measureCollectivePerformance,
   ckptDir,
-  evoRunDirPath
+  evoRunDirPath,
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
 ) {
   let qualityFromEmbeds = false;
   let qualityFromFeatures = false;
@@ -2223,11 +2242,8 @@ async function getFeaturesAndScoreForAudioBuffer(
     
     newGenomeQuality = await getQualityFromWebsocketForEmbedding(
       vectorsToCompare,
-      refSetEmbedsPath,
-      querySetEmbedsPath,
-      measureCollectivePerformance,
       evaluationQualityHost + qualityEvaluationEndpoint,
-      ckptDir
+      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
     );
   } else {
     // Fallback to using audio buffer for quality evaluation
@@ -2295,7 +2311,7 @@ async function getFeaturesAndScoresForGenomeIds(
   _evaluationQualityServers, classConfiguration,
   evolutionRunId, evoRunDirPath,
   scoreProportion,
-  ckptDir, measureCollectivePerformance,
+  ckptDir, measureCollectivePerformance, // TODO clean up unused args in this function and in all calls to it
   refSetEmbedsPath, refSetName,
   // for a call to getGenomeScoreAndFeatures:
   useGPU,
@@ -2303,7 +2319,8 @@ async function getFeaturesAndScoresForGenomeIds(
   frequencyUpdatesApplyToAllPathcNetworkOutputs,
   geneRenderingServerHost, 
   evaluationFeatureExtractionHost, featureExtractionEndpoint, 
-  sampleRate
+  sampleRate,
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
 ) {
   const seedFeaturesAndScores = [];
   let i = 0;
@@ -2350,11 +2367,8 @@ async function getFeaturesAndScoresForGenomeIds(
     }
     const genomeQuality = await getQualityFromWebsocketForEmbedding(
       vectorsToCompare,
-      refSetEmbedsPath,
-      querySetEmbedsPath,
-      measureCollectivePerformance,
       evaluationQualityHost,
-      ckptDir, // `${ckptDir}/${evaluationQualityHostEncodedBase64}`
+      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
     );
     const fitness = genomeQuality.fitness * scoreProportion;
     seedFeaturesAndScores.push({
@@ -2386,7 +2400,8 @@ async function getFeaturesAndScoresFromEliteMap(
   geneRenderingServerHost, 
   evaluationFeatureExtractionHost,
   featureExtractionEndpoint,
-  sampleRate
+  sampleRate,
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
 ) {
 
   let i = 0;
@@ -2413,7 +2428,8 @@ async function getFeaturesAndScoresFromEliteMap(
     frequencyUpdatesApplyToAllPathcNetworkOutputs,
     geneRenderingServerHost, 
     evaluationFeatureExtractionHost, featureExtractionEndpoint,
-    sampleRate
+    sampleRate,
+    zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
   );
   return seedFeaturesAndScores;
 }
@@ -2464,7 +2480,7 @@ async function retrainProjectionModel(
     }
   }
   if (cellFeaturesMap.size !== cellElitesMap.size) {
-    console.error("Error: cellFeaturesSet.size !== cellElites.size");  
+    console.error("Error: cellFeaturesSet.size !== cellElites.size");
     throw new Error("Error: cellFeaturesSet.size !== cellElites.size");
   }
 
@@ -2474,8 +2490,6 @@ async function retrainProjectionModel(
   for (const cellKeyWithFeatures of cellFeaturesMap.keys()) {
     allFeaturesToProject.push(cellFeatures[cellKeyWithFeatures][projectionFeatureType].features);
   }
-
-
 
   // Initialize the DiversityTracker
   let tracker;
@@ -2606,6 +2620,12 @@ async function retrainProjectionModel(
     saveLostFeaturesToDisk( containerLossFeatures, eliteMap, evoRunDirPath );
   }
 
+  // Save the cell features at this generation to disk, for use during feature Z-score normalisation
+  const featureExtractionType = projectionFeatureType; // TODO might want to make those distinct?
+  const generationFeaturesFilePath = saveCellFeaturesAtGenerationToDisk( 
+    cellFeatures, featureExtractionType, eliteMap.generationNumber, evoRunDirPath
+  );
+
   if (shouldTrackDiversity) {
     // repeating above
     cellFeaturesMap = new Map(); // to ensure order of insertion
@@ -2668,7 +2688,7 @@ async function retrainProjectionModel(
   cellFeaturesMap = null;
   cellElitesMap = null;
 
-  return diversityProjection;
+  return {diversityProjection, generationFeaturesFilePath};
 }
 
 function doesNewEliteWinCurrentDuringRemapping(newElite, currentElite, eliteRemappingCompetitionCriteria, generationNumber, protectionPeriod = 10) {
@@ -3166,6 +3186,7 @@ function getWsServiceEndpointsFromClassConfiguration(classConfiguration) {
       qualityEvaluationEndpoint: "",
       projectionEndpoint: "",
       shouldRetrainProjection: false,
+      zScoreNormalisationReferenceFeaturesPaths: "",
       retrainWithAllDiscoveredFeatures: false,
       projectionRetrainingLinearGapIncrement: 10,
       shouldCalculateNovelty: false,
@@ -3191,6 +3212,7 @@ function getWsServiceEndpointsFromClassConfiguration(classConfiguration) {
     qualityEvaluationEndpoint: classConfiguration.qualityEvaluationEndpoint,
     projectionEndpoint: classConfiguration.projectionEndpoint,
     shouldRetrainProjection: classConfiguration.shouldRetrainProjection,
+    zScoreNormalisationReferenceFeaturesPaths: classConfiguration.zScoreNormalisationReferenceFeaturesPaths.join(","),
     retrainWithAllDiscoveredFeatures: classConfiguration.retrainWithAllDiscoveredFeatures,
     projectionRetrainingLinearGapIncrement: classConfiguration.projectionRetrainingLinearGapIncrement,
     shouldCalculateNovelty: classConfiguration.shouldCalculateNovelty,

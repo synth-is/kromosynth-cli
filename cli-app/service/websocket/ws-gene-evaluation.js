@@ -1,5 +1,6 @@
 import { reverse } from "lodash-es";
 import WebSocket from "ws";
+import { augmentGenomeEvaluationHostPath } from "../../util/qd-common.js";
 
 export function isServerAvailable( serverUrl ) {
   return new Promise( resolve => {
@@ -24,7 +25,8 @@ export async function renderAndEvaluateGenomesViaWebsockets(
   antiAliasing,
   frequencyUpdatesApplyToAllPathcNetworkOutputs,
   geneRenderingWebsocketServerHost, renderSampleRateForClassifier,
-  geneEvaluationWebsocketServerHost, featureExtractionHost, ckptDir
+  geneEvaluationWebsocketServerHost, featureExtractionHost, ckptDir,
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
 ) {
   const predictionsAggregate = {};
   const evaluationPromises = [];
@@ -59,9 +61,10 @@ export async function renderAndEvaluateGenomesViaWebsockets(
                   renderSampleRateForClassifier
                 );
                 const featuresWsRequest = { features };
+                const evaluationHostPath = augmentGenomeEvaluationHostPath( geneEvaluationWebsocketServerHost, zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath );
                 predictions = await getAudioClassPredictionsFromWebsocket(
                   JSON.stringify( featuresWsRequest ),
-                  geneEvaluationWebsocketServerHost
+                  evaluationHostPath
                 );
               } else {
                 predictions = await getAudioClassPredictionsFromWebsocket(
@@ -253,18 +256,13 @@ export function getQualityFromWebsocket(  // TODO: rename to getQualityFromWebso
 // send websocket message to server, with embedding and receive quality
 export function getQualityFromWebsocketForEmbedding(
   embedding,
-  refSetEmbedsPath,
-  querySetEmbedsPath,
-  measureCollectivePerformance, // score incoming embedding and all embeddings in the query set against the ref set
   evaluationQualityHost,
-  ckptDir
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
 ) {
   if( embedding.length === 1 ) {
     console.error('getQualityFromWebsocketForEmbedding: embedding length is 1');
   }
-  // console.log('getQualityFromWebsocketForEmbedding', evaluationQualityHost);
-  // const qualityURL = `${evaluationQualityHost}/score?background_embds_path=${refSetEmbedsPath}&eval_embds_path=${querySetEmbedsPath}&measure_collective_performance=${measureCollectivePerformance}&ckpt_dir=${ckptDir}`;
-  const qualityURL = `${evaluationQualityHost}`;
+  const qualityURL = augmentGenomeEvaluationHostPath( evaluationQualityHost, zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath );
   // console.log('qualityURL:', qualityURL);
   const ws = getClient( qualityURL );
   return new Promise((resolve, reject) => {

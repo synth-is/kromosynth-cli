@@ -542,3 +542,18 @@ export function logGenerationNumberAsAsciiArt( generationNumber ) {
     console.log(data);
   });
 }
+
+
+export function augmentGenomeEvaluationHostPath( genomeEvaluationHost, zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath ) {
+  const url = new URL(genomeEvaluationHost);
+
+  if (zScoreNormalisationReferenceFeaturesPaths) {
+    url.searchParams.set('zScoreNormalisationReferenceFeaturesPaths', zScoreNormalisationReferenceFeaturesPaths);
+  }
+
+  if (zScoreNormalisationTrainFeaturesPath) {
+    url.searchParams.set('zScoreNormalisationTrainFeaturesPath', zScoreNormalisationTrainFeaturesPath);
+  }
+
+  return url.toString();
+}
