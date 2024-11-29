@@ -544,16 +544,34 @@ export function logGenerationNumberAsAsciiArt( generationNumber ) {
 }
 
 
-export function augmentGenomeEvaluationHostPath( genomeEvaluationHost, zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath ) {
+export function augmentGenomeEvaluationHostPath( 
+    genomeEvaluationHost, zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+    dynamicComponents, featureIndices
+  ) {
   const url = new URL(genomeEvaluationHost);
-
   if (zScoreNormalisationReferenceFeaturesPaths) {
     url.searchParams.set('zScoreNormalisationReferenceFeaturesPaths', zScoreNormalisationReferenceFeaturesPaths);
   }
-
   if (zScoreNormalisationTrainFeaturesPath) {
     url.searchParams.set('zScoreNormalisationTrainFeaturesPath', zScoreNormalisationTrainFeaturesPath);
   }
-
+  if (dynamicComponents) {
+    url.searchParams.set('dynamicComponents', dynamicComponents);
+  }
+  if (featureIndices) {
+    url.searchParams.set('featureIndices', featureIndices.join(','));
+  }
   return url.toString();
+}
+
+export function getFeatureIndicesFromEliteMapMeta( eliteMapMeta ) {
+  const eliteMapIndex = eliteMapMeta.eliteMapIndex;
+  const componentIndices = eliteMapMeta[eliteMapIndex];
+  if( componentIndices ) { // not the case initially after seed rounds
+    const highestIndex = Math.max(...Object.keys(componentIndices).map(Number));
+    const selectedIndices = componentIndices[highestIndex].feature_indices;
+    return selectedIndices;
+  } else {
+    return undefined;
+  }
 }

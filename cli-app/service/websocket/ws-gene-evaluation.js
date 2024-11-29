@@ -1,6 +1,7 @@
 import { reverse } from "lodash-es";
 import WebSocket from "ws";
 import { augmentGenomeEvaluationHostPath } from "../../util/qd-common.js";
+import { readEliteMapMetaFromDisk } from "../../util/qd-common-elite-map-persistence.js";
 
 export function isServerAvailable( serverUrl ) {
   return new Promise( resolve => {
@@ -26,7 +27,8 @@ export async function renderAndEvaluateGenomesViaWebsockets(
   frequencyUpdatesApplyToAllPathcNetworkOutputs,
   geneRenderingWebsocketServerHost, renderSampleRateForClassifier,
   geneEvaluationWebsocketServerHost, featureExtractionHost, ckptDir,
-  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+  dynamicComponents, featureIndices
 ) {
   const predictionsAggregate = {};
   const evaluationPromises = [];
@@ -61,7 +63,10 @@ export async function renderAndEvaluateGenomesViaWebsockets(
                   renderSampleRateForClassifier
                 );
                 const featuresWsRequest = { features };
-                const evaluationHostPath = augmentGenomeEvaluationHostPath( geneEvaluationWebsocketServerHost, zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath );
+                const evaluationHostPath = augmentGenomeEvaluationHostPath( 
+                  geneEvaluationWebsocketServerHost, zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+                  dynamicComponents, featureIndices
+                );
                 predictions = await getAudioClassPredictionsFromWebsocket(
                   JSON.stringify( featuresWsRequest ),
                   evaluationHostPath
@@ -229,7 +234,7 @@ export function getFeaturesFromWebsocket(
   });
 }
 
-// send websocket message to server, with audio buffer an receive quality
+// send websocket message to server, with audio buffer and receive quality
 export function getQualityFromWebsocket(  // TODO: rename to getQualityFromWebsocketForAudioBuffer
   audioBufferChannelData,
   evaluationQualityHost
@@ -257,12 +262,16 @@ export function getQualityFromWebsocket(  // TODO: rename to getQualityFromWebso
 export function getQualityFromWebsocketForEmbedding(
   embedding,
   evaluationQualityHost,
-  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+  dynamicComponents, featureIndices
 ) {
   if( embedding.length === 1 ) {
     console.error('getQualityFromWebsocketForEmbedding: embedding length is 1');
   }
-  const qualityURL = augmentGenomeEvaluationHostPath( evaluationQualityHost, zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath );
+  const qualityURL = augmentGenomeEvaluationHostPath( 
+    evaluationQualityHost, zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+    dynamicComponents, featureIndices
+  );
   // console.log('qualityURL:', qualityURL);
   const ws = getClient( qualityURL );
   return new Promise((resolve, reject) => {
@@ -316,16 +325,20 @@ export function getDiversityFromWebsocket(
   featureVectors,
   fitnessValues,
   evaluationDiversityHost,
-  evoRunDirPath,
+  evoRunDirPath, evolutionRunId,
   shouldFit,
   pcaComponents,
   shouldCalculateSurprise, shouldUseAutoEncoderForSurprise,
-  shouldCalculateNovelty
+  shouldCalculateNovelty,
+  dynamicComponents, featureIndices
 ) {
   console.log('getDiversityFromWebsocket', evaluationDiversityHost);
   const ws = getClient( evaluationDiversityHost );
   return new Promise((resolve, reject) => {
     let timeout;
+    if( dynamicComponents && featureIndices ) {
+      featureVectors = featureVectors.map(vector => featureIndices.map(index => vector[index]));
+    }
     ws.on('open', () => {
       const diversityMessage = {
         "feature_vectors": featureVectors,
@@ -336,6 +349,8 @@ export function getDiversityFromWebsocket(
         "use_autoencoder_for_surprise": shouldUseAutoEncoderForSurprise,
         "calculate_novelty": shouldCalculateNovelty,
         "pca_components": pcaComponents,
+        "dynamic_components": dynamicComponents,
+        "selection_strategy": "improved", // choice of "improved" or "original"; "original" seems to eventually result in zero length feature indices, when using dynamic components
       };
       ws.send( JSON.stringify( diversityMessage ), { timeout: 120000 } );
       timeout = setTimeout(() => {

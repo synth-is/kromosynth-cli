@@ -34,7 +34,8 @@
           "shouldTrackDiversity": true,
           "sampleRate": 16000,
           "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
-          "eliteRemappingCompetitionCriteria": "score" // one of: 'score', 'novelty' or 'surprise',
+          "eliteRemappingCompetitionCriteria": "score", // one of: 'score', 'novelty' or 'surprise',
+          "dynamicComponents": true // dynamic selection of feature (e.g. MFCC) and projection (e.g. PCA) components
         }
       ],
       "classificationDimensions": [100, 100]
@@ -81,8 +82,8 @@
   ],
   "evaluationQualityServers": [ // quality evaluation
     "ws://127.0.0.1:32051",
-    // "ws://127.0.0.1:32052",
-    // "ws://127.0.0.1:32053"
+    "ws://127.0.0.1:32052",
+    "ws://127.0.0.1:32053"
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",

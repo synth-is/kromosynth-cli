@@ -43,7 +43,8 @@ import {
   deleteAllGenomesNotInEliteMap, deleteAllGenomeRendersNotInEliteMap,
   getGradient,
   getFeaturesForGenomeString,
-  getDurationNoteDeltaVelocityFromGenomeString
+  getDurationNoteDeltaVelocityFromGenomeString,
+  getFeatureIndicesFromEliteMapMeta
 } from './util/qd-common.js';
 import {
   createEvoRunDir,
@@ -531,7 +532,12 @@ runCmd('git config --global gc.auto 1');
           useGpuForTensorflow, antiAliasing, frequencyUpdatesApplyToAllPathcNetworkOutputs,
           _geneRenderingServers[0], 
           _evaluationFeatureServers[0], classConfiguration.featureExtractionEndpoint,
-          sampleRate
+          sampleRate,
+          // TODO?
+          undefined, //zScoreNormalisationReferenceFeaturesPaths, 
+          undefined, // zScoreNormalisationTrainFeaturesPath,
+          undefined, // dynamicComponents,
+          undefined //featureIndices
         );
 
         // TODO: is this necessary?
@@ -567,7 +573,12 @@ runCmd('git config --global gc.auto 1');
         _geneRenderingServers[0], 
         _evaluationFeatureServers[0],
         classConfiguration.featureExtractionEndpoint,
-        sampleRate
+        sampleRate,
+        // TODO?:
+        undefined, // zScoreNormalisationReferenceFeaturesPaths, 
+        undefined, // zScoreNormalisationTrainFeaturesPath,
+        undefined, // dynamicComponents,
+        undefined //featureIndices
       );
     }
 
@@ -576,7 +587,7 @@ runCmd('git config --global gc.auto 1');
     console.log("algorithmKey",algorithmKey);
     if( algorithmKey === "mapElites_with_uBC" ) {
       await mapElitesBatch(
-        eliteMap, eliteMapIndex, cellFeatures, seedFeaturesAndScores, terrainName, zScoreNormalisationTrainFeaturesPathObj,
+        eliteMap, eliteMapMeta, cellFeatures, seedFeaturesAndScores, terrainName, zScoreNormalisationTrainFeaturesPathObj,
         noveltyArchive,
         algorithmKey, evolutionRunId,
         commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNGenerations,
@@ -644,6 +655,9 @@ runCmd('git config --global gc.auto 1');
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
 
+    // changes to eliteMapMeta which should have been passed down by reference, don't propagate up here for some reason, so we'll read those changes from disk:
+    eliteMapMeta = readEliteMapMetaFromDisk( evolutionRunId, evoRunDirPath );
+
   } // while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
   if( ! (batchDurationMs && batchDurationMs < Date.now() - startTimeMs) ) {
     // process not stopped due to time limit, but should now have reached a general termination condition
@@ -657,7 +671,7 @@ runCmd('git config --global gc.auto 1');
 }
 
 async function mapElitesBatch(
-  eliteMap, eliteMapIndex, cellFeatures, seedFeaturesAndScores, terrainName, zScoreNormalisationTrainFeaturesPathObj,
+  eliteMap, eliteMapMeta, cellFeatures, seedFeaturesAndScores, terrainName, zScoreNormalisationTrainFeaturesPathObj,
   noveltyArchive,
   algorithmKey, evolutionRunId,
   commitEliteMapToGitEveryNIterations, addGenomesToGit, prunePastEliteGenomesEveryNGenerations,
@@ -682,6 +696,7 @@ async function mapElitesBatch(
   scoreProportion,
   dummyRun
 ) {
+  const eliteMapIndex = eliteMapMeta.eliteMapIndex;
   const zScoreNormalisationTrainFeaturesPath = zScoreNormalisationTrainFeaturesPathObj["zScoreNormalisationTrainFeaturesPath"];
   let searchPromises;
   const isUnsupervisedDiversityEvaluation = (_evaluationFeatureServers && _evaluationFeatureServers.length > 0) &&
@@ -689,7 +704,7 @@ async function mapElitesBatch(
     (_evaluationQualityServers && _evaluationQualityServers.length > 0);
 
   const isSeedRound = (eliteMap.generationNumber*searchBatchSize) < seedEvals 
-    && ! eliteMap.eliteMapIndex > 0; // only seed the first map
+    && ! eliteMapIndex > 0; // only seed the first map
   
   //( ! isSeedRound && isUnsupervisedDiversityEvaluation && Object.keys(cellFeatures).length === 0 )
   const isNotSeedRoundDuringUnsupervisedDiversityEvaluationAndCellFeaturesEmpty = ! isSeedRound && isUnsupervisedDiversityEvaluation && Object.keys(cellFeatures).length === 0;
@@ -713,15 +728,26 @@ async function mapElitesBatch(
     mapSelectorBias,
     eliteRemappingCompetitionCriteria,
     retrainWithAllDiscoveredFeatures,
+    dynamicComponents,
   } = getWsServiceEndpointsFromClassConfiguration( classConfiguration );
+  let featureIndices;
+  if( dynamicComponents ) {
+    featureIndices = getFeatureIndicesFromEliteMapMeta( eliteMapMeta );
+  }
 
   if( shouldPopulateCellFeatures ) {
     // seed rounds are over, we're doing unsupervised diversity evaluation, but we haven't yet projected the features:
     // - so far they have been collected: let's project the whole collection
     searchPromises = new Array( seedFeaturesAndScores.length );
     const seedFeatureClassKeys = await getClassKeysFromSeedFeatures( // this call trains the projection
-      seedFeaturesAndScores, _evaluationProjectionServers[0], evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap
+      seedFeaturesAndScores, _evaluationProjectionServers[0], evoRunDirPath, evolutionRunId, classScoringVariationsAsContainerDimensions, 
+      eliteMap, eliteMapMeta, dynamicComponents, featureIndices
     );
+    // eliteMapMeta was changed by getClassKeysFromSeedFeatures and persisted to disk, so let's reload it
+    eliteMapMeta = readEliteMapMetaFromDisk( evolutionRunId, evoRunDirPath );
+    if( dynamicComponents ) {
+      featureIndices = getFeatureIndicesFromEliteMapMeta( eliteMapMeta );
+    }
     for( let i=0; i < seedFeaturesAndScores.length; i++ ) {
       searchPromises[i] = new Promise( async (resolve, reject) => {
         const seedFeatureAndScore = seedFeaturesAndScores[i];
@@ -1046,10 +1072,11 @@ async function mapElitesBatch(
                       scoreProportion,
                       eliteMap.classConfigurations, eliteMapIndex,
                       measureCollectivePerformance, ckptDir, evoRunDirPath,
-                      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+                      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+                      dynamicComponents, featureIndices
                     );
                     seedFeaturesAndScores.push(seedGenomeScoreAndFeatures);
-                    await saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
+                    saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
                   }
                 }
               }
@@ -1092,7 +1119,8 @@ async function mapElitesBatch(
                         evolutionRunId, evoRunDirPath,
                         scoreProportion,
                         measureCollectivePerformance, ckptDir,
-                        zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+                        zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+                        dynamicComponents, featureIndices
                       ).catch( e => {
                         console.error("Error getting genome class scores by diversity projection with new genomes", e);
                         reject(e);
@@ -1121,7 +1149,8 @@ async function mapElitesBatch(
                     evolutionRunId, evoRunDirPath,
                     scoreProportion,
                     measureCollectivePerformance, ckptDir,
-                    zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+                    zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+                    dynamicComponents, featureIndices
                   ).catch( e => {
                     console.error("Error getting genome class scores by diversity projection with new genomes", e);
                     reject(e);
@@ -1157,7 +1186,8 @@ async function mapElitesBatch(
                       geneEvaluationProtocol,
                       geneRenderingServerHost, renderSampleRateForClassifier,
                       geneEvaluationServerHost, featureExtractionHost, ckptDir,
-                      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+                      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+                      dynamicComponents, featureIndices
                     );
                     for( const oneClassKey in oneCombinationClassScores ) {
                       const oneClassScores = oneCombinationClassScores[oneClassKey];
@@ -1181,7 +1211,8 @@ async function mapElitesBatch(
                 geneEvaluationProtocol,
                 geneRenderingServerHost, renderSampleRateForClassifier,
                 geneEvaluationServerHost, featureExtractionHost, ckptDir,
-                zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+                zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+                dynamicComponents, featureIndices
               );
             }
           }
@@ -1194,10 +1225,10 @@ async function mapElitesBatch(
           classRestriction && classRestriction.length ?
               newGenomeClassScores && newGenomeClassScores[ classRestriction[0] ] ? newGenomeClassScores[ classRestriction[0] ].score : "N/A"
             :
-            newGenomeClassScores && newGenomeClassScores.length === 1 ? /* one feature mapping for the new genome */
+            newGenomeClassScores && newGenomeClassScores.length === 1 && newGenomeClassScores[0] !== undefined ? /* one feature mapping for the new genome */
               newGenomeClassScores[0].newGenomeFitnessValue
             :
-            newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : newGenomeClassScores && Object.keys(newGenomeClassScores)[0] ? newGenomeClassScores[Object.keys(newGenomeClassScores)[0]].score : "N/A"
+            newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : newGenomeClassScores && Object.keys(newGenomeClassScores)[0] && newGenomeClassScores[Object.keys(newGenomeClassScores)[0]] ? newGenomeClassScores[Object.keys(newGenomeClassScores)[0]].score : "N/A"
         );
   
         resolve({
@@ -1249,7 +1280,8 @@ async function mapElitesBatch(
           evoRunDirPath,
           evolutionRunId,
           shouldCalculateSurprise,
-          shouldUseAutoEncoderForSurprise
+          shouldUseAutoEncoderForSurprise,
+          dynamicComponents, featureIndices
         );
         for( let i=0; i < batchIterationResults.length; i++ ) {
           let newGenomeClassScores = {}; // for compatibility with the API below
@@ -1305,7 +1337,7 @@ async function mapElitesBatch(
       let { newGenomeString } = batchIterationResults[batchResultIdx];
       if( ! newGenomeString ) {
         // when coming from a seed round, or population from getFeaturesAndScoresForGenomeIds, newGenomeString is undefined
-        newGenomeString = await readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
+        newGenomeString = readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
       }
 
       ///// add to archive
@@ -1551,7 +1583,8 @@ async function mapElitesBatch(
           shouldTrackDiversity,
           eliteRemappingCompetitionCriteria,
           noveltyArchive,
-          retrainWithAllDiscoveredFeatures
+          retrainWithAllDiscoveredFeatures,
+          dynamicComponents, featureIndices, eliteMapMeta
         );
         zScoreNormalisationTrainFeaturesPathObj.zScoreNormalisationTrainFeaturesPath = generationFeaturesFilePath;
         // we've done the fitting, so we can set shouldFit to false
@@ -1751,7 +1784,8 @@ async function getGenomeClassScores(
   geneEvaluationProtocol,
   geneRenderingServerHost, renderSampleRateForClassifier,
   geneEvaluationServerHost, featureExtractionHost, ckptDir,
-  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+  dynamicComponents, featureIndices
 ) {
   let newGenomeClassScores;
   // in this case we'll render and evaluate all the rendered combinations in this stack (Node.js)
@@ -1771,7 +1805,7 @@ async function getGenomeClassScores(
         console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
         clearServiceConnectionList(geneEvaluationServerHost);
         getGenomeFromGenomeString( newGenomeString ).then( async failedGenome =>
-          await saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
+          saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
         );
       }
     );
@@ -1786,8 +1820,8 @@ async function getGenomeClassScores(
       frequencyUpdatesApplyToAllPathcNetworkOutputs,
       geneRenderingServerHost, renderSampleRateForClassifier,
       geneEvaluationServerHost, featureExtractionHost, ckptDir,
-      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
-      // TODO geneEvaluationServerHost needs to be augmented with zScore things and also for the unsupervised case
+      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+      dynamicComponents, featureIndices
     ).catch(
       e => {
         console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
@@ -1936,7 +1970,8 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
   evolutionRunId, evoRunDirPath,
   scoreProportion,
   measureCollectivePerformance, ckptDir,
-  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+  dynamicComponents, featureIndices
 ) {
   // not supporting arrays of durations, noteDeltas and velocities for now, as is done in getGenomeClassScores
   const duration = Array.isArray(durations) ? durations[0] : durations;
@@ -1976,7 +2011,8 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       evaluationFeatureExtractionHost, evaluationQualityHost,
       classConfigurations, eliteMapIndex,
       measureCollectivePerformance, ckptDir, evoRunDirPath,
-      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+      dynamicComponents, featureIndices
     );
     newGenomeFeatureVector = features;
     newGenomeFeatureType = featuresType;
@@ -2015,7 +2051,8 @@ async function getDiverstyProjectionsFromFeatures(
   evoRunDirPath,
   evolutionRunId,
   shouldCalculateSurprise,
-  shouldUseAutoEncoderForSurprise
+  shouldUseAutoEncoderForSurprise,
+  dynamicComponents, featureIndices
 ) {
   const { classConfigurations } = eliteMap;
   const {
@@ -2027,11 +2064,13 @@ async function getDiverstyProjectionsFromFeatures(
     features,
     undefined,
     evaluationDiversityHost + projectionEndpoint,
-    evoRunDirPath,
+    evoRunDirPath, evolutionRunId,
     false, //shouldFit
     pcaComponents,
     shouldCalculateSurprise,
-    shouldUseAutoEncoderForSurprise
+    shouldUseAutoEncoderForSurprise,
+    false, // shouldCalculateNovelty (TODO currently unused; as we let the diversity tracker handle that calculation: if shouldTrackDiversity)
+    dynamicComponents, featureIndices
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
   });
@@ -2079,7 +2118,8 @@ async function getGenomeScoreAndFeatures(
   scoreProportion,
   classConfigurations, eliteMapIndex,
   measureCollectivePerformance, ckptDir, evoRunDirPath,
-  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+  dynamicComponents, featureIndices
 ) {
   const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
     genomeString,
@@ -2126,7 +2166,8 @@ async function getGenomeScoreAndFeatures(
       measureCollectivePerformance, 
       ckptDir, 
       evoRunDirPath,
-      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+      dynamicComponents, featureIndices
     );
     newGenomeFeatureVector = features;
     newGenomeFeatureType = featuresType;
@@ -2168,7 +2209,8 @@ async function getFeaturesAndScoreForAudioBuffer(
   measureCollectivePerformance,
   ckptDir,
   evoRunDirPath,
-  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+  dynamicComponents, featureIndices
 ) {
   let qualityFromEmbeds = false;
   let qualityFromFeatures = false;
@@ -2243,7 +2285,8 @@ async function getFeaturesAndScoreForAudioBuffer(
     newGenomeQuality = await getQualityFromWebsocketForEmbedding(
       vectorsToCompare,
       evaluationQualityHost + qualityEvaluationEndpoint,
-      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+      dynamicComponents, featureIndices
     );
   } else {
     // Fallback to using audio buffer for quality evaluation
@@ -2264,9 +2307,27 @@ async function getFeaturesAndScoreForAudioBuffer(
   };
 }
 
+function addComponentDataToEliteMapMeta(
+    eliteMapMeta, featureIndices, pcaComponents, featureContribution, generationNumber,
+    evoRunDirPath, evolutionRunId
+) {
+  const eliteMapIndex = eliteMapMeta.eliteMapIndex;
+  if (!eliteMapMeta[eliteMapIndex]) {
+    eliteMapMeta[eliteMapIndex] = {};
+  }
+  if (!eliteMapMeta[eliteMapIndex][generationNumber]) {
+    eliteMapMeta[eliteMapIndex][generationNumber] = {};
+  }
+  eliteMapMeta[eliteMapIndex][generationNumber].feature_indices = featureIndices;
+  eliteMapMeta[eliteMapIndex][generationNumber].pca_components = pcaComponents;
+  eliteMapMeta[eliteMapIndex][generationNumber].feature_contribution = featureContribution;
+  saveEliteMapMetaToDisk(eliteMapMeta, evoRunDirPath, evolutionRunId);
+}
 
-
-async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDiversityHost, evoRunDirPath, classScoringVariationsAsContainerDimensions, eliteMap ) {
+async function getClassKeysFromSeedFeatures( 
+    seedFeaturesAndScores, evaluationDiversityHost, evoRunDirPath, evolutionRunId, classScoringVariationsAsContainerDimensions, 
+    eliteMap, eliteMapMeta, dynamicComponents, featureIndices
+) {
   const featuresArray = seedFeaturesAndScores.map( f => f.features );
   const pcaComponents = eliteMap.classConfigurations && eliteMap.classConfigurations.length ? eliteMap.classConfigurations[0].pcaComponentsn : undefined;
   const projectionEndpoint = eliteMap.classConfigurations && eliteMap.classConfigurations.length ? eliteMap.classConfigurations[0].projectionEndpoint : undefined;
@@ -2274,16 +2335,26 @@ async function getClassKeysFromSeedFeatures( seedFeaturesAndScores, evaluationDi
     featuresArray,
     undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
     evaluationDiversityHost + projectionEndpoint,
-    evoRunDirPath,
+    evoRunDirPath, evolutionRunId,
     true, // shouldFit
     pcaComponents,
     false, // shouldCalculateSurprise; we're not obtaining score here
     false, // shouldUseAutoEncoderForSurprise
-    false // shouldCalculateNovelty
+    false, // shouldCalculateNovelty
+    dynamicComponents, featureIndices
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber}`, e);
   });
   eliteMap.shouldFit = false;
+  if( dynamicComponents ) {
+    // add feature_indices, pca_components and featur_contribution to eliteMapMeta
+    const { feature_indices, pca_components, feature_contribution } = diversityProjection;
+    addComponentDataToEliteMapMeta(
+      eliteMapMeta,
+      feature_indices, pca_components, feature_contribution, eliteMap.generationNumber,
+      evoRunDirPath, evolutionRunId
+    );
+  }
 
   // doing the same thing here as in function retrainProjectionModel
   eliteMap.lastProjectionFitIndex++;
@@ -2320,7 +2391,8 @@ async function getFeaturesAndScoresForGenomeIds(
   geneRenderingServerHost, 
   evaluationFeatureExtractionHost, featureExtractionEndpoint, 
   sampleRate,
-  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+  dynamicComponents, featureIndices
 ) {
   const seedFeaturesAndScores = [];
   let i = 0;
@@ -2368,7 +2440,8 @@ async function getFeaturesAndScoresForGenomeIds(
     const genomeQuality = await getQualityFromWebsocketForEmbedding(
       vectorsToCompare,
       evaluationQualityHost,
-      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+      dynamicComponents, featureIndices
     );
     const fitness = genomeQuality.fitness * scoreProportion;
     seedFeaturesAndScores.push({
@@ -2401,7 +2474,8 @@ async function getFeaturesAndScoresFromEliteMap(
   evaluationFeatureExtractionHost,
   featureExtractionEndpoint,
   sampleRate,
-  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+  zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+  dynamicComponents, featureIndices
 ) {
 
   let i = 0;
@@ -2429,7 +2503,8 @@ async function getFeaturesAndScoresFromEliteMap(
     geneRenderingServerHost, 
     evaluationFeatureExtractionHost, featureExtractionEndpoint,
     sampleRate,
-    zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath
+    zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+    dynamicComponents, featureIndices
   );
   return seedFeaturesAndScores;
 }
@@ -2461,7 +2536,8 @@ async function retrainProjectionModel(
   shouldTrackDiversity,
   eliteRemappingCompetitionCriteria,
   noveltyArchive,
-  retrainWithAllDiscoveredFeatures
+  retrainWithAllDiscoveredFeatures,
+  dynamicComponents, featureIndices, eliteMapMeta
 ) {
   const evaluationDiversityHost = evaluationDiversityHosts[0]; // if more than other servers, they will pick up the updated model data by checking file timestamps; see dimensionality_reduction.py in kormosynth-evaluate
 
@@ -2502,12 +2578,13 @@ async function retrainProjectionModel(
       allFeaturesToProject,
       undefined,
       evaluationDiversityHost + projectionEndpoint,
-      evoRunDirPath,
+      evoRunDirPath, evolutionRunId,
       false, // important to not retrain here; will be done below
       pcaComponents,
       shouldCalculateSurprise,
       shouldUseAutoEncoderForSurprise,
-      false // shouldCalculateNovelty; we'll let the tracker handle this for now TODO
+      false, // shouldCalculateNovelty; we'll let the tracker handle this for now TODO
+      dynamicComponents, featureIndices
     ).catch(e => {
       console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`, e);
       cellFeaturesMap = null;
@@ -2546,12 +2623,13 @@ async function retrainProjectionModel(
     allFeaturesToProject,
     undefined,
     evaluationDiversityHost + projectionEndpoint,
-    evoRunDirPath,
+    evoRunDirPath, evolutionRunId,
     true,
     pcaComponents,
     shouldCalculateSurprise,
     shouldUseAutoEncoderForSurprise,
-    false // shouldCalculateNovelty; we'll let the tracker handle this for now TODO
+    false, // shouldCalculateNovelty; we'll let the tracker handle this for now TODO
+    dynamicComponents, featureIndices
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`, e);
     cellFeaturesMap = null;
@@ -2574,6 +2652,15 @@ async function retrainProjectionModel(
     delete cellFeatures[cellKey];
   }
 
+  if( dynamicComponents ) {
+    const { feature_indices, pca_components, feature_contribution } = diversityProjection;
+    addComponentDataToEliteMapMeta(
+      eliteMapMeta,
+      feature_indices, pca_components, feature_contribution, eliteMap.generationNumber,
+      evoRunDirPath, evolutionRunId
+    );
+  }
+
   // re-map to the container, with potentially new competition dynamics
   let i = 0;
   let containerLossCount = 0;
@@ -2581,7 +2668,7 @@ async function retrainProjectionModel(
   for (const [cellKey, elite] of cellElitesMap) {
     let newCellKey;
     if (classScoringVariationsAsContainerDimensions) {
-      const genomeString = await readGenomeAndMetaFromDisk(evolutionRunId, elite.g, evoRunDirPath);
+      const genomeString = readGenomeAndMetaFromDisk(evolutionRunId, elite.g, evoRunDirPath);
       const { duration, noteDelta, velocity } = getDurationNoteDeltaVelocityFromGenomeString(genomeString, cellKey);
       newCellKey = diversityProjection.feature_map[i].join('_') + `-${duration}_${noteDelta}_${velocity}`;
     } else {
@@ -3200,7 +3287,8 @@ function getWsServiceEndpointsFromClassConfiguration(classConfiguration) {
       inspirationRate: 0.1, 
       noveltyArchiveSizePercentage: 0.1,
       mapSelectorBias: MAP_SELECTOR_BIAS.PRODUCTIVITY,
-      eliteRemappingCompetitionCriteria: ELITE_REMAPPING_COMPETITION_CRITERIA.SCORE
+      eliteRemappingCompetitionCriteria: ELITE_REMAPPING_COMPETITION_CRITERIA.SCORE,
+      dynamicComponents: false,
     };
   }
 
@@ -3212,7 +3300,7 @@ function getWsServiceEndpointsFromClassConfiguration(classConfiguration) {
     qualityEvaluationEndpoint: classConfiguration.qualityEvaluationEndpoint,
     projectionEndpoint: classConfiguration.projectionEndpoint,
     shouldRetrainProjection: classConfiguration.shouldRetrainProjection,
-    zScoreNormalisationReferenceFeaturesPaths: classConfiguration.zScoreNormalisationReferenceFeaturesPaths.join(","),
+    zScoreNormalisationReferenceFeaturesPaths: classConfiguration.zScoreNormalisationReferenceFeaturesPaths ? classConfiguration.zScoreNormalisationReferenceFeaturesPaths.join(",") : "",
     retrainWithAllDiscoveredFeatures: classConfiguration.retrainWithAllDiscoveredFeatures,
     projectionRetrainingLinearGapIncrement: classConfiguration.projectionRetrainingLinearGapIncrement,
     shouldCalculateNovelty: classConfiguration.shouldCalculateNovelty,
@@ -3227,6 +3315,6 @@ function getWsServiceEndpointsFromClassConfiguration(classConfiguration) {
     noveltyArchiveSizePercentage: classConfiguration.noveltyArchiveSizePercentage,
     mapSelectorBias: classConfiguration.mapSelectorBias,
     eliteRemappingCompetitionCriteria: classConfiguration.eliteRemappingCompetitionCriteria,
-    
+    dynamicComponents: classConfiguration.dynamicComponents,
   };
 }
