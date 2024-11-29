@@ -958,7 +958,7 @@ export async function renderEliteMapsTimeline(
 
   // Setup worker queue for parallel rendering
   const workerPath = path.join(__dirname, 'workers', 'renderAncestorToWavFile.js');
-  const concurrencyLimit = 4;
+  const concurrencyLimit = 16;
 
   const queue = async.queue((task, done) => {
     const child = fork(workerPath);
