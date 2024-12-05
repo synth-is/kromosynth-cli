@@ -575,3 +575,12 @@ export function getFeatureIndicesFromEliteMapMeta( eliteMapMeta ) {
     return undefined;
   }
 }
+
+export function getClassificationDimensionsFromEliteMapConfig(eliteMap) {
+  if( eliteMap && eliteMap.evolutionRunConfig && eliteMap.evolutionRunConfig.classifiers && 
+    eliteMap.evolutionRunConfig.classifiers.length && eliteMap.evolutionRunConfig.classifiers[0].classificationDimensions 
+  ) {
+    return eliteMap.evolutionRunConfig.classifiers[0].classificationDimensions;
+  }
+  return undefined;
+}

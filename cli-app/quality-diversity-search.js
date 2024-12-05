@@ -44,7 +44,8 @@ import {
   getGradient,
   getFeaturesForGenomeString,
   getDurationNoteDeltaVelocityFromGenomeString,
-  getFeatureIndicesFromEliteMapMeta
+  getFeatureIndicesFromEliteMapMeta,
+  getClassificationDimensionsFromEliteMapConfig
 } from './util/qd-common.js';
 import {
   createEvoRunDir,
@@ -2308,8 +2309,8 @@ async function getFeaturesAndScoreForAudioBuffer(
 }
 
 function addComponentDataToEliteMapMeta(
-    eliteMapMeta, featureIndices, pcaComponents, featureContribution, generationNumber,
-    evoRunDirPath, evolutionRunId
+    eliteMapMeta, featureIndices, pcaComponents, featureContribution, componentContribution,
+    generationNumber, evoRunDirPath, evolutionRunId
 ) {
   const eliteMapIndex = eliteMapMeta.eliteMapIndex;
   if (!eliteMapMeta[eliteMapIndex]) {
@@ -2321,6 +2322,7 @@ function addComponentDataToEliteMapMeta(
   eliteMapMeta[eliteMapIndex][generationNumber].feature_indices = featureIndices;
   eliteMapMeta[eliteMapIndex][generationNumber].pca_components = pcaComponents;
   eliteMapMeta[eliteMapIndex][generationNumber].feature_contribution = featureContribution;
+  eliteMapMeta[eliteMapIndex][generationNumber].component_contribution = componentContribution;
   saveEliteMapMetaToDisk(eliteMapMeta, evoRunDirPath, evolutionRunId);
 }
 
@@ -2346,13 +2348,13 @@ async function getClassKeysFromSeedFeatures(
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber}`, e);
   });
   eliteMap.shouldFit = false;
-  if( dynamicComponents ) {
+  if( true /*dynamicComponents*/ ) {
     // add feature_indices, pca_components and featur_contribution to eliteMapMeta
-    const { feature_indices, pca_components, feature_contribution } = diversityProjection;
+    const { feature_indices, pca_components, feature_contribution, component_contribution } = diversityProjection;
     addComponentDataToEliteMapMeta(
       eliteMapMeta,
-      feature_indices, pca_components, feature_contribution, eliteMap.generationNumber,
-      evoRunDirPath, evolutionRunId
+      feature_indices, pca_components, feature_contribution, component_contribution,
+      eliteMap.generationNumber, evoRunDirPath, evolutionRunId
     );
   }
 
@@ -2605,7 +2607,10 @@ async function retrainProjectionModel(
     // Send metrics request before remapping
     await tracker.sendMetricsRequest(eliteMap.generationNumber, featureVectorsBefore, 'before');
     // await tracker.sendClusterAnalysisRequest(eliteMap.generationNumber, featureVectorsBefore, 'before');
-    await tracker.sendPerformanceSpreadRequest(eliteMap.generationNumber, projectionFeatureVectorsBefore, fitnessValuesBefore, 'before');
+    const classificationDimensions = getClassificationDimensionsFromEliteMapConfig(eliteMap);
+    await tracker.sendPerformanceSpreadRequest(
+      eliteMap.generationNumber, projectionFeatureVectorsBefore, fitnessValuesBefore, 'before', classificationDimensions
+    );
   }
 
 
@@ -2652,12 +2657,12 @@ async function retrainProjectionModel(
     delete cellFeatures[cellKey];
   }
 
-  if( dynamicComponents ) {
-    const { feature_indices, pca_components, feature_contribution } = diversityProjection;
+  if( true /*dynamicComponents*/ ) {
+    const { feature_indices, pca_components, feature_contribution, component_contribution } = diversityProjection;
     addComponentDataToEliteMapMeta(
       eliteMapMeta,
-      feature_indices, pca_components, feature_contribution, eliteMap.generationNumber,
-      evoRunDirPath, evolutionRunId
+      feature_indices, pca_components, feature_contribution, component_contribution,
+      eliteMap.generationNumber, evoRunDirPath, evolutionRunId
     );
   }
 

@@ -348,8 +348,28 @@
           "id": "01JD0HJBMP4GSD97MTN1KDFH7V_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_dynamicComponents"
         }
       ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_dynamicComponents",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc-statistics_umap_retrainIncr50_zscoreNSynthTrain.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JE3N0VTBFPDJEPNJYGWTKEM2_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_dynamicComponents"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_3Dx22",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_3Dx22.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JECBWHFKSDDH80SYKATMGHHD_evoConf_singleMap_refSingleEmbeddings_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_3Dx22"
+        }
+      ]
     }
   ],
-  "currentEvolutionRunIndex": 32,
+  "currentEvolutionRunIndex": 33,
   "currentEvolutionRunIteration": 0
 }

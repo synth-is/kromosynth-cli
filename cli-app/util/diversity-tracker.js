@@ -35,11 +35,12 @@ export default class DiversityTracker {
     await this.sendMessage('/cluster_analysis', data);
   }
 
-  async sendPerformanceSpreadRequest(generation, featureVectors, fitnessValues, stage) {
+  async sendPerformanceSpreadRequest(generation, featureVectors, fitnessValues, stage, classificationDimensions) {
     const data = {
       generation: generation,
       feature_vectors: featureVectors,
       fitness_values: fitnessValues,
+      classification_dimensions: classificationDimensions,
       stage: stage
     };
     await this.sendMessage('/performance_spread', data);
