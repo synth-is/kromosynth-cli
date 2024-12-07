@@ -368,8 +368,18 @@
           "id": "01JECBWHFKSDDH80SYKATMGHHD_evoConf_singleMap_refSingleEmbeddings_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_3Dx22"
         }
       ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc-statistics_pca_retrainIncr50_classDims",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc-statistics_pca_retrainIncr50_classDims.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JEFBE7HR76299N81G5CZF1J1_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-statistics_pca_retrainIncr50_classDims"
+        }
+      ]
     }
   ],
-  "currentEvolutionRunIndex": 33,
+  "currentEvolutionRunIndex": 34,
   "currentEvolutionRunIteration": 0
 }

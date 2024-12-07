@@ -757,8 +757,10 @@ async function mapElitesBatch(
           fitness, duration, noteDelta, velocity
         } = seedFeatureAndScore;
         let score;
+        let scoreClass;
         if( getIsTopScoreFitnessWithAssociatedClass(fitness) ) {
           score = fitness.top_score;
+          scoreClass = fitness.top_score_class;
           const seedFeatureClassKeyParts = seedFeatureClassKeys[i].split("-");
           seedFeatureClassKeyParts[0] = seedFeatureClassKeyParts[0] + `_${fitness.top_score_class}`;
           seedFeatureClassKeys[i] = seedFeatureClassKeyParts.join("-");
@@ -770,7 +772,8 @@ async function mapElitesBatch(
           console.error("seedFeatureAndScore.featuresType not defined");
         }
         const newGenomeClassScores = { [classKey]: {
-          score, duration, noteDelta, velocity,
+          score, scoreClass,
+          duration, noteDelta, velocity,
           features: seedFeatureAndScore.features, featuresType: seedFeatureAndScore.featuresType,
           embedding: seedFeatureAndScore.embedding
         } };
@@ -1289,11 +1292,12 @@ async function mapElitesBatch(
           for( let j=0; j < batchIterationResults[i].newGenomeClassScores.length; j++ ) {
             const k = i + j;
             // const { genomeId, newGenomeClassScores } = batchIterationResults[i];
-            const { score, surprise } = diversityProjections[k];
+            const { score, scoreClass, surprise } = diversityProjections[k];
             let {  diversityMapKey } = diversityProjections[k];
             if( batchIterationResults[i].newGenomeClassScores[j].oneClassKeySuffix ) diversityMapKey += batchIterationResults[i].newGenomeClassScores[j].oneClassKeySuffix; // when classScoringVariationsAsContainerDimensions
             let newGenomeClassScoresValue = batchIterationResults[i].newGenomeClassScores[j];
             newGenomeClassScoresValue.score = score;
+            newGenomeClassScoresValue.scoreClass = scoreClass;
             newGenomeClassScoresValue.surprise = surprise;
             // massage newGenomeClassScores into something compatible with the API below
             newGenomeClassScores[diversityMapKey] = newGenomeClassScoresValue;
@@ -1380,12 +1384,13 @@ async function mapElitesBatch(
               console.error("eliteMap.cells[classKey].elts is undefined");
             }
             cellKeyToExistingEliteGenomeId[classKey] = eliteMap.cells[classKey].elts.length ? eliteMap.cells[classKey].elts[0].g : undefined;
-            const {score, surprise, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
+            const {score, scoreClass, surprise, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
             const updated = Date.now();
 
             eliteMap.cells[classKey].elts = [{
               g: genomeId,
               s: score, // score: score.toFixed(4),
+              sC: scoreClass,
               ss: surprise,
               // ns: novelty is populated during retraining
               gN: eliteMap.generationNumber, // generationNumber: eliteMap.generationNumber,
@@ -1986,7 +1991,7 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
   let newGenomeEmbedding;
   
   let newGenomeFitnessValue;
-
+  let newGenomeFitnessClass;
   // get the feature vector for the new genome
 
   const audioBuffer = await getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
@@ -2024,6 +2029,7 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
     if( isTopScoreFitnessWithAssociatedClass ) {
       newGenomeQuality.fitness.top_score = newGenomeQuality.fitness.top_score * scoreProportion;
       newGenomeFitnessValue = newGenomeQuality.fitness;
+      newGenomeFitnessClass = newGenomeQuality.fitness.top_score_class;
     } else {
       newGenomeFitnessValue = newGenomeQuality.fitness * scoreProportion;
     }
@@ -2033,6 +2039,7 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
 
   newGenomeClassScores = {
     newGenomeFitnessValue,
+    newGenomeFitnessClass,
     duration,
     noteDelta,
     velocity,
@@ -2080,8 +2087,10 @@ async function getDiverstyProjectionsFromFeatures(
   for( let i=0; diversityProjection.feature_map && i < diversityProjection.feature_map.length; i++ ) {
     const newGenomeFitnessValue = newGenomeFitnessValues[i];
     let score;
+    let scoreClass;
     if( getIsTopScoreFitnessWithAssociatedClass( newGenomeFitnessValue ) ) {
       score = newGenomeFitnessValue.top_score;
+      scoreClass = newGenomeFitnessValue.top_score_class;
       // let's add the class to the diversityMapKey as another dimension
       diversityProjection.feature_map[i].push( newGenomeFitnessValue.top_score_class );
     } else {
@@ -2094,6 +2103,7 @@ async function getDiverstyProjectionsFromFeatures(
     const diversityMapKey = diversityProjection.feature_map[i].join("_");
     diversityProjectionResults.push({
       score,
+      scoreClass,
       surprise,
       diversityMapKey
     });
@@ -2677,6 +2687,9 @@ async function retrainProjectionModel(
       const { duration, noteDelta, velocity } = getDurationNoteDeltaVelocityFromGenomeString(genomeString, cellKey);
       newCellKey = diversityProjection.feature_map[i].join('_') + `-${duration}_${noteDelta}_${velocity}`;
     } else {
+      if( elite.sC ) { // add score class as dimension to the container key
+        diversityProjection.feature_map[i].push( elite.sC );
+      }
       newCellKey = diversityProjection.feature_map[i].join('_');
     }
     if (eliteMap.cells[newCellKey].elts.length) {
@@ -3017,7 +3030,7 @@ async function getClassifierTags( graphModel, dummyRun ) {
   } else {
     // if graphModel is an array, where each element is an integer, we'll assume it's a list defining the dimensions of a grid to project the behaviour space onto
     if( Array.isArray(graphModel) ) {
-      if( graphModel.every( el => typeof el === "number" ) ) {
+      if( graphModel.every(el => typeof el === "number" || Array.isArray(el)) ) {
         return createNDimensionalKeys(graphModel);
       } else {
         // the array elements are strings, then interpret as classifier names, from which the tags should be joined

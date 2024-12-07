@@ -623,10 +623,12 @@ export function getCoverageForEliteMap( eliteMap, scoreThreshold = 0 ) {
   const cellCount = cellKeys.length;
   let coveredCellCount = 0;
   for( const oneCellKey of cellKeys ) {
-    if( eliteMap.cells[oneCellKey].elts.length ) {
+    if( eliteMap.cells[oneCellKey].elts && eliteMap.cells[oneCellKey].elts.length ) {
       if( parseFloat(eliteMap.cells[oneCellKey].elts[0].s) >= scoreThreshold ) {
         coveredCellCount++;
       }
+    } else if( ! eliteMap.cells[oneCellKey].elts) {
+      console.error("No elts for cell", oneCellKey);
     }
   }
   const coverage = coveredCellCount / cellCount;

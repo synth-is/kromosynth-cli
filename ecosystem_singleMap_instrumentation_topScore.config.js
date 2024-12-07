@@ -74,7 +74,7 @@ module.exports = {
       interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3',
       cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
       script : "projection_quantised.py",
-      args: "--host 127.0.0.1 --dimensions 2 --dimension-cells 100",
+      args: "--host 127.0.0.1 --dimensions 2 --dimension-cells 32",
       instances : 1,
       exec_mode : "fork",
       max_memory_restart: '4G',
@@ -87,18 +87,18 @@ module.exports = {
         "PORT": 33051,
       }
     }
-    ,
-    {
-      name   : "kromosynth-controller",
-      script : "cli-app/kromosynth.js",
-      args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_single-map.jsonc",
-      instances : 1,
-      // exec_mode : "fork",
-      max_memory_restart: '4G',
-      cron_restart: '0 * * * *' // every * hours
-      // cron_restart: '*/30 * * * *' // every 30 minutes
-      // cron restart every three hours
-      // cron_restart: '0 */3 * * *'
-    }
+    // ,
+    // {
+    //   name   : "kromosynth-controller",
+    //   script : "cli-app/kromosynth.js",
+    //   args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_single-map.jsonc",
+    //   instances : 1,
+    //   // exec_mode : "fork",
+    //   max_memory_restart: '4G',
+    //   cron_restart: '0 * * * *' // every * hours
+    //   // cron_restart: '*/30 * * * *' // every 30 minutes
+    //   // cron restart every three hours
+    //   // cron_restart: '0 */3 * * *'
+    // }
   ]
 }
