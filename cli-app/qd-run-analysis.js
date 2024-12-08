@@ -817,130 +817,206 @@ async function getCoveragePercentageForOneTerrain( evoRunConfig, evoRunId, terra
 }
 
 export async function getScoreMatrixFromEliteMap(eliteMap) {
-  let scoresArray = {};
-  let is3D = false;
+  let dataArray = {};
+  let dimensions = new Set();
+  let hasNonNumericalDimension = false;
 
-  // Iterate over each key in the JSON object
+  // First pass: analyze dimensions
   for (let key in eliteMap.cells) {
-    let parts = key.split('-');
-    let [firstIndex, secondIndex] = parts[0].split('_').map(Number);
-    let thirdDimension = parts[1];
+    const parts = key.split('_');
+    let numericalDimensions = [];
+    let nonNumericalPart = null;
 
-    if (thirdDimension) {
-      is3D = true;
-    }
-
-    // Initialize nested structures
-    if (!scoresArray[firstIndex]) {
-      scoresArray[firstIndex] = {};
-    }
-
-    // Check if "elts" array exists and has elements
-    if (
-      eliteMap.cells[key].hasOwnProperty("elts") &&
-      eliteMap.cells[key].elts.length > 0
-    ) {
-      if (is3D) {
-        if (!scoresArray[firstIndex][secondIndex]) {
-          scoresArray[firstIndex][secondIndex] = {};
-        }
-        scoresArray[firstIndex][secondIndex][thirdDimension] = eliteMap.cells[key].elts[0].s;
+    // Identify numerical dimensions and potential non-numerical part
+    for (let i = 0; i < parts.length; i++) {
+      const value = Number(parts[i]);
+      if (!isNaN(value)) {
+        numericalDimensions.push(value);
       } else {
-        scoresArray[firstIndex][secondIndex] = eliteMap.cells[key].elts[0].s;
+        // If we find a non-numerical part, assume everything from here is part of it
+        nonNumericalPart = parts.slice(i).join('_');
+        hasNonNumericalDimension = true;
+        break;
+      }
+    }
+
+    dimensions.add(numericalDimensions.length + (hasNonNumericalDimension ? 1 : 0));
+  }
+
+  if (dimensions.size > 1) {
+    throw new Error('Inconsistent dimension count across keys');
+  }
+
+  // Second pass: build nested structure
+  for (let key in eliteMap.cells) {
+    const parts = key.split('_');
+    let currentLevel = dataArray;
+    let numericalDimensions = [];
+    let nonNumericalPart = null;
+
+    // Split into numerical and non-numerical parts
+    for (let i = 0; i < parts.length; i++) {
+      const value = Number(parts[i]);
+      if (!isNaN(value)) {
+        numericalDimensions.push(value);
+      } else {
+        nonNumericalPart = parts.slice(i).join('_');
+        break;
+      }
+    }
+
+    // Build nested structure for numerical dimensions
+    for (let i = 0; i < numericalDimensions.length - 1; i++) {
+      const index = numericalDimensions[i];
+      if (!currentLevel[index]) {
+        currentLevel[index] = {};
+      }
+      currentLevel = currentLevel[index];
+    }
+
+    // Handle the last dimension (either numerical or non-numerical)
+    const lastNumericalIndex = numericalDimensions[numericalDimensions.length - 1];
+    if (hasNonNumericalDimension) {
+      if (!currentLevel[lastNumericalIndex]) {
+        currentLevel[lastNumericalIndex] = {};
+      }
+      currentLevel = currentLevel[lastNumericalIndex];
+      const finalKey = nonNumericalPart;
+
+      // Store the score
+      if (eliteMap.cells[key].hasOwnProperty("elts") && eliteMap.cells[key].elts.length > 0) {
+        currentLevel[finalKey] = eliteMap.cells[key].elts[0].s;
+      } else {
+        currentLevel[finalKey] = null;
       }
     } else {
-      if (is3D) {
-        if (!scoresArray[firstIndex][secondIndex]) {
-          scoresArray[firstIndex][secondIndex] = {};
-        }
-        scoresArray[firstIndex][secondIndex][thirdDimension] = null;
+      if (eliteMap.cells[key].hasOwnProperty("elts") && eliteMap.cells[key].elts.length > 0) {
+        currentLevel[lastNumericalIndex] = eliteMap.cells[key].elts[0].s;
       } else {
-        scoresArray[firstIndex][secondIndex] = null;
+        currentLevel[lastNumericalIndex] = null;
       }
     }
   }
 
-  // Convert the object to a nested array
-  let resultArray = Object.keys(scoresArray).sort((a, b) => Number(a) - Number(b)).map(i => {
-    return Object.keys(scoresArray[i]).sort((a, b) => Number(a) - Number(b)).map(j => {
-      if (is3D) {
-        return Object.keys(scoresArray[i][j]).sort().map(k => {
-          return scoresArray[i][j][k];
-        });
-      } else {
-        return scoresArray[i][j];
-      }
-    });
-  });
+  // Convert the nested object to arrays
+  function convertToArrays(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    return Object.keys(obj)
+      .sort((a, b) => {
+        // Sort numerically for number keys, lexicographically for strings
+        if (!isNaN(a) && !isNaN(b)) return Number(a) - Number(b);
+        return a.localeCompare(b);
+      })
+      .map(key => convertToArrays(obj[key]));
+  }
 
-  return resultArray;
+  return convertToArrays(dataArray);
 }
 
 export function getScoreAndGenomeMatrixFromEliteMap(eliteMap) {
   let dataArray = {};
-  let is3D = false;
+  let dimensions = new Set();
+  let hasNonNumericalDimension = false;
 
-  // Iterate over each key in the JSON object
+  // First pass: analyze dimensions
   for (let key in eliteMap.cells) {
-    let parts = key.split('-');
-    let [firstIndex, secondIndex] = parts[0].split('_').map(Number);
-    let thirdDimension = parts[1];
+    const parts = key.split('_');
+    let numericalDimensions = [];
+    let nonNumericalPart = null;
 
-    if (thirdDimension) {
-      is3D = true;
-    }
-
-    // Initialize nested structures
-    if (!dataArray[firstIndex]) {
-      dataArray[firstIndex] = {};
-    }
-
-    // Check if "elts" array exists and has elements
-    if (
-      eliteMap.cells[key].hasOwnProperty("elts") &&
-      eliteMap.cells[key].elts.length > 0
-    ) {
-      let data = {
-        score: eliteMap.cells[key].elts[0].s,
-        genomeId: eliteMap.cells[key].elts[0].g
-      };
-
-      if (is3D) {
-        if (!dataArray[firstIndex][secondIndex]) {
-          dataArray[firstIndex][secondIndex] = {};
-        }
-        dataArray[firstIndex][secondIndex][thirdDimension] = data;
+    // Identify numerical dimensions and potential non-numerical part
+    for (let i = 0; i < parts.length; i++) {
+      const value = Number(parts[i]);
+      if (!isNaN(value)) {
+        numericalDimensions.push(value);
       } else {
-        dataArray[firstIndex][secondIndex] = data;
+        // If we find a non-numerical part, assume everything from here is part of it
+        nonNumericalPart = parts.slice(i).join('_');
+        hasNonNumericalDimension = true;
+        break;
+      }
+    }
+
+    dimensions.add(numericalDimensions.length + (hasNonNumericalDimension ? 1 : 0));
+  }
+
+  if (dimensions.size > 1) {
+    throw new Error('Inconsistent dimension count across keys');
+  }
+
+  // Second pass: build nested structure
+  for (let key in eliteMap.cells) {
+    const parts = key.split('_');
+    let currentLevel = dataArray;
+    let numericalDimensions = [];
+    let nonNumericalPart = null;
+
+    // Split into numerical and non-numerical parts
+    for (let i = 0; i < parts.length; i++) {
+      const value = Number(parts[i]);
+      if (!isNaN(value)) {
+        numericalDimensions.push(value);
+      } else {
+        nonNumericalPart = parts.slice(i).join('_');
+        break;
+      }
+    }
+
+    // Build nested structure for numerical dimensions
+    for (let i = 0; i < numericalDimensions.length - 1; i++) {
+      const index = numericalDimensions[i];
+      if (!currentLevel[index]) {
+        currentLevel[index] = {};
+      }
+      currentLevel = currentLevel[index];
+    }
+
+    // Handle the last dimension (either numerical or non-numerical)
+    const lastNumericalIndex = numericalDimensions[numericalDimensions.length - 1];
+    if (hasNonNumericalDimension) {
+      if (!currentLevel[lastNumericalIndex]) {
+        currentLevel[lastNumericalIndex] = {};
+      }
+      currentLevel = currentLevel[lastNumericalIndex];
+      const finalKey = nonNumericalPart;
+
+      // Store the data
+      if (eliteMap.cells[key].hasOwnProperty("elts") && eliteMap.cells[key].elts.length > 0) {
+        currentLevel[finalKey] = {
+          score: eliteMap.cells[key].elts[0].s,
+          genomeId: eliteMap.cells[key].elts[0].g
+        };
+      } else {
+        currentLevel[finalKey] = { score: null, genomeId: null };
       }
     } else {
-      let data = { score: null, genomeId: null };
-
-      if (is3D) {
-        if (!dataArray[firstIndex][secondIndex]) {
-          dataArray[firstIndex][secondIndex] = {};
-        }
-        dataArray[firstIndex][secondIndex][thirdDimension] = data;
+      if (eliteMap.cells[key].hasOwnProperty("elts") && eliteMap.cells[key].elts.length > 0) {
+        currentLevel[lastNumericalIndex] = {
+          score: eliteMap.cells[key].elts[0].s,
+          genomeId: eliteMap.cells[key].elts[0].g
+        };
       } else {
-        dataArray[firstIndex][secondIndex] = data;
+        currentLevel[lastNumericalIndex] = { score: null, genomeId: null };
       }
     }
   }
 
-  // Convert the object to a nested array
-  let resultArray = Object.keys(dataArray).sort((a, b) => Number(a) - Number(b)).map(i => {
-    return Object.keys(dataArray[i]).sort((a, b) => Number(a) - Number(b)).map(j => {
-      if (is3D) {
-        return Object.keys(dataArray[i][j]).sort().map(k => {
-          return dataArray[i][j][k];
-        });
-      } else {
-        return dataArray[i][j];
-      }
-    });
-  });
+  // Convert the nested object to arrays
+  function convertToArrays(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (obj.score !== undefined && obj.genomeId !== undefined) return obj;
+    
+    return Object.keys(obj)
+      .sort((a, b) => {
+        // Sort numerically for number keys, lexicographically for strings
+        if (!isNaN(a) && !isNaN(b)) return Number(a) - Number(b);
+        return a.localeCompare(b);
+      })
+      .map(key => convertToArrays(obj[key]));
+  }
 
-  return resultArray;
+  return convertToArrays(dataArray);
 }
 
 
