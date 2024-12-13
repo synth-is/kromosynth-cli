@@ -10,7 +10,7 @@ function writeCompressedJSON(filePath, content) {
   fs.writeFileSync(filePath, compressed);
 }
 
-function readCompressedOrPlainJSON(gzipPath, plainPath) {
+export function readCompressedOrPlainJSON(gzipPath, plainPath) {
   try {
     // Try reading compressed file first
     if (fs.existsSync(gzipPath)) {

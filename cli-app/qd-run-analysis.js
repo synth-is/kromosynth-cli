@@ -13,7 +13,7 @@ import {
   averageAttributes, standardDeviationAttributes,
   getEliteMap
 } from './util/qd-common.js';
-import { readGenomeAndMetaFromDisk } from './util/qd-common-elite-map-persistence.js';
+import { readGenomeAndMetaFromDisk, readCompressedOrPlainJSON } from './util/qd-common-elite-map-persistence.js';
 import nthline from 'nthline';
 import {
 	getAudioBufferFromGenomeAndMeta, getGenomeFromGenomeString,
@@ -169,17 +169,14 @@ export async function getEliteMapDiversityAtLastIteration(evoRunConfig, evoRunId
   for (const oneCellKey of Object.keys(eliteMap.cells)) {
     if (eliteMap.cells[oneCellKey].elts.length) {
       const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
-      const cellFeatureFilePath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json`;
+      const gzipPath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json.gz`;
+      const plainPath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json`;
       
-      if (fs.existsSync(cellFeatureFilePath)) {
-        const cellFeaturesString = fs.readFileSync(cellFeatureFilePath, 'utf8');
-        const cellFeatures = JSON.parse(cellFeaturesString);
-        if (cellFeatures[featureExtractionType]?.features) {
-          featureVectors.push(cellFeatures[featureExtractionType].features);
-        }
+      const cellFeatures = readCompressedOrPlainJSON(gzipPath, plainPath);
+      if (cellFeatures && cellFeatures[featureExtractionType]?.features) {
+        featureVectors.push(cellFeatures[featureExtractionType].features);
       } else {
         console.error("cellFeatures file not found for genomeId", genomeId);
-        // throw new Error("cellFeatures file not found for genomeId " + genomeId);
       }
     }
   }
@@ -200,17 +197,14 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
     for (const oneCellKey of Object.keys(eliteMap.cells)) {
       if (eliteMap.cells[oneCellKey].elts.length) {
         const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
-        const cellFeatureFilePath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json`;
+        const gzipPath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json.gz`;
+        const plainPath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json`;
         
-        if (fs.existsSync(cellFeatureFilePath)) {
-          const cellFeaturesString = fs.readFileSync(cellFeatureFilePath, 'utf8');
-          const cellFeatures = JSON.parse(cellFeaturesString);
-          if (cellFeatures[featureExtractionType]?.features) {
-            featureVectors.push(cellFeatures[featureExtractionType].features);
-          }
+        const cellFeatures = readCompressedOrPlainJSON(gzipPath, plainPath);
+        if (cellFeatures && cellFeatures[featureExtractionType]?.features) {
+          featureVectors.push(cellFeatures[featureExtractionType].features);
         } else {
           console.error("cellFeatures file not found for genomeId", genomeId);
-          // throw new Error("cellFeatures file not found for genomeId " + genomeId);
         }
       }
     }
