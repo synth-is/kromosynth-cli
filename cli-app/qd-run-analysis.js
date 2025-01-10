@@ -193,24 +193,22 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
   // Helper function to calculate Gini index from distances
   function calculateGiniIndex(distances) {
     if (distances.length === 0) return 0;
-    
-    // Sort distances in ascending order
+    console.log("Start calculateGiniIndex");
+    // Sort distances in ascending order - O(n log n)
     const sortedDistances = distances.slice().sort((a, b) => a - b);
     const n = sortedDistances.length;
-    let sumOfDifferences = 0;
-    let sumOfValues = 0;
-
-    // Calculate sum of all pairwise differences and sum of values
+    
+    // Calculate Gini coefficient using the sorted array formula
+    let numerator = 0;
+    const mean = sortedDistances.reduce((a, b) => a + b, 0) / n;
+    
+    // Single loop - O(n)
     for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        sumOfDifferences += Math.abs(sortedDistances[i] - sortedDistances[j]);
-      }
-      sumOfValues += sortedDistances[i];
+        numerator += (2 * i - n + 1) * sortedDistances[i];
     }
-
-    // Calculate Gini index
-    return sumOfDifferences / (2 * n * sumOfValues);
-  }
+    console.log("End calculateGiniIndex");
+    return numerator / (n * n * mean);
+}
 
   const processIteration = async (eliteMap, featureExtractionType) => {
     const featureVectors = [];
@@ -239,10 +237,12 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
       }
     }
 
-    return {
-      averagePairwiseDistance: calculateAveragePairwiseDistanceCosine(featureVectors),
-      giniIndex: calculateGiniIndex(pairwiseDistances)
-    };
+    // TODO: postponing Gini index calculation for now; doesn't seem too interesting and requires further updates to the handling of the modifide structure in the callee
+    // return {
+    //   averagePairwiseDistance: calculateAveragePairwiseDistanceCosine(featureVectors),
+    //   giniIndex: calculateGiniIndex(pairwiseDistances)
+    // };
+    return calculateAveragePairwiseDistanceCosine(featureVectors);
   };
 
   // Rest of your function with modifications to handle both metrics
