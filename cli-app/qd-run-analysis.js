@@ -260,10 +260,10 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
         console.log(`Calculating diversity for iteration ${iterationIndex}...`);
         for (const oneTerrainName of terrainNames) {
           const eliteMap = await getEliteMapFromRunConfig(evoRunConfig, evoRunId, iterationIndex, false, oneTerrainName);
-          
           if (eliteMap.classConfigurations?.length && 
-              eliteMap.classConfigurations[0].featureExtractionType) {
-            const featureExtractionType = eliteMap.classConfigurations[0].featureExtractionType;
+              (eliteMap.classConfigurations[0].featureExtractionType || eliteMap.classConfigurations[0].projectionFeatureType)
+            ) {
+            const featureExtractionType = eliteMap.classConfigurations[0].featureExtractionType || eliteMap.classConfigurations[0].projectionFeatureType;
             diversityMeasures[oneTerrainName][diversityIndex] = await processIteration(eliteMap, featureExtractionType);
           }
         }
@@ -280,10 +280,10 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
       if (iterationIndex % stepSize === 0) {
         console.log(`Calculating diversity for iteration ${iterationIndex}...`);
         const eliteMap = await getEliteMapFromRunConfig(evoRunConfig, evoRunId, iterationIndex);
-        
         if (eliteMap.classConfigurations?.length && 
-            eliteMap.classConfigurations[0].featureExtractionType) {
-          const featureExtractionType = eliteMap.classConfigurations[0].featureExtractionType;
+            (eliteMap.classConfigurations[0].featureExtractionType || eliteMap.classConfigurations[0].projectionFeatureType)
+        ) {
+          const featureExtractionType = eliteMap.classConfigurations[0].featureExtractionType || eliteMap.classConfigurations[0].projectionFeatureType;
           diversityMeasures[diversityIndex] = await processIteration(eliteMap, featureExtractionType);
         }
       }
