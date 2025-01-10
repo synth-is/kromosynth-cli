@@ -101,7 +101,7 @@ def create_plot_command(plotting_script_path, analysis_file, plot_path, analysis
                                                    f'{"true" if kwargs.get("transparent_background") else "false"} '
                                                    f'{kwargs.get("color_map", "viridis")}',
         # QD score operations
-        ('qd-scores', 'diversity-measures', 'coverage', 'genome-statistics', 'grid-mean-fitness'): lambda: f'python3 {plotting_script_path} {analysis_file} {step_size} {data_path} {terrain_name if terrain_name else ""} {plot_path_with_slash} "{y_label}"'
+        ('qd-scores', 'diversity-measures', 'coverage', 'genome-statistics', 'grid-mean-fitness'): lambda: f'python3 {plotting_script_path} {analysis_file} -- {step_size} {data_path} {terrain_name if terrain_name else ""} {plot_path_with_slash} "{y_label}"'
     }
     
     # Find matching pattern

@@ -190,10 +190,33 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
   const terrainNames = getTerrainNames(evoRunConfig);
   let diversityMeasures;
 
+  // Helper function to calculate Gini index from distances
+  function calculateGiniIndex(distances) {
+    if (distances.length === 0) return 0;
+    
+    // Sort distances in ascending order
+    const sortedDistances = distances.slice().sort((a, b) => a - b);
+    const n = sortedDistances.length;
+    let sumOfDifferences = 0;
+    let sumOfValues = 0;
+
+    // Calculate sum of all pairwise differences and sum of values
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        sumOfDifferences += Math.abs(sortedDistances[i] - sortedDistances[j]);
+      }
+      sumOfValues += sortedDistances[i];
+    }
+
+    // Calculate Gini index
+    return sumOfDifferences / (2 * n * sumOfValues);
+  }
+
   const processIteration = async (eliteMap, featureExtractionType) => {
     const featureVectors = [];
     const cellFeaturesPath = `${getEvoRunDirPath(evoRunConfig, evoRunId)}cellFeatures`;
 
+    // Collect feature vectors as before
     for (const oneCellKey of Object.keys(eliteMap.cells)) {
       if (eliteMap.cells[oneCellKey].elts.length) {
         const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
@@ -203,17 +226,27 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
         const cellFeatures = readCompressedOrPlainJSON(gzipPath, plainPath);
         if (cellFeatures && cellFeatures[featureExtractionType]?.features) {
           featureVectors.push(cellFeatures[featureExtractionType].features);
-        } else {
-          console.error("cellFeatures file not found for genomeId", genomeId);
         }
       }
     }
 
-    return calculateAveragePairwiseDistanceCosine(featureVectors);
+    // Calculate all pairwise distances
+    const pairwiseDistances = [];
+    for (let i = 0; i < featureVectors.length; i++) {
+      for (let j = i + 1; j < featureVectors.length; j++) {
+        const distance = calculateCosineSimilarity(featureVectors[i], featureVectors[j]);
+        pairwiseDistances.push(1 - distance); // Convert similarity to distance
+      }
+    }
+
+    return {
+      averagePairwiseDistance: calculateAveragePairwiseDistanceCosine(featureVectors),
+      giniIndex: calculateGiniIndex(pairwiseDistances)
+    };
   };
 
+  // Rest of your function with modifications to handle both metrics
   if (terrainNames.length) {
-    // Handle multiple terrains
     diversityMeasures = {};
     for (const oneTerrainName of terrainNames) {
       diversityMeasures[oneTerrainName] = new Array(Math.ceil(commitCount / stepSize));
@@ -237,7 +270,7 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
       }
     }
   } else {
-    // Handle single terrain
+    // Handle single terrain case
     diversityMeasures = new Array(Math.ceil(commitCount / stepSize));
     
     for (let iterationIndex = 0, diversityIndex = 0; 
