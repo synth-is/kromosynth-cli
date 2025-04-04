@@ -2484,9 +2484,12 @@ async function getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex,
 
   // Check if eliteMapFileName exists
   if (!fs.existsSync(eliteMapFilePath)) {
-    // Try to find the first elite map file starting with 'elites_'
+    // Try to find the first elite map file ending with '_customRef1.json'
     const eliteMapFiles = fs.readdirSync(evoRunDirPath).filter(file => file.startsWith('elites_'));
-    if (eliteMapFiles.length) {
+    const customRefFile = eliteMapFiles.find(file => file.endsWith('_customRef1.json'));
+    if (customRefFile) {
+      eliteMapFileName = customRefFile;
+    } else if (eliteMapFiles.length) {
       eliteMapFileName = eliteMapFiles[0];
     } else {
       throw new Error(`Elite map file not found in ${evoRunDirPath}`);
