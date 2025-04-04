@@ -9,6 +9,7 @@ apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects
     --ylabel "Coverage" \
     --terrain-name "customRef1" \
     --plotting-script /fp/projects01/ec29/bthj/kromosynth-cli/analysis/generic_plotter.py \
-    --skip-analysis \
+    --skip-if-exists \
+    # --skip-analysis \
     # --terrain-name ALL
 

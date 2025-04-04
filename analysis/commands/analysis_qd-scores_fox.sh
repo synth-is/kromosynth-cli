@@ -9,6 +9,6 @@ apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects
     --ylabel "QD score" \
     --terrain-name "customRef1" \
     --plotting-script /fp/projects01/ec29/bthj/kromosynth-cli/analysis/generic_plotter.py \
-    --skip-analysis
+    # --skip-analysis
 
 # --plotting-script /Users/bjornpjo/Developer/apps/kromosynth-cli/analysis/qdScores_combined_evoruns.py \

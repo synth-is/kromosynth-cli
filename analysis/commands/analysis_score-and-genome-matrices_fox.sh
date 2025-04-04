@@ -7,4 +7,5 @@ apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects
     --step-size 500 \
     --data-path "scoreAndGenomeMatrices" \
     --terrain-name "customRef1" \
+    --skip-if-exists \
     # --terrain-name ALL \

@@ -8,5 +8,7 @@ apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects
     --data-path "gridMeanFitness" \
     --ylabel "Grid Mean Fitnss." \
     --terrain-name "customRef1" \
-    --skip-analysis \
+    --skip-if-exists \
     --plotting-script /fp/projects01/ec29/bthj/kromosynth-cli/analysis/generic_plotter.py \
+
+    # --skip-analysis \

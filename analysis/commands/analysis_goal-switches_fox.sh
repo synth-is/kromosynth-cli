@@ -6,5 +6,6 @@ apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects
     goal-switches \
     --data-path "goalSwitches" \
     --terrain-name "customRef1" \
+    --skip-if-exists \
     # --terrain-name ALL
     # --step-size 500

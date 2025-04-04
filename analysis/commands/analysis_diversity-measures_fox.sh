@@ -8,8 +8,10 @@ apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects
     --data-path "diversityMeasures" \
     --ylabel "Diversity" \
     --terrain-name "customRef1" \
-    --skip-analysis \
-    --plotting-script /fp/projects01/ec29/bthj/kromosynth-cli/analysis/generic_plotter.py
+    --skip-if-exists \
+    # --plotting-script /fp/projects01/ec29/bthj/kromosynth-cli/analysis/generic_plotter.py
+
+    # --skip-analysis \
 
 # --terrain-name ALL
 # --plotting-script /Users/bjornpjo/Developer/apps/kromosynth-cli/analysis/diversity_measures_plot.py \
