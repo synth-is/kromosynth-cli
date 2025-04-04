@@ -94,24 +94,44 @@ def main():
         print("Error: Insufficient arguments")
         sys.exit(1)
 
+    # Handle optional arguments more flexibly
+    # First get required arguments
     x_multiplier = int(remaining_args[0])
     data_path = remaining_args[1].split('.')
-
-    # Handle optional arguments
     terrain = remaining_args[2] if len(remaining_args) > 2 else "customRef1"
-    if terrain.lower() == 'none':
-        terrain = None
-
     save_dir = remaining_args[3] if len(remaining_args) > 3 else './'
     ylabel = remaining_args[4] if len(remaining_args) > 4 else (data_path[-1].replace('_', ' '))
     xlabel = remaining_args[5] if len(remaining_args) > 5 else 'Iteration'
     title = remaining_args[6] if len(remaining_args) > 6 else f"{data_path[-1]}_{terrain if terrain else ''}"
-    legend_placement = remaining_args[7].lower() if len(remaining_args) > 7 else 'inside'
-    legend_x = float(remaining_args[8]) if len(remaining_args) > 8 else None
-    legend_y = float(remaining_args[9]) if len(remaining_args) > 9 else None
 
-    # Add colormap parameter and make it correctly affect the colors
-    colormap = remaining_args[10] if len(remaining_args) > 10 else 'viridis'
+    # Initialize optional parameters with defaults
+    legend_placement = 'inside'
+    legend_x = None
+    legend_y = None
+    colormap = 'viridis'
+
+    # Process remaining arguments flexibly
+    remaining_optional_args = remaining_args[7:]
+    i = 0
+    while i < len(remaining_optional_args):
+        arg = remaining_optional_args[i]
+        if arg.lower() == 'inside' and i + 2 < len(remaining_optional_args):
+            legend_placement = 'inside'
+            try:
+                legend_x = float(remaining_optional_args[i + 1])
+                legend_y = float(remaining_optional_args[i + 2])
+                i += 3
+                continue
+            except (ValueError, IndexError):
+                # If conversion fails, treat as single argument
+                i += 1
+                continue
+        elif arg.startswith('palettable_') or arg in plt.colormaps():
+            colormap = arg
+            i += 1
+        else:
+            i += 1
+
     print(f"####### Using colormap: {colormap}")
     colors = get_color_cycle(colormap)
     print(f"####### Generated colors: {colors}")
@@ -127,7 +147,7 @@ def main():
     params = {
         'axes.labelsize': 8,
         'font.size': 8,
-        'legend.fontsize': 6,
+        'legend.fontsize': 7,  # Increased from 6
         'xtick.labelsize': 8,
         'ytick.labelsize': 8,
         'text.usetex': False,
@@ -136,7 +156,7 @@ def main():
     plt.rcParams.update(params)
 
     cm = 1/2.54
-    fig = plt.figure(figsize=(5*cm, 3*cm))
+    fig = plt.figure(figsize=(12*cm, 8*cm))
     
     left_margin = 0.25
     bottom_margin = 0.25
@@ -145,7 +165,16 @@ def main():
 
     ax = fig.add_axes([left_margin, bottom_margin, right_margin - left_margin, top_margin - bottom_margin])
 
-    maxIterations = int(4800 / x_multiplier)
+    # First scan to find the actual maximum data length
+    maxIterations = 0
+    for json_file in json_files:
+        data = plotUtil.read_data_from_json(json_file)
+        for oneEvorun in data['evoRuns']:
+            nested_data = get_nested_value(oneEvorun, ['aggregates'] + data_path, terrain)
+            maxIterations = max(maxIterations, len(nested_data['means']))
+    
+    print(f"####### Maximum data points found: {maxIterations}")
+
     legend_lines = []
     legend_lookup = {}  # Initialize empty dictionary for legend lookup
 
@@ -153,12 +182,18 @@ def main():
     total_lines = sum(len(plotUtil.read_data_from_json(json_file)['evoRuns']) for json_file in json_files)
     
     # Create line styles list that matches the number of lines
-    line_styles = ['-', '--', ':', '-.']
-    line_styles = line_styles[:total_lines] if total_lines <= len(line_styles) else line_styles * ((total_lines + len(line_styles) - 1) // len(line_styles))
+    base_line_styles = ['-', '--', ':', '-.', (0, (3, 1, 1, 1)), (0, (5, 10))]
+    line_styles = []
+    for i in range(total_lines):
+        line_styles.append(base_line_styles[i % len(base_line_styles)])
     
-    # Adjust colors list to match number of lines if needed
-    colors = colors[:total_lines] if total_lines <= len(colors) else colors * ((total_lines + len(colors) - 1) // len(colors))
-
+    # Adjust colors list to match number of lines
+    base_colors = colors  # colors comes from get_color_cycle()
+    colors = []
+    for i in range(total_lines):
+        colors.append(base_colors[i % len(base_colors)])
+    
+    # Now both lists have the same length
     linestyle_cycler = cycler('color', colors) + cycler('linestyle', line_styles)
     
     ax.set_prop_cycle(linestyle_cycler)
@@ -168,11 +203,11 @@ def main():
         data = plotUtil.read_data_from_json(json_file_path)
         
         for oneEvorun in data['evoRuns']:
-            # Get the nested data using the provided path and optional terrain
             nested_data = get_nested_value(oneEvorun, ['aggregates'] + data_path, terrain)
             
-            means = np.array(nested_data['means'])[:maxIterations]
-            stdDevs = np.array(nested_data['stdDevs'])[:maxIterations]
+            # Use the full data length without slicing
+            means = np.array(nested_data['means'])
+            stdDevs = np.array(nested_data['stdDevs'])
 
             x_values = np.arange(len(means)) * x_multiplier
 
@@ -189,6 +224,7 @@ def main():
             legend_lookup[file_label] = custom_labels[i] if custom_labels else create_shortened_label(file_label)
 
     # Configure legend with optional position
+    # Modify legend configurations to use 2 columns
     if legend_placement == 'outside':
         ax.legend(legend_lines, 
                  [legend_lookup[f"{custom_labels[i] if custom_labels else path.split('/')[-1].split('.')[0]}-{run['label']}"] 
@@ -197,7 +233,8 @@ def main():
                  bbox_to_anchor=(1.02, 1),
                  loc='upper left',
                  borderaxespad=0,
-                 handlelength=1)
+                 handlelength=1,
+                 ncol=2)  # Added ncol=2
     else:
         if legend_x is not None and legend_y is not None:
             # Use custom position
@@ -209,7 +246,8 @@ def main():
                      loc='center',
                      frameon=True,
                      borderaxespad=0,
-                     handlelength=1)
+                     handlelength=1,
+                     ncol=2)  # Added ncol=2
         else:
             # Use automatic positioning
             ax.legend(legend_lines,
@@ -219,15 +257,18 @@ def main():
                      loc='best',
                      frameon=True,
                      borderaxespad=0,
-                     handlelength=1)
+                     handlelength=1,
+                     ncol=2)  # Added ncol=2
 
-    # Set up the axes
-    x_max = maxIterations * x_multiplier
-    desired_ticks = np.linspace(0, x_max, 3)
+    # Set up the axes with proper scaling
+    x_max = maxIterations * x_multiplier  # this gives us the actual time steps
+    # Round up to nearest thousand for clean tick marks
+    tick_max = np.ceil(x_max / 1000) * 1000
+    desired_ticks = np.linspace(0, tick_max, 6)  # increase number of ticks to 6
     xticklabels = [f"{int(x/1000)}K" for x in desired_ticks]
     ax.set_xticks(desired_ticks)
     ax.set_xticklabels(xticklabels)
-    ax.set_xlim(-x_max*0.05, x_max*1.05)
+    ax.set_xlim(-tick_max*0.05, tick_max*1.05)
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
