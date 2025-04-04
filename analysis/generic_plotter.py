@@ -149,7 +149,18 @@ def main():
     legend_lines = []
     legend_lookup = {}  # Initialize empty dictionary for legend lookup
 
-    linestyle_cycler = cycler('color', colors) + cycler('linestyle',['-','--',':'])
+    # Count total number of lines to plot
+    total_lines = sum(len(plotUtil.read_data_from_json(json_file)['evoRuns']) for json_file in json_files)
+    
+    # Create line styles list that matches the number of lines
+    line_styles = ['-', '--', ':', '-.']
+    line_styles = line_styles[:total_lines] if total_lines <= len(line_styles) else line_styles * ((total_lines + len(line_styles) - 1) // len(line_styles))
+    
+    # Adjust colors list to match number of lines if needed
+    colors = colors[:total_lines] if total_lines <= len(colors) else colors * ((total_lines + len(colors) - 1) // len(colors))
+
+    linestyle_cycler = cycler('color', colors) + cycler('linestyle', line_styles)
+    
     ax.set_prop_cycle(linestyle_cycler)
 
     # Process each JSON file
