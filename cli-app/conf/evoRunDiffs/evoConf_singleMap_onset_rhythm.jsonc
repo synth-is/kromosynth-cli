@@ -1,0 +1,88 @@
+{
+  "seedEvals": 512,
+  "batchSize": 64, // 625, // 0,0625 * 10000 (32/512)
+  // "seedEvals": 64,
+  // "batchSize": 16, // 625, // 0,0625 * 10000 (32/512)
+  "maxNumberOfParents": 1,
+
+  "renderEliteMapToWavFilesEveryNGenerations": 500, // 50000,
+  "renderElitesToWavFiles": true,
+  "evoRendersDirPath": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/evorenders/",
+
+  "oneCPPNPerFrequency": true,
+
+  "classifiers": [
+    {
+      "classConfigurations": [
+        {
+          "refSetName": "customRef1",
+          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
+          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
+          "featureExtractionEndpoint": "/?n_bins=8&sample_rate=16000",
+          "featureExtractionType": "onsets",
+          "qualityEvaluationEndpoint": "/hybrid?novelty_weight=0.7",
+          "qualityFromFeatures": true,
+          "usingQueryEmbeddings": false, // e.g. for a FAD reference set
+          "projectionEndpoint": "/?n_intensity_levels=5",
+          "shouldRetrainProjection": false,
+          "shouldCalculateNovelty": false,
+          "shouldCalculateSurprise": false,
+          "shouldTrackDiversity": false,
+          "sampleRate": 16000,
+          "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
+          "eliteRemappingCompetitionCriteria": "score" // one of: 'score', 'novelty' or 'surprise',
+        }
+      ],
+      "classificationDimensions": [5, 5, 5, 5, 5, 5, 5, 5]
+    }
+  ],
+  "classifierIndex" : 0,
+  // "classesAsMaps": true, // otherwise as dimensions, goes in hand with mapsSwitchingCondition:
+  // "mapSwitchingCondition": {
+  //   // "coverageGradientThreshold": 0.01,
+  //   "qdScoreGradientThreshold": 0.01,
+  //   "gradientWindowSize": 10
+  // },
+
+  "terminationCondition": {
+    "numberOfEvals": 300000
+  //  or
+  // "coverageGradientThreshold": 0.01
+  //  or
+  //  "qdScoreGradientThreshold": 0.01
+  // or
+  //  "averageFitnessInMap": 0.1
+  // or
+  //  "medianFitnessInMap": 0.1
+  // or
+  //  "percentageOfMapFilledWithFitnessThreshold": {"percentage": x, "minimumCellFitness": x}
+  },
+  "gradientWindowSize": 10,
+
+  "geneVariationServers": [
+    "ws://127.0.0.1:50051",
+    // "127.0.0.1:50052",
+    // "127.0.0.1:50053"
+  ],
+  "geneRenderingServers": [
+    "ws://127.0.0.1:60051",
+    "ws://127.0.0.1:60052",
+    "ws://127.0.0.1:60053"
+  ],
+
+  "evaluationFeatureServers": [ // feature extraction
+    "ws://127.0.0.1:34051",
+    "ws://127.0.0.1:34052",
+    "ws://127.0.0.1:34053"
+  ],
+  "evaluationQualityServers": [ // quality evaluation
+    "ws://127.0.0.1:32051",
+    "ws://127.0.0.1:32052",
+    "ws://127.0.0.1:32053"
+  ],
+  "evaluationProjectionServers": [ // projection
+    "ws://127.0.0.1:33051",
+    // "ws://127.0.0.1:33052",
+    // "ws://127.0.0.1:33053"
+  ]
+}

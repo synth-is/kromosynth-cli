@@ -284,7 +284,9 @@ export function getQualityFromWebsocketForEmbedding(
         ws.close(1000); // close the websocket connection
         reject( message );
       } else {
-        const quality = JSON.parse( message );
+        const messageString = message.toString();
+        const sanitizedMessage = messageString.replace(/NaN/g, 'null');
+        const quality = JSON.parse(sanitizedMessage);
         ws.close(1000); // close the websocket connection
         resolve( quality );
       }

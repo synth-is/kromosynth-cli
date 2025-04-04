@@ -559,6 +559,9 @@ export async function qdSearch(
           nextMapId: eliteMap._id
         });
         eliteMap.isBeingSwitchedToFromAnotherMap = true;
+
+        cellFeatures = {}; // clear cell features, as we are switching to a new map
+        
       } else {
         console.log("only one map, not switching");
       }
@@ -1087,8 +1090,8 @@ async function mapElitesBatch(
                       dynamicComponents, featureIndices
                     );
                     seedFeaturesAndScores.push(seedGenomeScoreAndFeatures);
-                    Environment.persistence.saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
                   }
+                  Environment.persistence.saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
                 }
               }
               resolve({
@@ -2365,7 +2368,7 @@ async function getClassKeysFromSeedFeatures(
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber}`, e);
   });
   eliteMap.shouldFit = false;
-  if( true /*dynamicComponents*/ ) {
+  if( dynamicComponents ) {
     // add feature_indices, pca_components and featur_contribution to eliteMapMeta
     const { feature_indices, pca_components, feature_contribution, component_contribution } = diversityProjection;
     addComponentDataToEliteMapMeta(
@@ -2424,7 +2427,13 @@ async function getFeaturesAndScoresForGenomeIds(
       console.error(`Error: genomeString is undefined for genomeId ${genomeId}`);
       continue;
     }
-    const { duration, noteDelta, velocity } = getDurationNoteDeltaVelocityFromGenomeString( genomeString, features.cellKey );
+    let cellKey;
+    if( ! features.cellKey && Array.isArray(features.containerProjection) ) {
+      cellKey = features.containerProjection.join("_");
+    } else {
+      cellKey = features.cellKey;
+    }
+    const { duration, noteDelta, velocity } = getDurationNoteDeltaVelocityFromGenomeString( genomeString, cellKey );
     // const classConfiguration = eliteMap.classConfigurations[eliteMap.eliteMapIndex];
     const { 
       qualityEvaluationEndpoint, 
@@ -2564,7 +2573,7 @@ async function retrainProjectionModel(
     projectionFeatureType,
     projectionEndpoint,
     pcaComponents
-  } = getWsServiceEndpointsFromClassConfiguration(eliteMap.classConfigurations[eliteMap.eliteMapIndex]);
+  } = getWsServiceEndpointsFromClassConfiguration(eliteMap.classConfigurations[0]); // TODO eliteMap.eliteMapIndex ?
 
   let cellFeaturesMap = new Map(); // to ensure order of insertion
   let cellElitesMap = new Map();

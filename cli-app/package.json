@@ -37,7 +37,7 @@
     "meow": "^11.0.0",
     "minimist": "^1.2.7",
     "node-fetch": "^3.3.2",
-    "node-web-audio-api": "^0.21.3",
+    "node-web-audio-api": "^0.21.4",
     "nthline": "^1.0.2",
     "pb-util": "^1.0.3",
     "statistics.js": "^1.0.0",
