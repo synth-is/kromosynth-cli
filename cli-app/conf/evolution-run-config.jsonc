@@ -284,6 +284,20 @@
 
   "processingUtilisation": null, // 0.9,
 
+
+  // AURORA-XCon configuration
+  // "auroraModeConfig": {
+  //   "useContrastiveLearning": true,       // Enable/disable contrastive learning
+  //   "useExtinctionEvents": true,          // Enable/disable extinction events
+  //   "extinctionPeriod": 50,               // Extinction events every N iterations
+  //   "extinctionProportion": 0.05,         // Preserve this percentage of population
+  //   "projectionRetrainingMode": "fixed",  // "fixed" or "linear"
+  //   "projectionRetrainingInterval": 10,   // If fixed: retrain every N iterations
+  //   "projectionRetrainingLinearGapIncrement": 10, // If linear: increment as in existing code
+  //   "tripletMarginMultiplier": 1.0       // Multiplier for adaptive margin in triplet loss
+  // },
+
+
   // "gRpcHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/grpc-test-host-",
   // "gRpcServerCount": 1,
   // "renderingSocketHostFilePathPrefix": "/fp/projects01/ec12/bthj/kromosynth/rendering-socket-test-host-",

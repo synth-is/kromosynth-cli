@@ -332,7 +332,8 @@ export function getDiversityFromWebsocket(
   pcaComponents,
   shouldCalculateSurprise, shouldUseAutoEncoderForSurprise,
   shouldCalculateNovelty,
-  dynamicComponents, featureIndices
+  dynamicComponents, featureIndices,
+  tripletMarginMultiplier
 ) {
   console.log('getDiversityFromWebsocket', evaluationDiversityHost);
   const ws = getClient( evaluationDiversityHost );
@@ -353,6 +354,7 @@ export function getDiversityFromWebsocket(
         "pca_components": pcaComponents,
         "dynamic_components": dynamicComponents,
         "selection_strategy": "improved", // choice of "improved" or "original"; "original" seems to eventually result in zero length feature indices, when using dynamic components
+        "triplet_margin_multiplier": tripletMarginMultiplier || 1.0,
       };
       ws.send( JSON.stringify( diversityMessage ), { timeout: 120000 } );
       timeout = setTimeout(() => {
