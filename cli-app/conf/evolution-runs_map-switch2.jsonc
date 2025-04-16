@@ -21,8 +21,18 @@
           "id": "01JR0TK4Z8MP67269YVYFGXFXK_evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain"
         }
       ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XCon.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JRXXHB07HC7RM6CMMN51B203_evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain"
+        }
+      ]
     }
   ],
-  "currentEvolutionRunIndex": 1,
+  "currentEvolutionRunIndex": 2,
   "currentEvolutionRunIteration": 0
 }

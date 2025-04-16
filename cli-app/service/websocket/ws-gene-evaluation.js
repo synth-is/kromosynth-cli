@@ -116,7 +116,9 @@ export function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
   useGPU,
   antiAliasing,
   frequencyUpdatesApplyToAllPathcNetworkOutputs,
-  geneRenderingWebsocketServerHost, renderSampleRateForClassifier
+  geneRenderingWebsocketServerHost, renderSampleRateForClassifier,
+  sampleCountToActivate,
+  sampleOffset,
 ) {
   return new Promise((resolve, reject) => {
     const payload = {
@@ -127,7 +129,9 @@ export function getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
       useGPU,
       antiAliasing,
       frequencyUpdatesApplyToAllPathcNetworkOutputs,
-      sampleRate: renderSampleRateForClassifier
+      sampleRate: renderSampleRateForClassifier,
+      sampleCountToActivate,
+      sampleOffset,
     };
     const ws = getClient( geneRenderingWebsocketServerHost );
     let timeout;
@@ -333,7 +337,8 @@ export function getDiversityFromWebsocket(
   shouldCalculateSurprise, shouldUseAutoEncoderForSurprise,
   shouldCalculateNovelty,
   dynamicComponents, featureIndices,
-  tripletMarginMultiplier
+  tripletMarginMultiplier, useFeaturesDistance, featuresDistanceMetric, randomSeed,
+  learningRate, trainingEpochs, tripletFormationStrategy 
 ) {
   console.log('getDiversityFromWebsocket', evaluationDiversityHost);
   const ws = getClient( evaluationDiversityHost );
@@ -355,6 +360,12 @@ export function getDiversityFromWebsocket(
         "dynamic_components": dynamicComponents,
         "selection_strategy": "improved", // choice of "improved" or "original"; "original" seems to eventually result in zero length feature indices, when using dynamic components
         "triplet_margin_multiplier": tripletMarginMultiplier || 1.0,
+        "use_distance": useFeaturesDistance || false,
+        "distance_metric": featuresDistanceMetric || "cosine",
+        "random_seed": randomSeed || 42,
+        "learning_rate": learningRate || 0.001,
+        "training_epochs": trainingEpochs || 100,
+        "triplet_formation_strategy": tripletFormationStrategy || "random",
       };
       ws.send( JSON.stringify( diversityMessage ), { timeout: 120000 } );
       timeout = setTimeout(() => {

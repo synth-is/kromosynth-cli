@@ -1,6 +1,6 @@
 {
-  "seedEvals": 512,
-  "batchSize": 64, // 625, // 0,0625 * 10000 (32/512)
+  "seedEvals": 1024, //512,
+  "batchSize": 512, //64, // 625, // 0,0625 * 10000 (32/512)
   // "seedEvals": 64,
   // "batchSize": 16, // 625, // 0,0625 * 10000 (32/512)
   "maxNumberOfParents": 1,
@@ -36,7 +36,7 @@
           "mapSelectorBias": "productivity", // one of: 'uniform', 'productivity', 'novelty' or 'surprise': see the "enum" MAP_SELECTOR_BIAS in quality-diversity-search.js
           "eliteRemappingCompetitionCriteria": "score", // one of: 'score', 'novelty' or 'surprise',
 
-          "retrainWithAllDiscoveredFeatures": false // if true, all discovered features are used for retraining the projection, otherwise only the features in the container are used
+          "retrainWithAllDiscoveredFeatures": true // if true, all discovered features are used for retraining the projection, otherwise only the features in the container are used
         }
       ],
       "classificationDimensions": [100, 100]
@@ -69,18 +69,15 @@
   "auroraModeConfig": {
     "useContrastiveLearning": true,       // Enable/disable contrastive learning
     "useExtinctionEvents": true,          // Enable/disable extinction events
-    "extinctionPeriod": 400,               // Extinction events every N iterations
+    "extinctionPeriod": 50,               // Extinction events every N iterations
     "extinctionProportion": 0.05,         // Preserve this percentage of population
     "projectionRetrainingMode": "linear",  // "fixed" or "linear"
     "projectionRetrainingInterval": 10,   // If fixed: retrain every N iterations
     "projectionRetrainingLinearGapIncrement": 10, // If linear: increment as in existing code
-    "tripletMarginMultiplier": 0.5,       // Multiplier for adaptive margin in triplet loss
-    "useFeaturesDistance": false,         // Whether to use feature distance instead of fitness
+    "tripletMarginMultiplier": 1.0,       // Multiplier for adaptive margin in triplet loss
+    "useFeaturesDistance": true,         // Whether to use feature distance instead of fitness
     "featuresDistanceMetric": "cosine",   // "cosine" or "euclidean"
-    "randomSeed": 42,
-
-    "learningRate": 0.001, 
-    "trainingEpochs": 200
+    "randomSeed": 42
   },
 
   "geneVariationServers": [

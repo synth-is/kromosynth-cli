@@ -9,10 +9,29 @@
       "iterations": [
         {
           "id": "01JRA9P6ZA8EHF1KHY4QJ1M5A2_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XCon"
+        },
+        {
+          "id": "01JRVB76NS5XN0T4CJR6QTWXDJ_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XCon"
+        },
+        {
+          "id": null
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XConSimFoc",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XConSimFoc.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JRCJQT1PCSVFCEH8Q3APFNQM_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XConSimFoc"
+        },
+        {
+          "id": "01JRD8HW42654KVWAWFDFVD24W_evoConf_singleMap_refSingleEmbeddings_x100_mfcc-sans0-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XConSimFoc"
         }
       ]
     }
   ],
-  "currentEvolutionRunIndex": 0,
+  "currentEvolutionRunIndex": 1,
   "currentEvolutionRunIteration": 0
 }

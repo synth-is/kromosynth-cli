@@ -294,7 +294,10 @@
   //   "projectionRetrainingMode": "fixed",  // "fixed" or "linear"
   //   "projectionRetrainingInterval": 10,   // If fixed: retrain every N iterations
   //   "projectionRetrainingLinearGapIncrement": 10, // If linear: increment as in existing code
-  //   "tripletMarginMultiplier": 1.0       // Multiplier for adaptive margin in triplet loss
+  //   "tripletMarginMultiplier": 1.0        // Multiplier for adaptive margin in triplet loss
+  //   "useFeaturesDistance": false,         // Whether to use feature distance instead of fitness
+  //   "featuresDistanceMetric": "cosine",   // "cosine" or "euclidean"
+  //   "randomSeed": 42
   // },
 
 

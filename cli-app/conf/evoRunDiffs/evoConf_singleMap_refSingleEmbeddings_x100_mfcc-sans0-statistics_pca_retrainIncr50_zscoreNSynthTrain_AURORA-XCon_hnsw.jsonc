@@ -14,19 +14,12 @@
       "classConfigurations": [
         {
           "refSetName": "customRef1",
-          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/customRef/embeddings/customRef2/embeds.npy",
-          // "refSetEmbedsPath": "/Users/bjornpjo/Downloads/nsynth-valid/embeds/vggish/source-split/synthetic/embeds.npy",
-          "featureExtractionEndpoint": "/mfcc-sans0-statistics",
-          "featureExtractionType": "mfcc-sans0-statistics",
-          "qualityEvaluationEndpoint": "/adaptive?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=mfcc-sans0-statistics",
-          "zScoreNormalisationReferenceFeaturesPaths": [
-            "/Users/bjornpjo/Downloads/audio-features/filtered_nsynth/nsynth-train-features_filtered"
-            // "/Users/bjornpjo/Downloads/audio-features/filtered_OneBillion/OneBillionWav_features_filtered",
-            // "/Users/bjornpjo/Downloads/audio-features/unfiltered/OrchideaSOL2020_features"
-          ],
+          "featureExtractionEndpoint": "/mfcc-sans0",
+          "featureExtractionType": "mfcc-sans0",
+          "qualityEvaluationEndpoint": "?k=15&power=8&useAdaptive=true",
           "qualityFromFeatures": true,
           "usingQueryEmbeddings": false, // e.g. for a FAD reference set
-          "projectionEndpoint": "/pca",
+          "projectionEndpoint": "/pca", // not in effect when auroraModeConfig is present
           "shouldRetrainProjection": true,
           "projectionRetrainingLinearGapIncrement": 50,
           "shouldCalculateNovelty": false,
@@ -37,9 +30,13 @@
           "eliteRemappingCompetitionCriteria": "score", // one of: 'score', 'novelty' or 'surprise',
 
           "retrainWithAllDiscoveredFeatures": false // if true, all discovered features are used for retraining the projection, otherwise only the features in the container are used
+
+          // "useNoveltyArchive": true, // wether to use a novelty archive, for intermitent inspiration when retraining unsupervised projections
+          // "inspirationRate": 0.2, // the rate at which to draw from the novelty archive, when selecting an individual for mutation
+          // "noveltyArchiveSizePercentage": 0.2 // the size of the novelty archive, as a percentage of the population size
         }
       ],
-      "classificationDimensions": [100, 100]
+      "classificationDimensions": [100, 100] // number of dimensions for each class
     }
   ],
   "classifierIndex" : 0,
@@ -69,12 +66,12 @@
   "auroraModeConfig": {
     "useContrastiveLearning": true,       // Enable/disable contrastive learning
     "useExtinctionEvents": true,          // Enable/disable extinction events
-    "extinctionPeriod": 400,               // Extinction events every N iterations
+    "extinctionPeriod": 400,               // Extinction events every N iterations (512/64)*50
     "extinctionProportion": 0.05,         // Preserve this percentage of population
     "projectionRetrainingMode": "linear",  // "fixed" or "linear"
     "projectionRetrainingInterval": 10,   // If fixed: retrain every N iterations
     "projectionRetrainingLinearGapIncrement": 10, // If linear: increment as in existing code
-    "tripletMarginMultiplier": 0.5,       // Multiplier for adaptive margin in triplet loss
+    "tripletMarginMultiplier": 0.5,       // Multiplier for adaptive margin in triplet loss; 2 for 2D
     "useFeaturesDistance": false,         // Whether to use feature distance instead of fitness
     "featuresDistanceMetric": "cosine",   // "cosine" or "euclidean"
     "randomSeed": 42,
@@ -100,9 +97,9 @@
     "ws://127.0.0.1:31053"
   ],
   "evaluationQualityServers": [ // quality evaluation
-    "ws://127.0.0.1:32051",
-    "ws://127.0.0.1:32052",
-    "ws://127.0.0.1:32053"
+    "ws://127.0.0.1:40051",
+  // "ws://127.0.0.1:32052",
+  // "ws://127.0.0.1:32053"
   ],
   "evaluationProjectionServers": [ // projection
     "ws://127.0.0.1:33051",
