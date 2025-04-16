@@ -65,6 +65,8 @@ import NoveltyArchive from './util/novelty-archive.js';
 import DimensionalityReductionModel from './util/dimensionality-reduction-model.js';
 import { logGenerationNumberAsAsciiArt } from './util/qd-common.js';
 
+import { runGridSearch } from './grid-search.js'; // New import
+
 import { Environment } from './environment.js';
 if (typeof process !== 'undefined' && process.versions && process.versions.node) {
   await Environment.initialize('node');
@@ -87,6 +89,65 @@ const ELITE_REMAPPING_COMPETITION_CRITERIA = Object.freeze({ // enum !
   SURPRISE: 'surprise'
   // TODO: mixture of the above?
 });
+
+
+
+export async function qdSearch(
+  evolutionRunId, evolutionRunConfig, evolutionaryHyperparameters,
+  exitWhenDone = true
+) {
+  // Check if this is a grid search run
+  if (evolutionRunConfig.gridSearch) {
+    // Delegate to the grid search module
+    await runGridSearch(evolutionRunId, evolutionRunConfig, evolutionaryHyperparameters, exitWhenDone);
+    return;
+  }
+
+  // Standard run - call the core evolution logic without grid search monitoring
+  await runCoreEvolution(
+    evolutionRunId, 
+    evolutionRunConfig, 
+    evolutionaryHyperparameters, 
+    {
+      exitConditions: standardExitConditions,
+      collectMetrics: false
+    }
+  );
+  
+  if (exitWhenDone) process.exit();
+}
+
+// Function for grid-search.js to use
+export async function runEvolution(evolutionRunId, evolutionRunConfig, evolutionaryHyperparameters) {
+  // Run with additional exit conditions and metric collection
+  return await runCoreEvolution(
+    evolutionRunId, 
+    evolutionRunConfig, 
+    evolutionaryHyperparameters, 
+    {
+      exitConditions: gridSearchExitConditions,
+      collectMetrics: true
+    }
+  );
+}
+
+// The standard exit conditions checker
+function standardExitConditions(eliteMap, terminationCondition, gradientWindowSize, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun, batchDurationMs, startTimeMs) {
+  return shouldTerminate(terminationCondition, gradientWindowSize, eliteMap, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun) 
+    || (batchDurationMs && batchDurationMs < Date.now() - startTimeMs);
+}
+
+// Exit conditions for grid search runs
+function gridSearchExitConditions(eliteMap, terminationCondition, gradientWindowSize, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun, batchDurationMs, startTimeMs, auroraModeConfig, startTime, timeLimit) {
+  return standardExitConditions(eliteMap, terminationCondition, gradientWindowSize, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun, batchDurationMs, startTimeMs)
+    || (auroraModeConfig?.gridSearchEvaluation && 
+        (eliteMap.qdScoreWithoutIncreaseCount > auroraModeConfig.stagnationThreshold ||
+         eliteMap.coverageWithoutIncreaseCount > auroraModeConfig.stagnationThreshold))
+    || (Date.now() - startTime > timeLimit);
+}
+
+
+
 
 
 /**
@@ -115,10 +176,12 @@ const ELITE_REMAPPING_COMPETITION_CRITERIA = Object.freeze({ // enum !
  * }
  * @param {object} evolutionaryHyperparameters
  */
-export async function qdSearch(
+export async function runCoreEvolution(
   evolutionRunId, evolutionRunConfig, evolutionaryHyperparameters,
-  exitWhenDone = true
-  // seedEvals, terminationCondition, evoRunsDirPath
+  {
+    exitConditions,
+    collectMetrics = false
+  }
 ) {
   const {
     algorithm: algorithmKey,
@@ -154,7 +217,8 @@ export async function qdSearch(
     geneVariationServers, geneRenderingServers, 
     geneEvaluationServers,
     evaluationFeatureServers, evaluationQualityServers, evaluationProjectionServers,
-    dummyRun
+    dummyRun,
+    auroraModeConfig
   } = evolutionRunConfig;
 
   const classificationGraphModel = classifiers[classifierIndex];
@@ -413,11 +477,26 @@ export async function qdSearch(
 
   let zScoreNormalisationTrainFeaturesPathObj = { zScoreNormalisationTrainFeaturesPath: undefined }; // object to pass by reference, to be able to mutate from within mapElitesBatch
 
-  while( 
-      ! shouldTerminate(terminationCondition, gradientWindowSize, eliteMap, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun)
-      &&
-      ! ( batchDurationMs && batchDurationMs < Date.now() - startTimeMs )
-  ) {
+  // Initialize time tracking
+  const hourInMs = 60 * 60 * 1000;
+  const timeLimit = Infinity; // Originally: hourInMs * 0.95
+  const startTime = Date.now();
+  
+  // Performance metrics tracking
+  let maxQDScoreWithoutIncrease = 0;
+  let maxCoverageWithoutIncrease = 0;
+
+  // while( 
+  //     ! shouldTerminate(terminationCondition, gradientWindowSize, eliteMap, classificationGraphModel, evolutionRunId, evoRunDirPath, dummyRun)
+  //     &&
+  //     ! ( batchDurationMs && batchDurationMs < Date.now() - startTimeMs )
+  // ) {
+  while (!exitConditions(
+    eliteMap, terminationCondition, gradientWindowSize, 
+    classificationGraphModel, evolutionRunId, evoRunDirPath, 
+    dummyRun, batchDurationMs, startTimeMs,
+    evolutionRunConfig.auroraModeConfig, startTime, timeLimit
+  )) {
 
     logGenerationNumberAsAsciiArt(eliteMap.generationNumber)
 
@@ -605,6 +684,7 @@ export async function qdSearch(
         renderEliteMapToWavFilesEveryNGenerations, renderElitesToWavFiles,
         searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
         maxNumberOfParents,
+        auroraModeConfig,
         probabilityMutatingWaveNetwork, probabilityMutatingPatch, oneCPPNPerFrequency,
         audioGraphMutationParams, evolutionaryHyperparameters,
         classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
@@ -669,6 +749,16 @@ export async function qdSearch(
     // changes to eliteMapMeta which should have been passed down by reference, don't propagate up here for some reason, so we'll read those changes from disk:
     eliteMapMeta = Environment.persistence.readEliteMapMetaFromDisk( evolutionRunId, evoRunDirPath );
 
+
+    if (collectMetrics) {
+      if (eliteMap.qdScoreWithoutIncreaseCount > maxQDScoreWithoutIncrease)
+        maxQDScoreWithoutIncrease = eliteMap.qdScoreWithoutIncreaseCount;
+      
+      if (eliteMap.coverageWithoutIncreaseCount > maxCoverageWithoutIncrease)
+        maxCoverageWithoutIncrease = eliteMap.coverageWithoutIncreaseCount;
+    }
+
+
   } // while( ! shouldTerminate(terminationCondition, eliteMap, dummyRun) ) {
   if( ! (batchDurationMs && batchDurationMs < Date.now() - startTimeMs) ) {
     // process not stopped due to time limit, but should now have reached a general termination condition
@@ -678,6 +768,17 @@ export async function qdSearch(
     // collect git garbage - UPDATE: this should be run separately, as part of one of the qd-run-analysis routines:
     // runCmdAsync(`git -C ${evoRunDirPath} gc`);
   }
+
+  if (collectMetrics) {
+    return {
+      generationsReached: eliteMap.generationNumber,
+      finalQDScore: eliteMap.qdScore,
+      finalCoverage: eliteMap.coverage,
+      maxQDScoreWithoutIncrease,
+      maxCoverageWithoutIncrease
+    };
+  }
+
   // if( exitWhenDone ) process.exit();
 }
 
@@ -689,6 +790,7 @@ async function mapElitesBatch(
   renderEliteMapToWavFilesEveryNGenerations, renderElitesToWavFiles,
   searchBatchSize, seedEvals, eliteWinsOnlyOneCell, classRestriction,
   maxNumberOfParents,
+  auroraModeConfig,
   probabilityMutatingWaveNetwork, probabilityMutatingPatch, oneCPPNPerFrequency,
   audioGraphMutationParams, evolutionaryHyperparameters,
   classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
@@ -709,6 +811,11 @@ async function mapElitesBatch(
 ) {
   const eliteMapIndex = eliteMapMeta.eliteMapIndex;
   const zScoreNormalisationTrainFeaturesPath = zScoreNormalisationTrainFeaturesPathObj["zScoreNormalisationTrainFeaturesPath"];
+
+  const useExtinctionEvents = auroraModeConfig?.useExtinctionEvents || false;
+  const extinctionPeriod = auroraModeConfig?.extinctionPeriod || 50;
+  const extinctionProportion = auroraModeConfig?.extinctionProportion || 0.05;
+
   let searchPromises;
   const isUnsupervisedDiversityEvaluation = (_evaluationFeatureServers && _evaluationFeatureServers.length > 0) &&
     (_evaluationProjectionServers && _evaluationProjectionServers.length > 0) &&
@@ -752,7 +859,8 @@ async function mapElitesBatch(
     searchPromises = new Array( seedFeaturesAndScores.length );
     const seedFeatureClassKeys = await getClassKeysFromSeedFeatures( // this call trains the projection
       seedFeaturesAndScores, _evaluationProjectionServers[0], evoRunDirPath, evolutionRunId, classScoringVariationsAsContainerDimensions, 
-      eliteMap, eliteMapMeta, dynamicComponents, featureIndices
+      eliteMap, eliteMapMeta, dynamicComponents, featureIndices,
+      auroraModeConfig
     );
     // eliteMapMeta was changed by getClassKeysFromSeedFeatures and persisted to disk, so let's reload it
     eliteMapMeta = Environment.persistence.readEliteMapMetaFromDisk( evolutionRunId, evoRunDirPath );
@@ -819,6 +927,87 @@ async function mapElitesBatch(
         classConfiguration
       );
     }
+
+
+
+    // Handle extinction events if enabled
+    if (useExtinctionEvents && extinctionPeriod && 
+      eliteMap.generationNumber > 0 && 
+      eliteMap.generationNumber % extinctionPeriod === 0
+    ) {
+      console.log(`Extinction event at generation ${eliteMap.generationNumber}`);
+      
+      // Find the highest fitness individual for elitism
+      let highestFitnessGenomeId = null;
+      let highestFitness = -Infinity;
+      let highestFitnessClass = null;
+      
+      for (const cellKey in eliteMap.cells) {
+        if (eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length) {
+          const elite = eliteMap.cells[cellKey].elts[0];
+          if (elite.s > highestFitness) {
+            highestFitness = elite.s;
+            highestFitnessGenomeId = elite.g;
+            highestFitnessClass = cellKey;
+          }
+        }
+      }
+      
+      // Get populated cells
+      const populatedCells = Object.keys(eliteMap.cells).filter(key => 
+        eliteMap.cells[key].elts && eliteMap.cells[key].elts.length > 0
+      );
+
+      const populatedCellCount = populatedCells.length;
+  
+      // Skip extinction if population is already small
+      const MINIMUM_POPULATION = 10; // Adjust as needed
+      if (populatedCellCount <= MINIMUM_POPULATION) {
+        console.log(`Skipping extinction event: population (${populatedCellCount}) already below minimum threshold`);
+      } else {
+        // Proceed with extinction but ensure we preserve at least MINIMUM_POPULATION individuals
+        const cellsToPreserveCount = Math.max(
+          MINIMUM_POPULATION,
+          Math.floor(populatedCells.length * extinctionProportion)
+        );
+        
+        // Randomly select cells to preserve
+        const cellsToKeep = new Set();
+        
+        // Always keep the elite
+        if (highestFitnessClass) {
+          cellsToKeep.add(highestFitnessClass);
+        }
+        
+        // Randomly select the rest
+        const remainingCellsToPreserve = cellsToPreserveCount - cellsToKeep.size;
+        if (remainingCellsToPreserve > 0) {
+          const eligibleCells = populatedCells.filter(cell => !cellsToKeep.has(cell));
+          const randomCellsToKeep = chance.pickset(eligibleCells, remainingCellsToPreserve);
+          randomCellsToKeep.forEach(cell => cellsToKeep.add(cell));
+        }
+        
+        // Clear all cells except those to keep
+        console.log(`Preserving ${cellsToKeep.size} cells out of ${populatedCells.length} populated cells`);
+        for (const cellKey in eliteMap.cells) {
+          if (!cellsToKeep.has(cellKey)) {
+            eliteMap.cells[cellKey].elts = [];
+            delete cellFeatures[cellKey];
+          }
+        }
+        
+        // Record extinction event in eliteMap
+        eliteMap.extinctionEvents = eliteMap.extinctionEvents || [];
+        eliteMap.extinctionEvents.push({
+          generation: eliteMap.generationNumber,
+          preservedCellCount: cellsToKeep.size,
+          totalPopulatedCells: populatedCells.length
+        });
+      }
+    }
+
+
+
     for( let batchIteration = 0; batchIteration < searchBatchSize; batchIteration++ ) {
 
       console.log("batchIteration", batchIteration);
@@ -850,7 +1039,7 @@ async function mapElitesBatch(
           };
         }
       }
-  
+
       searchPromises[batchIteration] = new Promise( async (resolve, reject) => {
   
         let randomClassKey;
@@ -1261,7 +1450,7 @@ async function mapElitesBatch(
 
 
   let shouldRenderWaveFiles = false;
-  let shouldIncreaseGenrationNumber = false;
+  let shouldIncreaseGenrationNumber = true;
   await Promise.all( searchPromises ).then( async (batchIterationResults) => {
 
     let batchIterationFeatures;
@@ -1295,7 +1484,8 @@ async function mapElitesBatch(
           evolutionRunId,
           shouldCalculateSurprise,
           shouldUseAutoEncoderForSurprise,
-          dynamicComponents, featureIndices
+          dynamicComponents, featureIndices,
+          auroraModeConfig
         );
         for( let i=0; i < batchIterationResults.length; i++ ) {
           let newGenomeClassScores = {}; // for compatibility with the API below
@@ -1585,10 +1775,17 @@ async function mapElitesBatch(
     if( 
       isUnsupervisedDiversityEvaluation && ! isSeedRound 
     ) {
-      const shouldFit = shouldRetrainProjection && getShouldFit(
-        eliteMap.lastProjectionFitIndex, eliteMap.generationNumber*searchBatchSize,
-        projectionRetrainingLinearGapIncrement
-      ); // eliteMap.generationNumber*searchBatchSize === iterationNumber
+      const populatedCellCount = Object.keys(eliteMap.cells).filter(key => 
+        eliteMap.cells[key].elts && eliteMap.cells[key].elts.length > 0
+      ).length;
+
+      const shouldFit = shouldRetrainProjection 
+        && getShouldFit(
+          eliteMap.lastProjectionFitIndex, eliteMap.generationNumber*searchBatchSize,
+          projectionRetrainingLinearGapIncrement,
+          auroraModeConfig
+        )
+        && populatedCellCount >= 3 // for contrastive learning triplet loss
       if( shouldFit ) {
         // TODO: letting getClassKeysFromSeedFeatures handle the retraining
         const {generationFeaturesFilePath} = await retrainProjectionModel( 
@@ -1600,11 +1797,14 @@ async function mapElitesBatch(
           eliteRemappingCompetitionCriteria,
           noveltyArchive,
           retrainWithAllDiscoveredFeatures,
-          dynamicComponents, featureIndices, eliteMapMeta
+          dynamicComponents, featureIndices, eliteMapMeta,
+          auroraModeConfig
         );
         zScoreNormalisationTrainFeaturesPathObj.zScoreNormalisationTrainFeaturesPath = generationFeaturesFilePath;
         // we've done the fitting, so we can set shouldFit to false
         // eliteMap.shouldFit = true;
+      } else if( populatedCellCount < 3 ) {
+        console.log("Not enough populated cells to retrain projection model");
       }
       if( shouldTrackDiversity === true && shouldRetrainProjection === false ) {
         trackDiversity( 
@@ -2070,7 +2270,8 @@ async function getDiverstyProjectionsFromFeatures(
   evolutionRunId,
   shouldCalculateSurprise,
   shouldUseAutoEncoderForSurprise,
-  dynamicComponents, featureIndices
+  dynamicComponents, featureIndices,
+  auroraModeConfig
 ) {
   const { classConfigurations } = eliteMap;
   const {
@@ -2078,17 +2279,34 @@ async function getDiverstyProjectionsFromFeatures(
     projectionEndpoint
   } = getWsServiceEndpointsFromClassConfiguration(classConfigurations[0]);
   const pcaComponents = classConfigurations && classConfigurations.length ? classConfigurations[0].pcaComponents : undefined;
+
+  const useContrastiveLearning = auroraModeConfig?.useContrastiveLearning || false;
+  const tripletMarginMultiplier = auroraModeConfig?.tripletMarginMultiplier || 1.0;
+  const useFeaturesDistance = auroraModeConfig?.useFeaturesDistance || false;
+  const featuresDistanceMetric = auroraModeConfig?.featuresDistanceMetric || 'cosine';
+  const randomSeed = auroraModeConfig?.randomSeed || 42;
+  const { 
+    learningRate, 
+    trainingEpochs,
+    tripletFormationStrategy 
+  } = auroraModeConfig || {};
+
+  const contrastiveProjectionEndpoint = '/contrastive'; // Default endpoint for contrastive learning
+  const endpoint = useContrastiveLearning ? contrastiveProjectionEndpoint : projectionEndpoint;
+
   const diversityProjection = await Environment.evaluation.getDiversityFromWebsocket(
     features,
-    undefined,
-    evaluationDiversityHost + projectionEndpoint,
+    newGenomeFitnessValues,
+    evaluationDiversityHost + endpoint,
     evoRunDirPath, evolutionRunId,
     false, //shouldFit
     pcaComponents,
     shouldCalculateSurprise,
     shouldUseAutoEncoderForSurprise,
     false, // shouldCalculateNovelty (TODO currently unused; as we let the diversity tracker handle that calculation: if shouldTrackDiversity)
-    dynamicComponents, featureIndices
+    dynamicComponents, featureIndices,
+    tripletMarginMultiplier, useFeaturesDistance, featuresDistanceMetric, randomSeed,
+    learningRate, trainingEpochs, tripletFormationStrategy 
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
   });
@@ -2348,22 +2566,41 @@ function addComponentDataToEliteMapMeta(
 
 async function getClassKeysFromSeedFeatures( 
     seedFeaturesAndScores, evaluationDiversityHost, evoRunDirPath, evolutionRunId, classScoringVariationsAsContainerDimensions, 
-    eliteMap, eliteMapMeta, dynamicComponents, featureIndices
+    eliteMap, eliteMapMeta, dynamicComponents, featureIndices,
+    auroraModeConfig
 ) {
   const featuresArray = seedFeaturesAndScores.map( f => f.features );
+  const fitnessValuesArray = seedFeaturesAndScores.map( f => f.fitness );
   const pcaComponents = eliteMap.classConfigurations && eliteMap.classConfigurations.length ? eliteMap.classConfigurations[0].pcaComponentsn : undefined;
   const projectionEndpoint = eliteMap.classConfigurations && eliteMap.classConfigurations.length ? eliteMap.classConfigurations[0].projectionEndpoint : undefined;
+
+  const useContrastiveLearning = auroraModeConfig?.useContrastiveLearning || false;
+  const tripletMarginMultiplier = auroraModeConfig?.tripletMarginMultiplier || 1.0;
+  const useFeaturesDistance = auroraModeConfig?.useFeaturesDistance || false;
+  const featuresDistanceMetric = auroraModeConfig?.featuresDistanceMetric || 'cosine';
+  const randomSeed = auroraModeConfig?.randomSeed || 42;
+  const { 
+    learningRate, 
+    trainingEpochs,
+    tripletFormationStrategy 
+  } = auroraModeConfig || {};
+
+  const contrastiveProjectionEndpoint = '/contrastive'; // Default endpoint for contrastive learning
+  const endpoint = useContrastiveLearning ? contrastiveProjectionEndpoint : projectionEndpoint;
+
   const diversityProjection = await Environment.evaluation.getDiversityFromWebsocket(
     featuresArray,
-    undefined, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
-    evaluationDiversityHost + projectionEndpoint,
+    fitnessValuesArray, // allFitnessValues, // TODO: not using fitnes values for unique cell projection for now
+    evaluationDiversityHost + endpoint,
     evoRunDirPath, evolutionRunId,
     true, // shouldFit
     pcaComponents,
     false, // shouldCalculateSurprise; we're not obtaining score here
     false, // shouldUseAutoEncoderForSurprise
     false, // shouldCalculateNovelty
-    dynamicComponents, featureIndices
+    dynamicComponents, featureIndices,
+    tripletMarginMultiplier, useFeaturesDistance, featuresDistanceMetric, randomSeed,
+    learningRate, trainingEpochs, tripletFormationStrategy 
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber}`, e);
   });
@@ -2537,12 +2774,32 @@ async function getFeaturesAndScoresFromEliteMap(
   return seedFeaturesAndScores;
 }
 
-function getShouldFit( lastProjectionFitIndex, iterationNumber, projectionRetrainingLinearGapIncrement ) {
-  // T_n = n * k * (n + 1) / 2, formula for triangle numbers
-  const nextProjectionFitIndex = lastProjectionFitIndex + 1;
-  const nextFitIterationNumber = nextProjectionFitIndex * projectionRetrainingLinearGapIncrement * (nextProjectionFitIndex + 1) / 2;
-  const shouldFit = iterationNumber >= nextFitIterationNumber;
-  return shouldFit;
+function getShouldFit( 
+    lastProjectionFitIndex, iterationNumber, projectionRetrainingLinearGapIncrement,
+    auroraModeConfig
+) {
+
+  if (!auroraModeConfig) {
+    // Default to linear if no config provided
+    // T_n = n * k * (n + 1) / 2, formula for triangle numbers
+    const nextProjectionFitIndex = lastProjectionFitIndex + 1;
+    const nextFitIterationNumber = nextProjectionFitIndex * projectionRetrainingLinearGapIncrement * (nextProjectionFitIndex + 1) / 2;
+    return iterationNumber >= nextFitIterationNumber;
+  }
+
+  const { 
+    projectionRetrainingMode, 
+    projectionRetrainingInterval
+  } = auroraModeConfig;
+
+  if (projectionRetrainingMode === "fixed") {
+    return iterationNumber % projectionRetrainingInterval === 0;
+  } else {
+    // Linear schedule logic
+    const nextProjectionFitIndex = lastProjectionFitIndex + 1;
+    const nextFitIterationNumber = nextProjectionFitIndex * projectionRetrainingLinearGapIncrement * (nextProjectionFitIndex + 1) / 2;
+    return iterationNumber >= nextFitIterationNumber;
+  }
 }
 
 // only called once, after the seed rounds are over:
@@ -2565,9 +2822,23 @@ async function retrainProjectionModel(
   eliteRemappingCompetitionCriteria,
   noveltyArchive,
   retrainWithAllDiscoveredFeatures,
-  dynamicComponents, featureIndices, eliteMapMeta
+  dynamicComponents, featureIndices, eliteMapMeta,
+  auroraModeConfig
 ) {
+  const useContrastiveLearning = auroraModeConfig?.useContrastiveLearning || false;
+  const tripletMarginMultiplier = auroraModeConfig?.tripletMarginMultiplier || 1.0;
+  const useFeaturesDistance = auroraModeConfig?.useFeaturesDistance || false;
+  const featuresDistanceMetric = auroraModeConfig?.featuresDistanceMetric || "cosine";
+  const randomSeed = auroraModeConfig?.randomSeed || 42;
+  const { 
+    learningRate, 
+    trainingEpochs,
+    tripletFormationStrategy 
+  } = auroraModeConfig || {};
+  
   const evaluationDiversityHost = evaluationDiversityHosts[0]; // if more than other servers, they will pick up the updated model data by checking file timestamps; see dimensionality_reduction.py in kormosynth-evaluate
+
+  const contrastiveProjectionEndpoint = '/contrastive'; // Default endpoint for contrastive learning
 
   const {
     projectionFeatureType,
@@ -2588,12 +2859,15 @@ async function retrainProjectionModel(
     throw new Error("Error: cellFeaturesSet.size !== cellElites.size");
   }
 
-  // const cellKeysWithFeatures = cellFeaturesMap.keys();
-
   const allFeaturesToProject = [];
+  const allFitnessValues = [];
   for (const cellKeyWithFeatures of cellFeaturesMap.keys()) {
     allFeaturesToProject.push(cellFeatures[cellKeyWithFeatures][projectionFeatureType].features);
+    allFitnessValues.push(cellElitesMap.get(cellKeyWithFeatures).s);
   }
+
+  // Determine which endpoint to use based on whether contrastive learning is enabled
+  const endpoint = useContrastiveLearning ? contrastiveProjectionEndpoint : projectionEndpoint;
 
   // Initialize the DiversityTracker
   let tracker;
@@ -2604,15 +2878,18 @@ async function retrainProjectionModel(
     console.log(`Before retraining projection, obtaining ${allFeaturesToProject.length} projection feature vectors, at generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`);
     const diversityProjectionBeforeRetraining = await Environment.evaluation.getDiversityFromWebsocket(
       allFeaturesToProject,
-      undefined,
-      evaluationDiversityHost + projectionEndpoint,
+      useContrastiveLearning ? allFitnessValues : undefined,
+      evaluationDiversityHost + endpoint,
       evoRunDirPath, evolutionRunId,
       false, // important to not retrain here; will be done below
       pcaComponents,
       shouldCalculateSurprise,
       shouldUseAutoEncoderForSurprise,
       false, // shouldCalculateNovelty; we'll let the tracker handle this for now TODO
-      dynamicComponents, featureIndices
+      dynamicComponents, featureIndices,
+      tripletMarginMultiplier,
+      useFeaturesDistance, featuresDistanceMetric, randomSeed,
+      learningRate, trainingEpochs, tripletFormationStrategy 
     ).catch(e => {
       console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`, e);
       cellFeaturesMap = null;
@@ -2643,24 +2920,27 @@ async function retrainProjectionModel(
 
   // Retrain projection model
   if( retrainWithAllDiscoveredFeatures ) {
-    const lostFeatures = Environment.persistence.readAllLostFeaturesFromDisk( evoRunDirPath, projectionFeatureType );
+    const {lostFeatures, lostScores} = Environment.persistence.readAllLostFeaturesFromDisk( evoRunDirPath, projectionFeatureType );
     if( lostFeatures && lostFeatures.length ) {
       // concatenate allFeaturesToProject with lostFeatures
       allFeaturesToProject.push( ...lostFeatures );
+      allFitnessValues.push( ...lostScores );
     }
   }
   console.log(`Retraining projection with ${allFeaturesToProject.length} features, after generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`);
   const diversityProjection = await Environment.evaluation.getDiversityFromWebsocket(
     allFeaturesToProject,
-    undefined,
-    evaluationDiversityHost + projectionEndpoint,
+    useContrastiveLearning ? allFitnessValues : undefined,
+    evaluationDiversityHost + endpoint,
     evoRunDirPath, evolutionRunId,
     true,
     pcaComponents,
     shouldCalculateSurprise,
     shouldUseAutoEncoderForSurprise,
     false, // shouldCalculateNovelty; we'll let the tracker handle this for now TODO
-    dynamicComponents, featureIndices
+    dynamicComponents, featureIndices,
+    tripletMarginMultiplier, useFeaturesDistance, featuresDistanceMetric, randomSeed,
+    learningRate, trainingEpochs, tripletFormationStrategy 
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`, e);
     cellFeaturesMap = null;
@@ -2720,6 +3000,7 @@ async function retrainProjectionModel(
       } else {
         containerLossCount++;
         containerLossFeatures[cellKey] = cellFeaturesMap.get(cellKey);
+        containerLossFeatures[cellKey]["score"] = currentElite.s;
       }
     } else {
       eliteMap.cells[newCellKey].elts = [elite];
@@ -2795,7 +3076,7 @@ async function retrainProjectionModel(
   if( noveltyArchive ) {
     console.log(`Updating novelty archive after generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`);
     const dimensionalityReductionModel = new DimensionalityReductionModel(
-      evaluationDiversityHost + projectionEndpoint,
+      evaluationDiversityHost + endpoint,
       evoRunDirPath,
       false, //shouldFit,
       pcaComponents,

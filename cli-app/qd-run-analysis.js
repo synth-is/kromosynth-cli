@@ -2117,72 +2117,153 @@ function pearsonCorrelation(x, y) {
 
 ///// lineages
 
-export async function getLineageGraphData( evoRunConfig, evoRunId, stepSize = 1 ) {
-  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
-  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+export async function getLineageGraphData(evoRunConfig, evoRunId, stepSize = 1, processSingleMap = false) {
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig(evoRunConfig, evoRunId, true);
+  const commitCount = getCommitCount(evoRunConfig, evoRunId, commitIdsFilePath);
   const lineageGraphDataObj = {};
-  for( let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++ ) {
-    if( iterationIndex % stepSize === 0 ) { // stepSize > 1 might be misleading here
-      log( `Collecting lineage graph data for iteration ${iterationIndex}` );
-      const eliteMap = await getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex );
-      const cellKeys = Object.keys(eliteMap.cells);
-      for( const oneCellKey of cellKeys ) {
-        const cell = eliteMap.cells[oneCellKey];
-        if( cell.elts.length ) {
-          const genomeId = cell.elts[0].g;
-          const score = cell.elts[0].s;
-          const generation = cell.elts[0].gN;
-          const unproductivityBiasCounter = cell.uBC;
-          const genomeIdClass = `${genomeId}_${oneCellKey}`; // the same genome could be an elite of more than one class
-          if( lineageGraphDataObj[genomeIdClass] === undefined ) {
-            const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
-            const genome = await getGenomeFromGenomeString(genomeString);
-            let parentGenomes;
-            if( genome.parentGenomes ) {
-              parentGenomes = genome.parentGenomes;
-            } else {
-              parentGenomes = [];
+  
+  // Get all terrain names by finding all elite map files
+  let terrainNames = [];
+  if (!processSingleMap) {
+    const fileNames = fs.readdirSync(evoRunDirPath);
+    const eliteMapFiles = fileNames.filter(file => file.startsWith(`elites_${evoRunId}`));
+    
+    terrainNames = eliteMapFiles.map(fileName => {
+      const match = fileName.match(new RegExp(`elites_${evoRunId}_?(.*)\\.json`));
+      return match && match[1] ? match[1] : '';
+    }).filter(name => name !== ''); // Filter out empty terrain names (default map)
+    
+    // If no terrain-specific maps were found, add an empty string to process the default map
+    if (terrainNames.length === 0) {
+      terrainNames.push('');
+    }
+  } else {
+    // Process only the default map or use the terrain name from classifiers if available
+    terrainNames = getTerrainNames(evoRunConfig);
+    if (terrainNames.length === 0) {
+      terrainNames.push('');  // Default map (no terrain suffix)
+    }
+  }
+  
+  // First pass: collect terrain appearance information for each genome
+  const genomeTerrainInfo = {};
+  
+  for (const terrainName of terrainNames) {
+    log(`Processing lineage data for terrain: ${terrainName || 'default'}`);
+    
+    for (let iterationIndex = 0; iterationIndex < commitCount; iterationIndex++) {
+      if (iterationIndex % stepSize === 0) {
+        log(`Collecting lineage graph data for iteration ${iterationIndex}, terrain: ${terrainName || 'default'}`);
+        
+        const eliteMap = await getEliteMapFromRunConfig(
+          evoRunConfig, evoRunId, iterationIndex, false, terrainName
+        );
+        
+        const cellKeys = Object.keys(eliteMap.cells);
+        for (const oneCellKey of cellKeys) {
+          const cell = eliteMap.cells[oneCellKey];
+          if (cell.elts.length) {
+            const genomeId = cell.elts[0].g;
+            const score = cell.elts[0].s;
+            const generation = cell.elts[0].gN;
+            const unproductivityBiasCounter = cell.uBC;
+            
+            // Store terrain and cell info for this genome
+            if (!genomeTerrainInfo[genomeId]) {
+              genomeTerrainInfo[genomeId] = {
+                terrainAppearances: []
+              };
             }
-            lineageGraphDataObj[genomeIdClass] = { parentGenomes };
-            // if genome contains a tags attribute, referencing an array, find an object with a tag attribute that is equal to oneCellKey:
-            // if found, add the duration, noteDelta, and velocity attributes to the object at genomeIdClass
-            if( genome.tags ) {
-              let tag = genome.tags.find( tag => tag.tag === oneCellKey );
-              if( ! tag && genome.tags.length===1 ) tag = genome.tags[0]; // oneCellKey might not be found in the genome due to e.g. remapping
-              if( tag && tag.duration ) {
-                lineageGraphDataObj[genomeIdClass].duration = tag.duration;
-                lineageGraphDataObj[genomeIdClass].noteDelta = tag.noteDelta;
-                lineageGraphDataObj[genomeIdClass].velocity = tag.velocity;
-              } else {
-                throw new Error(`Tag not found for genome ${genomeId} in cell ${oneCellKey}, tag: ${tag}`);
-              }
+            
+            // Add this terrain and cell appearance if not already present
+            const terrainInfo = genomeTerrainInfo[genomeId].terrainAppearances.find(
+              t => t.terrain === (terrainName || 'default') && t.eliteClass === oneCellKey
+            );
+            
+            if (!terrainInfo) {
+              genomeTerrainInfo[genomeId].terrainAppearances.push({
+                terrain: terrainName || 'default',
+                eliteClass: oneCellKey,
+                score,
+                generation,
+                unproductivityBiasCounter
+              });
             }
-            lineageGraphDataObj[genomeIdClass]["id"] = genomeId;
-            lineageGraphDataObj[genomeIdClass]["eliteClass"] = oneCellKey;
-            lineageGraphDataObj[genomeIdClass]["s"] = score;
-            lineageGraphDataObj[genomeIdClass]["gN"] = generation;
-            lineageGraphDataObj[genomeIdClass]["uBC"] = unproductivityBiasCounter;
           }
         }
       }
     }
   }
-  // convert lineageGraphDataObj to array with objects with the attributes id and parents
-  const lineageGraphData = [];
-  for( const genomeIdClass of Object.keys(lineageGraphDataObj) ) {
-    lineageGraphData.push({
-      id: lineageGraphDataObj[genomeIdClass].id,
-      eliteClass: lineageGraphDataObj[genomeIdClass].eliteClass,
-      s: lineageGraphDataObj[genomeIdClass].s,
-      gN: lineageGraphDataObj[genomeIdClass].gN,
-      uBC: lineageGraphDataObj[genomeIdClass].uBC,
-      duration: lineageGraphDataObj[genomeIdClass].duration,
-      noteDelta: lineageGraphDataObj[genomeIdClass].noteDelta,
-      velocity: lineageGraphDataObj[genomeIdClass].velocity,
-      parents: lineageGraphDataObj[genomeIdClass].parentGenomes
-    });
+  
+  // Second pass: gather detailed genome information but only once per genome
+  for (const genomeId of Object.keys(genomeTerrainInfo)) {
+    if (lineageGraphDataObj[genomeId] === undefined) {
+      // Sort appearances by generation to find the earliest one
+      genomeTerrainInfo[genomeId].terrainAppearances.sort((a, b) => a.generation - b.generation);
+      
+      // Use the earliest appearance (with lowest generation number) as the primary data
+      const earliestAppearance = genomeTerrainInfo[genomeId].terrainAppearances[0];
+      
+      // Read the genome just once
+      const genomeString = await readGenomeAndMetaFromDisk(evoRunId, genomeId, evoRunDirPath);
+      const genome = await getGenomeFromGenomeString(genomeString);
+      
+      // Get parent info
+      let parentGenomes;
+      if (genome.parentGenomes) {
+        parentGenomes = genome.parentGenomes;
+      } else {
+        parentGenomes = [];
+      }
+      
+      // Find the tag for the earliest elite class we found
+      let duration, noteDelta, velocity;
+      if (genome.tags) {
+        let tag = genome.tags.find(tag => tag.tag === earliestAppearance.eliteClass);
+        if (!tag && genome.tags.length === 1) tag = genome.tags[0]; // fallback to first tag
+        
+        if (tag && tag.duration) {
+          duration = tag.duration;
+          noteDelta = tag.noteDelta;
+          velocity = tag.velocity;
+        } else {
+          console.warn(`Tag not found for genome ${genomeId} in cell ${earliestAppearance.eliteClass}`);
+        }
+      }
+      
+      // Store the complete genome info using the earliest appearance as primary info
+      lineageGraphDataObj[genomeId] = {
+        id: genomeId,
+        terrainAppearances: genomeTerrainInfo[genomeId].terrainAppearances,
+        eliteClass: earliestAppearance.eliteClass, 
+        terrain: earliestAppearance.terrain,
+        s: earliestAppearance.score,
+        gN: earliestAppearance.generation,
+        uBC: earliestAppearance.unproductivityBiasCounter,
+        duration,
+        noteDelta,
+        velocity,
+        parentGenomes
+      };
+    }
   }
+  
+  // Convert lineageGraphDataObj to array format
+  const lineageGraphData = Object.values(lineageGraphDataObj).map(genomeData => ({
+    id: genomeData.id,
+    eliteClass: genomeData.eliteClass,
+    terrain: genomeData.terrain,
+    terrainAppearances: genomeData.terrainAppearances,
+    s: genomeData.s,
+    gN: genomeData.gN,
+    uBC: genomeData.uBC,
+    duration: genomeData.duration,
+    noteDelta: genomeData.noteDelta,
+    velocity: genomeData.velocity,
+    parents: genomeData.parentGenomes
+  }));
+  
   return lineageGraphData;
 }
 
@@ -2552,4 +2633,311 @@ function getCommitIdsFilePath( evoRunDirPath, forceCreateCommitIdsList ) {
     runCmd(`git -C ${evoRunDirPath} rev-list HEAD --first-parent --reverse > ${commitIdsFilePath}`);
   }
   return commitIdsFilePath;
+}
+
+
+
+///// phylogenetic tree metrics
+
+/**
+ * Functions to integrate phylogenetic tree metrics 
+ * into the qd-run-analysis.js file
+ */
+
+import {
+  calculateAllPhylogeneticMetrics,
+  calculateExtantLineages,
+  calculateTotalSamples,
+  calculateUniqueLineages,
+  calculateEvolutionaryEvents,
+  calculateTreeShapeMetrics,
+  calculateTerrainTransitionMetrics,
+  calculateDensityDependence
+} from './phylogenetic-tree-metrics.js';
+
+/**
+ * Analyze phylogenetic tree metrics for a given evolutionary run
+ * @param {Object} evoRunConfig - Configuration for the evolutionary run
+ * @param {string} evoRunId - ID of the evolutionary run
+ * @param {boolean} saveToFile - Whether to save results to a file
+ * @returns {Object} Metrics calculations
+ */
+export async function analyzePhylogeneticTreeMetrics(evoRunConfig, evoRunId, lineage, saveToFile = true) {
+  console.log(`Analyzing phylogenetic tree metrics for run ${evoRunId}...`);
+  
+  const lineageData = lineage || await getLineageGraphData(evoRunConfig, evoRunId);
+  
+  // Calculate all metrics
+  const metrics = calculateAllPhylogeneticMetrics(lineageData);
+  
+  if (saveToFile) {
+    // Save to file
+    const metricsStringified = JSON.stringify(metrics, null, 2);
+    const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+    const metricsFilePath = `${evoRunDirPath}phylogenetic-metrics.json`;
+    fs.writeFileSync(metricsFilePath, metricsStringified);
+    console.log(`Saved phylogenetic metrics to ${metricsFilePath}`);
+  }
+  
+  return metrics;
+}
+
+/**
+ * Track phylogenetic tree metrics over iterations
+ * @param {Object} evoRunConfig - Configuration for the evolutionary run
+ * @param {string} evoRunId - ID of the evolutionary run
+ * @param {number} stepSize - Number of iterations to skip between calculations
+ * @returns {Object} Metrics over time
+ */
+export async function trackPhylogeneticMetricsOverTime(evoRunConfig, evoRunId, stepSize = 10) {
+  console.log(`Tracking phylogenetic metrics over time for run ${evoRunId}...`);
+  
+  // Get lineage data chronologically by fetching at each step
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig(evoRunConfig, evoRunId, true);
+  const commitCount = getCommitCount(evoRunConfig, evoRunId, commitIdsFilePath);
+  
+  const metricsOverTime = {
+    extantLineages: [],
+    totalSamples: [],
+    uniqueLineages: [],
+    births: [],
+    deaths: [],
+    extinctions: [],
+    sackinIndex: [],
+    collessIndex: [],
+    terrainAdaptability: [],
+    isDensityDependent: []
+  };
+  
+  // Sample at regular intervals
+  for (let iterationIndex = 0; iterationIndex < commitCount; iterationIndex += stepSize) {
+    console.log(`Calculating metrics for iteration ${iterationIndex}...`);
+    
+    // Get lineage data up to this iteration
+    const lineageData = await getLineageGraphData(evoRunConfig, evoRunId, stepSize, true, iterationIndex);
+    
+    // Calculate core metrics
+    const metrics = calculateAllPhylogeneticMetrics(lineageData);
+    
+    // Record metrics
+    metricsOverTime.extantLineages.push({
+      iteration: iterationIndex,
+      value: metrics.extantLineages
+    });
+    
+    metricsOverTime.totalSamples.push({
+      iteration: iterationIndex,
+      value: metrics.totalSamples
+    });
+    
+    metricsOverTime.uniqueLineages.push({
+      iteration: iterationIndex,
+      value: metrics.uniqueLineages
+    });
+    
+    metricsOverTime.births.push({
+      iteration: iterationIndex,
+      value: metrics.events.birthCount
+    });
+    
+    metricsOverTime.deaths.push({
+      iteration: iterationIndex,
+      value: metrics.events.deathCount
+    });
+    
+    metricsOverTime.extinctions.push({
+      iteration: iterationIndex,
+      value: metrics.events.extinctionCount
+    });
+    
+    metricsOverTime.sackinIndex.push({
+      iteration: iterationIndex,
+      value: metrics.shape.sackinIndex
+    });
+    
+    metricsOverTime.collessIndex.push({
+      iteration: iterationIndex,
+      value: metrics.shape.collessIndex
+    });
+    
+    metricsOverTime.terrainAdaptability.push({
+      iteration: iterationIndex,
+      value: metrics.terrainTransitions.terrainAdaptability
+    });
+    
+    metricsOverTime.isDensityDependent.push({
+      iteration: iterationIndex,
+      value: metrics.densityDependence.isDensityDependent,
+      correlation: metrics.densityDependence.densityDependenceCorrelation
+    });
+  }
+  
+  // Save metrics over time
+  const metricsOverTimeStringified = JSON.stringify(metricsOverTime, null, 2);
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  const metricsFilePath = `${evoRunDirPath}phylogenetic-metrics-over-time_step-${stepSize}.json`;
+  fs.writeFileSync(metricsFilePath, metricsOverTimeStringified);
+  
+  return metricsOverTime;
+}
+
+/**
+ * Compare terrain adaptability metrics
+ * Specifically focuses on transitions between different terrains
+ * @param {Object} evoRunConfig - Configuration for the evolutionary run
+ * @param {string} evoRunId - ID of the evolutionary run
+ * @returns {Object} Terrain transition metrics
+ */
+export async function analyzeTerrainTransitions(evoRunConfig, evoRunId, lineage) {
+  console.log(`Analyzing terrain transitions for run ${evoRunId}...`);
+  
+  // Get lineage data
+  const lineageData = lineage || await getLineageGraphData(evoRunConfig, evoRunId);
+  
+  // Calculate terrain transition metrics
+  const terrainMetrics = calculateTerrainTransitionMetrics(lineageData);
+  
+  // Create a transition graph for visualization
+  const transitionGraph = {
+    nodes: [],
+    links: []
+  };
+  
+  // Add nodes (terrains)
+  Object.entries(terrainMetrics.terrainOccurrences).forEach(([terrain, count]) => {
+    transitionGraph.nodes.push({
+      id: terrain,
+      count: count
+    });
+  });
+  
+  // Add links (transitions)
+  Object.entries(terrainMetrics.terrainTransitions).forEach(([transition, count]) => {
+    const [source, target] = transition.split('->');
+    transitionGraph.links.push({
+      source,
+      target,
+      value: count
+    });
+  });
+  
+  // Save terrain transition graph
+  const transitionGraphStringified = JSON.stringify(transitionGraph, null, 2);
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  const graphFilePath = `${evoRunDirPath}terrain-transition-graph.json`;
+  fs.writeFileSync(graphFilePath, transitionGraphStringified);
+  
+  return {
+    terrainMetrics,
+    transitionGraph
+  };
+}
+
+/**
+ * Analyze density dependence of diversification
+ * @param {Object} evoRunConfig - Configuration for the evolutionary run
+ * @param {string} evoRunId - ID of the evolutionary run
+ * @returns {Object} Density dependence analysis
+ */
+export async function analyzeDensityDependence(evoRunConfig, evoRunId, lineage) {
+  console.log(`Analyzing density dependence for run ${evoRunId}...`);
+  
+  // Get lineage data
+  const lineageData = lineage || await getLineageGraphData(evoRunConfig, evoRunId);
+  
+  // Calculate density dependence metrics
+  const densityMetrics = calculateDensityDependence(lineageData);
+  
+  // Create data for density vs growth rate plot
+  const densityGrowthData = densityMetrics.growthRates.map(rate => ({
+    generation: rate.toGeneration,
+    diversity: rate.prevDiversity,
+    growthRate: rate.growthRate
+  }));
+  
+  // Save density dependence analysis
+  const densityMetricsStringified = JSON.stringify({
+    ...densityMetrics,
+    densityGrowthData
+  }, null, 2);
+  
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  const densityFilePath = `${evoRunDirPath}density-dependence-analysis.json`;
+  fs.writeFileSync(densityFilePath, densityMetricsStringified);
+  
+  return {
+    ...densityMetrics,
+    densityGrowthData
+  };
+}
+
+/**
+ * Generate an extended phylogenetic tree report
+ * This creates a more comprehensive analysis combining multiple metrics
+ * @param {Object} evoRunConfig - Configuration for the evolutionary run
+ * @param {string} evoRunId - ID of the evolutionary run
+ * @returns {Object} Complete phylogenetic analysis
+ */
+export async function generatePhylogeneticReport(evoRunConfig, evoRunId, lineage) {
+  console.log(`Generating comprehensive phylogenetic report for run ${evoRunId}...`);
+  
+  // Get all metrics
+  const metrics = await analyzePhylogeneticTreeMetrics(evoRunConfig, evoRunId, lineage, false);
+  const terrainAnalysis = await analyzeTerrainTransitions(evoRunConfig, evoRunId, lineage);
+  const densityAnalysis = await analyzeDensityDependence(evoRunConfig, evoRunId, lineage);
+  
+  // Additional QD-specific analysis
+  const { genomeCounts } = await getGenomeCountsForAllIterations(evoRunConfig, evoRunId);
+  const coverageData = await getCoverageForAllIterations(evoRunConfig, evoRunId);
+  const qdScores = await calculateQDScoresForAllIterations(evoRunConfig, evoRunId);
+  
+  // Combine into comprehensive report
+  const report = {
+    summary: {
+      runId: evoRunId,
+      totalGenomes: metrics.totalSamples,
+      uniqueLineages: metrics.uniqueLineages,
+      extantLineages: metrics.extantLineages,
+      births: metrics.events.birthCount,
+      deaths: metrics.events.deathCount,
+      extinctions: metrics.events.extinctionCount,
+      isDensityDependent: metrics.densityDependence.isDensityDependent,
+      terrainAdaptability: metrics.terrainTransitions.terrainAdaptability
+    },
+    treeMetrics: {
+      size: {
+        extantLineages: metrics.extantLineages,
+        totalSamples: metrics.totalSamples,
+        uniqueLineages: metrics.uniqueLineages
+      },
+      shape: metrics.shape,
+      events: metrics.events
+    },
+    qdMetrics: {
+      finalCoverage: Array.isArray(coverageData) ? coverageData[coverageData.length - 1] : null,
+      finalQDScore: Array.isArray(qdScores) ? qdScores[qdScores.length - 1] : null,
+      genomeCount: Array.isArray(genomeCounts) ? genomeCounts[genomeCounts.length - 1] : null
+    },
+    terrainAnalysis: {
+      transitions: terrainAnalysis.terrainMetrics.terrainTransitions,
+      occurrences: terrainAnalysis.terrainMetrics.terrainOccurrences,
+      adaptability: terrainAnalysis.terrainMetrics.terrainAdaptability,
+      multiTerrainGenomeCount: terrainAnalysis.terrainMetrics.multiTerrainGenomeCount
+    },
+    densityDependence: {
+      correlation: densityAnalysis.densityDependenceCorrelation,
+      isDensityDependent: densityAnalysis.isDensityDependent,
+      diversityByGeneration: densityAnalysis.diversityByGeneration
+    }
+  };
+  
+  // Save comprehensive report
+  const reportStringified = JSON.stringify(report, null, 2);
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  const reportFilePath = `${evoRunDirPath}phylogenetic-report.json`;
+  fs.writeFileSync(reportFilePath, reportStringified);
+  
+  console.log(`Saved comprehensive phylogenetic report to ${reportFilePath}`);
+  
+  return report;
 }

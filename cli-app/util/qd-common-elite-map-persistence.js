@@ -179,7 +179,7 @@ export function saveLostFeaturesToDisk(lostFeatures, eliteMap, evoRunDirPath) {
 export function readAllLostFeaturesFromDisk(evoRunDirPath, projectionFeatureType) {
   const lostFeaturesDirPath = `${evoRunDirPath}lostFeatures/`;
   let allLostFeatures = [];
-
+  let allLostScores = [];
   if (fs.existsSync(lostFeaturesDirPath)) {
     const files = fs.readdirSync(lostFeaturesDirPath);
     const lostFeaturesFiles = files.filter(file => 
@@ -196,13 +196,17 @@ export function readAllLostFeaturesFromDisk(evoRunDirPath, projectionFeatureType
         for (const key in lostFeatures) {
           if (lostFeatures[key][projectionFeatureType]?.features) {
             allLostFeatures.push(lostFeatures[key][projectionFeatureType].features);
+            allLostScores.push(lostFeatures[key].score);
           }
         }
       }
     }
   }
 
-  return allLostFeatures;
+  return {
+    lostFeatures: allLostFeatures,
+    lostScores: allLostScores
+  };
 }
 
 export function saveCellFeaturesAtGenerationToDisk(cellFeatures, featureType, generation, evoRunDirPath) {

@@ -25,6 +25,7 @@ import {
 	getClassScoresForGenome
 } from 'kromosynth';
 import { qdSearch } from './quality-diversity-search.js';
+export { qdSearch } from './quality-diversity-search.js'; // TODO: while this QD search implementation is not yet in its own module, export it from kromosynth-cli
 import {
 	calculateQDScoreForOneIteration,
 	calculateQDScoresForAllIterations,
@@ -73,8 +74,23 @@ import { readGenomeAndMetaFromDisk } from './util/qd-common-elite-map-persistenc
 import { extractFeaturesFromAllAudioFiles } from './extract-audio-features-from-dataset.js';
 import { traceLineage, findLatestDescendantsByClass } from './util/lineage.js';
 import { mapEliteMapToMapWithDifferentBDs } from './util/terrain-remap.js';
+
+import { 
+  runPhylogeneticAnalysis, 
+  comparePhylogeneticMetrics,
+	comparePhylogeneticMetricsAcrossConfigurations 
+} from './phylogenetic-analysis-cli.js';
+
+import {
+  analyzePhylogeneticTreeMetrics,
+  trackPhylogeneticMetricsOverTime,
+  analyzeTerrainTransitions,
+  analyzeDensityDependence,
+  generatePhylogeneticReport
+} from './qd-run-analysis.js';
+
 import { mean, median, variance, std, map } from 'mathjs'
-import { sample } from 'lodash-es';
+
 
 const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";
 const GENOME_OUTPUT_END = "GENOME_OUTPUT_END";
@@ -1598,41 +1614,143 @@ async function qdAnalysis_percentCompletion() {
 }
 
 async function qdAnalysis_evoRuns() {
-	const evoRunsConfig = getEvolutionRunsConfig();
-	const {
-		analysisOperations, stepSize, scoreThreshold, uniqueGenomes, excludeEmptyCells, classRestriction, maxIterationIndex, 
-		writeToFolder, terrainName
-	} = cli.flags;
-	const analysisOperationsList = analysisOperations.split(",");
-	let classRestrictionList;
-	if( classRestriction ) {
-		classRestrictionList = JSON.parse(classRestriction);
-	}
-	console.log("analysisOperationsList", analysisOperationsList);
-	const evoRunsAnalysis = {...evoRunsConfig};
-	// TODO move this to the qd-run-analysis module or a separate one, to have this module a bit leaner 😅
-	let analysisResultFilePath;
-	if( writeToFolder === './' ) { // let's then rather place the output at evoRunsConfig.baseEvolutionRunConfigFile
-		analysisResultFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
-	} else {
-		analysisResultFilePath = `${writeToFolder}/evolution-run-analysis_${analysisOperationsList}${terrainName ? '_terrain-'+terrainName : ''}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
-	}
-	for( let currentEvolutionRunIndex = 0; currentEvolutionRunIndex < evoRunsConfig.evoRuns.length; currentEvolutionRunIndex++ ) {
-		const currentEvoConfig = evoRunsConfig.evoRuns[currentEvolutionRunIndex];
-		for( let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++ ) {
-			let { id: evolutionRunId } = currentEvoConfig.iterations[currentEvolutionRunIteration];
-			if( evolutionRunId ) {
-				const evoRunConfigMain = getEvolutionRunConfig( evoRunsConfig.baseEvolutionRunConfigFile );
-				const evoRunConfigDiff = getEvolutionRunConfig( currentEvoConfig.diffEvolutionRunConfigFile );
-				const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
+  const evoRunsConfig = getEvolutionRunsConfig();
+  const {
+    analysisOperations, stepSize, scoreThreshold, uniqueGenomes, excludeEmptyCells, classRestriction, maxIterationIndex, 
+    writeToFolder, terrainName
+  } = cli.flags;
+  const analysisOperationsList = analysisOperations.split(",");
+  let classRestrictionList;
+  if (classRestriction) {
+    classRestrictionList = JSON.parse(classRestriction);
+  }
+  console.log("analysisOperationsList", analysisOperationsList);
+  const evoRunsAnalysis = {...evoRunsConfig};
+  
+  // Setup analysis result file path
+  let analysisResultFilePath;
+  if (writeToFolder === './') {
+    analysisResultFilePath = `${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/evolution-run-analysis_${analysisOperationsList}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
+  } else {
+    analysisResultFilePath = `${writeToFolder}/evolution-run-analysis_${analysisOperationsList}${terrainName ? '_terrain-'+terrainName : ''}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
+  }
+  
+  // Collect run IDs for phylogenetic comparison if needed
+  const runIdsForComparison = [];
+  
+  for (let currentEvolutionRunIndex = 0; currentEvolutionRunIndex < evoRunsConfig.evoRuns.length; currentEvolutionRunIndex++) {
+    const currentEvoConfig = evoRunsConfig.evoRuns[currentEvolutionRunIndex];
+    for (let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++) {
+      let { id: evolutionRunId } = currentEvoConfig.iterations[currentEvolutionRunIteration];
+      if (evolutionRunId) {
+        const evoRunConfigMain = getEvolutionRunConfig(evoRunsConfig.baseEvolutionRunConfigFile);
+        const evoRunConfigDiff = getEvolutionRunConfig(currentEvoConfig.diffEvolutionRunConfigFile);
+        const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
 
-				const evoParamsMain = getEvoParams( evoRunsConfig.baseEvolutionaryHyperparametersFile );
-				const evoParamsDiff = getEvoParams( currentEvoConfig.diffEvolutionaryHyperparametersFile );
-				const evoParams = merge(evoParamsMain, evoParamsDiff);
-	
-				for( const oneAnalysisOperation of analysisOperationsList ) {
-					const classLabels = await getClassLabels( evoRunConfig, evolutionRunId );
-					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].classLabels = classLabels;
+        const evoParamsMain = getEvoParams(evoRunsConfig.baseEvolutionaryHyperparametersFile);
+        const evoParamsDiff = getEvoParams(currentEvoConfig.diffEvolutionaryHyperparametersFile);
+        const evoParams = merge(evoParamsMain, evoParamsDiff);
+        
+        // Add this run ID to the comparison list if needed
+        if (analysisOperationsList.includes("phylogenetic-comparison")) {
+          runIdsForComparison.push(evolutionRunId);
+        }
+
+				let lineage;
+				if( analysisOperationsList.some(op => 
+					[
+						"lineage",
+						"phylogenetic-metrics",
+						"phylogenetic-metrics-over-time",
+						"terrain-transitions",
+						"density-dependence",
+						"phylogenetic-report",
+						"phylogenetic-comparison"
+					].includes(op)
+				)) {
+					lineage = await getLineageGraphData( evoRunConfig, evolutionRunId, stepSize );
+				}
+
+        for (const oneAnalysisOperation of analysisOperationsList) {
+          const classLabels = await getClassLabels(evoRunConfig, evolutionRunId);
+          evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].classLabels = classLabels;
+ 
+          // Add phylogenetic analysis operations
+          if (oneAnalysisOperation === "phylogenetic-metrics") {
+            console.log(`Running phylogenetic metrics analysis for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+            
+            // Run basic phylogenetic analysis (no visualization to save time)
+            const options = {
+              visualize: true,
+              trackOverTime: false,
+              stepSize: stepSize,
+              report: true
+            };
+            
+            try {
+              const phylogeneticMetrics = await runPhylogeneticAnalysis(evoRunConfig, evolutionRunId, options, lineage);
+              evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].phylogeneticMetrics = phylogeneticMetrics;
+              console.log(`Added phylogenetic metrics to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+              writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+            } catch (error) {
+              console.error(`Error running phylogenetic analysis for ${evolutionRunId}:`, error);
+            }
+          }
+          
+          if (oneAnalysisOperation === "phylogenetic-metrics-over-time") {
+            console.log(`Running phylogenetic metrics over time for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+            
+            try {
+              // Use the trackPhylogeneticMetricsOverTime function directly
+              const metricsOverTime = await trackPhylogeneticMetricsOverTime(evoRunConfig, evolutionRunId, stepSize);
+              evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].phylogeneticMetricsOverTime = metricsOverTime;
+              console.log(`Added phylogenetic metrics over time to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+              writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+            } catch (error) {
+              console.error(`Error tracking phylogenetic metrics over time for ${evolutionRunId}:`, error);
+            }
+          }
+          
+          if (oneAnalysisOperation === "terrain-transitions") {
+            console.log(`Analyzing terrain transitions for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+            
+            try {
+              const terrainAnalysis = await analyzeTerrainTransitions(evoRunConfig, evolutionRunId, lineage);
+              evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].terrainTransitions = terrainAnalysis;
+              console.log(`Added terrain transitions analysis to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+              writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+            } catch (error) {
+              console.error(`Error analyzing terrain transitions for ${evolutionRunId}:`, error);
+            }
+          }
+          
+          if (oneAnalysisOperation === "density-dependence") {
+            console.log(`Analyzing density dependence for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+            
+            try {
+              const densityAnalysis = await analyzeDensityDependence(evoRunConfig, evolutionRunId, lineage);
+              evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].densityDependence = densityAnalysis;
+              console.log(`Added density dependence analysis to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+              writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+            } catch (error) {
+              console.error(`Error analyzing density dependence for ${evolutionRunId}:`, error);
+            }
+          }
+          
+          if (oneAnalysisOperation === "phylogenetic-report") {
+            console.log(`Generating phylogenetic report for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+            
+            try {
+              const report = await generatePhylogeneticReport(evoRunConfig, evolutionRunId, lineage);
+              evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].phylogeneticReport = report;
+              console.log(`Added phylogenetic report to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+              writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+            } catch (error) {
+              console.error(`Error generating phylogenetic report for ${evolutionRunId}:`, error);
+            }
+          }
+
+
 					if( oneAnalysisOperation === "diversity-from-embeddings" ) {
 						const diversityFromEmbeddings = getDiversityFromEmbeddingFiles( evoRunConfig, evolutionRunId);
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].diversityFromEmbeddings = diversityFromEmbeddings;
@@ -1771,7 +1889,7 @@ async function qdAnalysis_evoRuns() {
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "lineage" ) {
-						const lineage = await getLineageGraphData( evoRunConfig, evolutionRunId, stepSize );
+						// const lineage = await getLineageGraphData( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].lineage = lineage;
 						console.log(`Added lineage to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
@@ -1785,6 +1903,7 @@ async function qdAnalysis_evoRuns() {
 				}
 			}
 		}
+
 		// aggregate iterations
 		evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"] = {};
 		for( const oneAnalysisOperation of analysisOperationsList ) {
@@ -2262,6 +2381,190 @@ async function qdAnalysis_evoRuns() {
 			}
 		}
 	}
+
+	// Aggregate metrics for this evolution run
+	aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList);
+
+  // Run comparison between all runs if requested
+  if (analysisOperationsList.includes("phylogenetic-comparison") && runIdsForComparison.length > 1) {
+    console.log("Running phylogenetic comparison between all runs...");
+    try {
+      const comparisonResults = await comparePhylogeneticMetrics(
+        getEvolutionRunConfig(evoRunsConfig.baseEvolutionRunConfigFile), 
+        runIdsForComparison
+      );
+      evoRunsAnalysis.phylogeneticComparison = comparisonResults;
+      writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+    } catch (error) {
+      console.error("Error during phylogenetic comparison:", error);
+    }
+  }
+
+	// Check if aggregate comparison was requested
+	if (analysisOperationsList.includes("phylogenetic-aggregate-comparison")) {
+		console.log("Running phylogenetic comparison between configuration types...");
+		try {
+			const comparisonResults = await comparePhylogeneticMetricsAcrossConfigurations(
+				evoRunsConfig, 
+				evoRunsAnalysis,
+				writeToFolder === './' ? 
+					`${path.dirname(evoRunsConfig.baseEvolutionRunConfigFile)}/phylogenetic-configuration-comparison.json` : 
+					`${writeToFolder}/phylogenetic-configuration-comparison.json`
+			);
+			evoRunsAnalysis.phylogeneticConfigurationComparison = comparisonResults;
+			writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+		} catch (error) {
+			console.error("Error during phylogenetic configuration comparison:", error);
+		}
+	}
+  
+  return evoRunsAnalysis;
+}
+
+/**
+ * Aggregate phylogenetic metrics across iterations of an evolution run
+ */
+function aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList) {
+  // Skip if no iterations to aggregate
+  if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.length) return;
+  
+  // Initialize aggregates object if needed
+  if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates) {
+    evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates = {};
+  }
+  
+  // Aggregate phylogenetic metrics if they exist
+  if (analysisOperationsList.includes("phylogenetic-metrics")) {
+    console.log(`Aggregating phylogenetic metrics for evolution run #${currentEvolutionRunIndex}...`);
+    
+    const phylogeneticMetricsAcrossIterations = [];
+    
+    for (let i = 0; i < evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.length; i++) {
+      const iteration = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[i];
+      if (iteration.phylogeneticMetrics) {
+        phylogeneticMetricsAcrossIterations.push(iteration.phylogeneticMetrics);
+      }
+    }
+    
+    if (phylogeneticMetricsAcrossIterations.length > 0) {
+      // Create aggregate structure
+      const aggregatedMetrics = {
+        treeSize: {
+          extantLineages: {
+            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.extantLineages)),
+            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.extantLineages))
+          },
+          totalSamples: {
+            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.totalSamples)),
+            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.totalSamples))
+          },
+          uniqueLineages: {
+            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.uniqueLineages)),
+            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.uniqueLineages))
+          }
+        },
+        events: {
+          births: {
+            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.birthCount)),
+            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.birthCount))
+          },
+          deaths: {
+            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.deathCount)),
+            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.deathCount))
+          },
+          extinctions: {
+            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.extinctionCount)),
+            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.extinctionCount))
+          }
+        },
+        shape: {
+          sackinIndex: {
+            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.shape.sackinIndex)),
+            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.shape.sackinIndex))
+          },
+          collessIndex: {
+            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.shape.collessIndex)),
+            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.shape.collessIndex))
+          }
+        },
+        terrainTransitions: {
+          terrainAdaptability: {
+            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.terrainTransitions.terrainAdaptability)),
+            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.terrainTransitions.terrainAdaptability))
+          }
+        },
+        densityDependence: {
+          correlation: {
+            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.densityDependence.densityDependenceCorrelation)),
+            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.densityDependence.densityDependenceCorrelation))
+          },
+          isDensityDependent: {
+            // Calculate percentage of runs that are density-dependent
+            percentage: (phylogeneticMetricsAcrossIterations.filter(m => 
+              m.metrics.densityDependence.isDensityDependent).length / 
+              phylogeneticMetricsAcrossIterations.length) * 100
+          }
+        }
+      };
+      
+      evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.phylogeneticMetrics = aggregatedMetrics;
+    }
+  }
+  
+  // Aggregate terrain transitions if they exist
+  if (analysisOperationsList.includes("terrain-transitions")) {
+    console.log(`Aggregating terrain transitions for evolution run #${currentEvolutionRunIndex}...`);
+    
+    const terrainTransitionsAcrossIterations = [];
+    
+    for (let i = 0; i < evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.length; i++) {
+      const iteration = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[i];
+      if (iteration.terrainTransitions) {
+        terrainTransitionsAcrossIterations.push(iteration.terrainTransitions);
+      }
+    }
+    
+    if (terrainTransitionsAcrossIterations.length > 0) {
+      // Calculate mean values
+      const terrainAdaptability = mean(terrainTransitionsAcrossIterations.map(
+        t => t.terrainMetrics.terrainAdaptability));
+      
+      const multiTerrainGenomeCount = mean(terrainTransitionsAcrossIterations.map(
+        t => t.terrainMetrics.multiTerrainGenomeCount));
+      
+      evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.terrainTransitions = {
+        terrainAdaptability,
+        multiTerrainGenomeCount
+      };
+    }
+  }
+  
+  // Aggregate density dependence if it exists
+  if (analysisOperationsList.includes("density-dependence")) {
+    console.log(`Aggregating density dependence for evolution run #${currentEvolutionRunIndex}...`);
+    
+    const densityDependenceAcrossIterations = [];
+    
+    for (let i = 0; i < evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.length; i++) {
+      const iteration = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[i];
+      if (iteration.densityDependence) {
+        densityDependenceAcrossIterations.push(iteration.densityDependence);
+      }
+    }
+    
+    if (densityDependenceAcrossIterations.length > 0) {
+      const correlation = mean(densityDependenceAcrossIterations.map(
+        d => d.densityDependenceCorrelation));
+      
+      const isDensityDependentPercentage = (densityDependenceAcrossIterations.filter(
+        d => d.isDensityDependent).length / densityDependenceAcrossIterations.length) * 100;
+      
+      evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.densityDependence = {
+        correlation,
+        isDensityDependentPercentage
+      };
+    }
+  }
 }
 
 function writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis ) {
