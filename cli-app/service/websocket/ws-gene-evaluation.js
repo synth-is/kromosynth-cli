@@ -338,7 +338,8 @@ export function getDiversityFromWebsocket(
   shouldCalculateNovelty,
   dynamicComponents, featureIndices,
   tripletMarginMultiplier, useFeaturesDistance, featuresDistanceMetric, randomSeed,
-  learningRate, trainingEpochs, tripletFormationStrategy 
+  learningRate, trainingEpochs, tripletFormationStrategy,
+  mapId
 ) {
   console.log('getDiversityFromWebsocket', evaluationDiversityHost);
   const ws = getClient( evaluationDiversityHost );
@@ -366,6 +367,7 @@ export function getDiversityFromWebsocket(
         "learning_rate": learningRate || 0.001,
         "training_epochs": trainingEpochs || 100,
         "triplet_formation_strategy": tripletFormationStrategy || "random",
+        "map_id": mapId || "",
       };
       ws.send( JSON.stringify( diversityMessage ), { timeout: 120000 } );
       timeout = setTimeout(() => {

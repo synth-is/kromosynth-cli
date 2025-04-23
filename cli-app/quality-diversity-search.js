@@ -2306,7 +2306,8 @@ async function getDiverstyProjectionsFromFeatures(
     false, // shouldCalculateNovelty (TODO currently unused; as we let the diversity tracker handle that calculation: if shouldTrackDiversity)
     dynamicComponents, featureIndices,
     tripletMarginMultiplier, useFeaturesDistance, featuresDistanceMetric, randomSeed,
-    learningRate, trainingEpochs, tripletFormationStrategy 
+    learningRate, trainingEpochs, tripletFormationStrategy,
+    eliteMap.eliteMapIndex
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
   });
@@ -2600,7 +2601,8 @@ async function getClassKeysFromSeedFeatures(
     false, // shouldCalculateNovelty
     dynamicComponents, featureIndices,
     tripletMarginMultiplier, useFeaturesDistance, featuresDistanceMetric, randomSeed,
-    learningRate, trainingEpochs, tripletFormationStrategy 
+    learningRate, trainingEpochs, tripletFormationStrategy,
+    eliteMap.eliteMapIndex
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber}`, e);
   });
@@ -2849,6 +2851,10 @@ async function retrainProjectionModel(
   let cellFeaturesMap = new Map(); // to ensure order of insertion
   let cellElitesMap = new Map();
   for (const cellKey in cellFeatures) {
+    if( cellFeatures[cellKey][projectionFeatureType].features === undefined ) {
+      console.error(`Error: cellFeatures[${cellKey}] is undefined`);
+      continue; // TODO why this can happen is unexplained! - but it seems to only happen in map-switching configs?
+    }
     cellFeaturesMap.set(cellKey, cellFeatures[cellKey]);
     if (eliteMap.cells[cellKey].elts && eliteMap.cells[cellKey].elts.length) {
       cellElitesMap.set(cellKey, eliteMap.cells[cellKey].elts[0]);
@@ -2889,7 +2895,8 @@ async function retrainProjectionModel(
       dynamicComponents, featureIndices,
       tripletMarginMultiplier,
       useFeaturesDistance, featuresDistanceMetric, randomSeed,
-      learningRate, trainingEpochs, tripletFormationStrategy 
+      learningRate, trainingEpochs, tripletFormationStrategy,
+      eliteMap.eliteMapIndex
     ).catch(e => {
       console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`, e);
       cellFeaturesMap = null;
@@ -2940,7 +2947,8 @@ async function retrainProjectionModel(
     false, // shouldCalculateNovelty; we'll let the tracker handle this for now TODO
     dynamicComponents, featureIndices,
     tripletMarginMultiplier, useFeaturesDistance, featuresDistanceMetric, randomSeed,
-    learningRate, trainingEpochs, tripletFormationStrategy 
+    learningRate, trainingEpochs, tripletFormationStrategy,
+    eliteMap.eliteMapIndex
   ).catch(e => {
     console.error(`Error projecting diversity at generation ${eliteMap.generationNumber} for evolution run ${eliteMap._id}`, e);
     cellFeaturesMap = null;

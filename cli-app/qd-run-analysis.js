@@ -69,7 +69,7 @@ function calculateAveragePairwiseDistanceEuclidean(embeddings) {
   return sumDistances / pairCount;
 }
 
-function calculateCosineSimilarity(vectorA, vectorB) {
+export function calculateCosineSimilarity(vectorA, vectorB) {
   let dotProduct = 0;
   let normA = 0;
   let normB = 0;
@@ -321,8 +321,15 @@ export async function getDiversityFromAllDiscoveredElites(evoRunConfig, evoRunId
       try {
         const filename = featureFiles[i];
         const filePath = `${cellFeaturesPath}/${filename}`;
-        const content = fs.readFileSync(filePath, 'utf8');
-        const features = JSON.parse(content);
+        
+        // Handle both .json.gz and .json files
+        let features;
+        if (filename.endsWith('.json.gz')) {
+          features = readCompressedOrPlainJSON(filePath, null);
+        } else {
+          const content = fs.readFileSync(filePath, 'utf8');
+          features = JSON.parse(content);
+        }
 
         // Get feature extraction type from first valid file if not yet set
         if (!featureExtractionType && Object.keys(features).length > 0) {
@@ -374,17 +381,18 @@ export async function getDiversityFromAllDiscoveredElites(evoRunConfig, evoRunId
     // Second pass: collect features
     let processedCount = 0;
     for (const oneGenomeId of discoveredGenomeIds) {
-      const cellFeatureFilePath = `${cellFeaturesPath}/features_${evoRunId}_${oneGenomeId}.json`;
-      if (fs.existsSync(cellFeatureFilePath)) {
-        try {
-          const cellFeaturesString = fs.readFileSync(cellFeatureFilePath, 'utf8');
-          const features = JSON.parse(cellFeaturesString);
-          if (features[featureExtractionType]?.features) {
-            featureVectors.push(features[featureExtractionType].features);
-          }
-        } catch (error) {
-          console.warn(`Warning: Could not read features for genome ${oneGenomeId}:`, error.message);
+      const gzipPath = `${cellFeaturesPath}/features_${evoRunId}_${oneGenomeId}.json.gz`;
+      const plainPath = `${cellFeaturesPath}/features_${evoRunId}_${oneGenomeId}.json`;
+      
+      try {
+        // Use the utility function to read either gzipped or plain JSON
+        const features = readCompressedOrPlainJSON(gzipPath, plainPath);
+        
+        if (features && features[featureExtractionType]?.features) {
+          featureVectors.push(features[featureExtractionType].features);
         }
+      } catch (error) {
+        console.warn(`Warning: Could not read features for genome ${oneGenomeId}:`, error.message);
       }
 
       processedCount++;
@@ -417,6 +425,8 @@ export async function getDiversityFromAllDiscoveredElites(evoRunConfig, evoRunId
 
   return averagePairwiseDistance;
 }
+
+
 
 ///// QD score
 
@@ -2556,7 +2566,7 @@ export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, 
   process.exit();
 }
 
-async function getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList, terrainName ) {
+export async function getEliteMapFromRunConfig( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList, terrainName ) {
   const commitId = await getCommitID( evoRunConfig, evoRunId, iterationIndex, forceCreateCommitIdsList );
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const terrainSuffix = terrainName ? `_${terrainName}` : '';
@@ -2616,12 +2626,12 @@ async function getCommitID( evoRunConfig, evoRunId, iterationIndex, forceCreateC
   return commitId;
 }
 
-function getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath ) {
+export function getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath ) {
   const commitCount = parseInt(runCmd(`wc -l < ${commitIdsFilePath}`));
   return commitCount;
 }
 
-function getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, forceCreateCommitIdsList ) {
+export function getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, forceCreateCommitIdsList ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   return getCommitIdsFilePath( evoRunDirPath, forceCreateCommitIdsList );
 }

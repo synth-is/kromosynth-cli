@@ -56,6 +56,9 @@ import {
 	getEliteMapDiversityAtLastIteration, getEliteMapDiversityForAllIterations, getDiversityFromAllDiscoveredElites,
 	renderEliteMapsTimeline
 } from './qd-run-analysis.js';
+import {
+	getEnhancedDiversityMetrics, trackDiversityOverTime,
+} from './qd-run-analysis-enhanced.js'
 import { yamnetTags_non_musical, yamnetTags_musical } from './util/classificationTags.js';
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
@@ -1767,6 +1770,27 @@ async function qdAnalysis_evoRuns() {
 						const diversityFromAllDiscoveredElites = await getDiversityFromAllDiscoveredElites( evoRunConfig, evolutionRunId, true/* useDirectFeatureReading */ );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].diversityFromAllDiscoveredElites = diversityFromAllDiscoveredElites;
 						console.log(`Added diversity from all discovered elites to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
+					if( oneAnalysisOperation === "diversity-from-all-discovered-elites-enhanced" ) {
+						const diversityFromAllDiscoveredElitesEnhanced = await getEnhancedDiversityMetrics( 
+							evoRunConfig, evolutionRunId, true/* useDirectFeatureReading */ 
+							// ,
+							// {
+							// 	maxVectors: Infinity,               // Maximum number of vectors to process (sampling)
+							// 	distanceSamplingRatio: 1.0,     // For pairwise calculations, sample this ratio of all possible pairs
+							// 	skipExpensiveMetrics: false,    // Skip metrics that require O(n²) calculations
+							// 	memoryEfficientMode: true       // Use algorithms optimized for memory efficiency
+							// }
+						);
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].diversityFromAllDiscoveredElitesEnhanced = diversityFromAllDiscoveredElitesEnhanced;
+						console.log(`Added enhanced diversity metrics from all discovered elites to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+					}
+					if( oneAnalysisOperation === "diversity-over-time" ) {
+						const diversityOverTime = await trackDiversityOverTime( evoRunConfig, evolutionRunId, stepSize );
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].diversityOverTime = diversityOverTime;
+						console.log(`Added diversity over time to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 					}
 					if( oneAnalysisOperation === "diversity-measures" ) { // across all iterations
