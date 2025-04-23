@@ -1429,32 +1429,190 @@ export async function getGenomeCountsWithRenderingVariationsAsContainerDimension
 
 ///// network complexity
 
-export async function getGenomeStatisticsAveragedForAllIterations( evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction, maxIterationIndex ) {
-  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig( evoRunConfig, evoRunId, true );
-  const commitCount = getCommitCount( evoRunConfig, evoRunId, commitIdsFilePath );
+export async function getGenomeStatisticsAveragedForAllIterations(evoRunConfig, evoRunId, stepSize = 1, excludeEmptyCells, classRestriction, maxIterationIndex) {
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  const commitIdsFilePath = getCommitIdsFilePathFromRunConfig(evoRunConfig, evoRunId, true);
+  const commitCount = getCommitCount(evoRunConfig, evoRunId, commitIdsFilePath);
+  
+  // Prepare output array
   let genomeStatistics;
-  if( maxIterationIndex ) {
+  if (maxIterationIndex) {
     genomeStatistics = new Array(Math.ceil(maxIterationIndex / stepSize));
   } else {
     genomeStatistics = new Array(Math.ceil(commitCount / stepSize));
   }
-  for( let iterationIndex = 0, genomeStatisticsIndex = 0; iterationIndex < commitCount; iterationIndex+=stepSize, genomeStatisticsIndex++ ) {
-    const lastIteration = ((iterationIndex+stepSize) > commitCount);
-    if( iterationIndex % stepSize === 0 ) {
-      console.log(`Calculating genome statistics for iteration ${iterationIndex}...`);
-      genomeStatistics[genomeStatisticsIndex] = await getGenomeStatisticsAveragedForOneIteration(
-        evoRunConfig, evoRunId, iterationIndex,
-        excludeEmptyCells, classRestriction,
-        lastIteration
-      );
+  
+  console.log('First pass: collecting all unique genome IDs across all iterations...');
+  
+  // First pass: collect all unique genome IDs that appear in any iteration
+  const allUniqueGenomeIds = new Set();
+  
+  for (let iterationIndex = 0; iterationIndex < commitCount; iterationIndex += stepSize) {
+    if (maxIterationIndex && iterationIndex > maxIterationIndex) break;
+    
+    console.log(`Collecting genome IDs from iteration ${iterationIndex}...`);
+    const eliteMap = await getEliteMapFromRunConfig(evoRunConfig, evoRunId, iterationIndex);
+    const cellKeys = getCellKeys(eliteMap, excludeEmptyCells, classRestriction);
+    
+    for (const oneCellKey of cellKeys) {
+      if (eliteMap.cells[oneCellKey].elts.length) {
+        allUniqueGenomeIds.add(eliteMap.cells[oneCellKey].elts[0].g);
+      }
     }
-    if( maxIterationIndex && maxIterationIndex < iterationIndex ) break;
   }
+  
+  console.log(`Found ${allUniqueGenomeIds.size} unique genomes across all iterations`);
+  
+  // Second pass: pre-calculate stats for all unique genomes
+  console.log('Second pass: pre-calculating statistics for all unique genomes...');
+  const genomeStatsCache = new Map();
+  
+  let processedCount = 0;
+  for (const genomeId of allUniqueGenomeIds) {
+    try {
+      const stats = await getGenomeStatistics(genomeId, evoRunConfig, evoRunId);
+      genomeStatsCache.set(genomeId, stats);
+      
+      processedCount++;
+      if (processedCount % 100 === 0) {
+        console.log(`Processed statistics for ${processedCount}/${allUniqueGenomeIds.size} genomes...`);
+      }
+    } catch (error) {
+      console.warn(`Warning: Could not process genome ${genomeId}: ${error.message}`);
+    }
+  }
+  
+  // Third pass: calculate per-iteration statistics using the cached data
+  console.log('Third pass: calculating statistics for each iteration using cached data...');
+  
+  for (let iterationIndex = 0, genomeStatisticsIndex = 0; iterationIndex < commitCount; iterationIndex += stepSize, genomeStatisticsIndex++) {
+    if (maxIterationIndex && iterationIndex > maxIterationIndex) break;
+    
+    const lastIteration = (iterationIndex + stepSize) > commitCount;
+    
+    if (iterationIndex % stepSize === 0) {
+      console.log(`Calculating genome statistics for iteration ${iterationIndex} using cached data...`);
+      
+      // Get the elite map for this iteration
+      const eliteMap = await getEliteMapFromRunConfig(evoRunConfig, evoRunId, iterationIndex);
+      const cellKeys = getCellKeys(eliteMap, excludeEmptyCells, classRestriction);
+      const cellCount = getCellCount(eliteMap, excludeEmptyCells, classRestriction);
+      
+      // Calculate statistics from cached data
+      const result = calculateStatisticsFromCache(
+        eliteMap, cellKeys, cellCount, genomeStatsCache, 
+        lastIteration  // Only calculate node type statistics for the last iteration
+      );
+      
+      genomeStatistics[genomeStatisticsIndex] = result;
+    }
+  }
+  
+  // Save the results
   const genomeStatisticsStringified = JSON.stringify(genomeStatistics);
-  const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const genomeStatisticsFilePath = `${evoRunDirPath}genome-statistics_step-${stepSize}.json`;
-  fs.writeFileSync( genomeStatisticsFilePath, genomeStatisticsStringified );
+  fs.writeFileSync(genomeStatisticsFilePath, genomeStatisticsStringified);
+  
   return genomeStatistics;
+}
+
+// Helper function to calculate statistics using cached genome data
+function calculateStatisticsFromCache(eliteMap, cellKeys, cellCount, genomeStatsCache, calculateNodeTypeStatistics = false) {
+  // Initialize accumulators and arrays for statistics
+  const cppnCounts = [];
+  let cumulativeCppnCounts = 0;
+  const cppnNodeCounts = [];
+  let cumulativeCppnNodeCount = 0;
+  const cppnConnectionCounts = [];
+  let cumulativeCppnConnectionCount = 0;
+  const asNEATPatchNodeCounts = [];
+  let cumulativeAsNEATPatchNodeCount = 0;
+  const asNEATPatchConnectionCounts = [];
+  let cumulativeAsNEATPatchConnectionCount = 0;
+  const networkOutputsCounts = [];
+  let cumulativeNetworkOutputsCount = 0;
+  const frequencyRangesCounts = [];
+  let cumulativeFrequencyRangesCount = 0;
+
+  const cppNodeTypeCountObjects = [];
+  const asNEATPatchNodeTypeCountObjects = [];
+  
+  // Process each cell
+  for (const oneCellKey of cellKeys) {
+    if (eliteMap.cells[oneCellKey].elts.length) {
+      const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
+      
+      // Use the cached statistics
+      if (genomeStatsCache.has(genomeId)) {
+        const stats = genomeStatsCache.get(genomeId);
+        
+        cppnCounts.push(stats.cppnCount);
+        cumulativeCppnCounts += stats.cppnCount;
+        
+        cppnNodeCounts.push(stats.cppnNodeCount);
+        cumulativeCppnNodeCount += stats.cppnNodeCount;
+        
+        cppnConnectionCounts.push(stats.cppnConnectionCount);
+        cumulativeCppnConnectionCount += stats.cppnConnectionCount;
+        
+        asNEATPatchNodeCounts.push(stats.asNEATPatchNodeCount);
+        cumulativeAsNEATPatchNodeCount += stats.asNEATPatchNodeCount;
+        
+        asNEATPatchConnectionCounts.push(stats.asNEATPatchConnectionCount);
+        cumulativeAsNEATPatchConnectionCount += stats.asNEATPatchConnectionCount;
+        
+        networkOutputsCounts.push(stats.networkOutputsCount);
+        cumulativeNetworkOutputsCount += stats.networkOutputsCount;
+        
+        frequencyRangesCounts.push(stats.frequencyRangesCount);
+        cumulativeFrequencyRangesCount += stats.frequencyRangesCount;
+        
+        // Only collect node type data if needed
+        if (calculateNodeTypeStatistics && stats.nodeTypeStats) {
+          cppNodeTypeCountObjects.push(stats.nodeTypeStats.cppnNodeTypeCounts);
+          asNEATPatchNodeTypeCountObjects.push(stats.nodeTypeStats.asNEATPatchNodeTypeCounts);
+        }
+      }
+    }
+  }
+  
+  // Calculate statistics
+  const cppnCount = cumulativeCppnCounts / cellCount;
+  const cppnCountStdDev = calcStandardDeviation(cppnCounts);
+  const cppnNodeCountStdDev = calcStandardDeviation(cppnNodeCounts);
+  const averageCppnNodeCount = cumulativeCppnNodeCount / cellCount;
+  const cppnConnectionCountStdDev = calcStandardDeviation(cppnConnectionCounts);
+  const averageCppnConnectionCount = cumulativeCppnConnectionCount / cellCount;
+  const asNEATPatchNodeCountStdDev = calcStandardDeviation(asNEATPatchNodeCounts);
+  const averageAsNEATPatchNodeCount = cumulativeAsNEATPatchNodeCount / cellCount;
+  const asNEATPatchConnectionCountStdDev = calcStandardDeviation(asNEATPatchConnectionCounts);
+  const averageAsNEATPatchConnectionCount = cumulativeAsNEATPatchConnectionCount / cellCount;
+  const networkOutputsCountStdDev = calcStandardDeviation(networkOutputsCounts);
+  const averageNetworkOutputsCount = cumulativeNetworkOutputsCount / cellCount;
+  const frequencyRangesCountStdDev = calcStandardDeviation(frequencyRangesCounts);
+  const averageFrequencyRangesCount = cumulativeFrequencyRangesCount / cellCount;
+
+  // Handle node type statistics
+  let cppnNodeTypeCounts;
+  let asNEATPatchNodeTypeCounts;
+  let cppnNodeTypeCountsStdDev;
+  let asNEATPatchNodeTypeCountsStdDev;
+  
+  if (calculateNodeTypeStatistics && cppNodeTypeCountObjects.length > 0) {
+    cppnNodeTypeCounts = averageAttributes(cppNodeTypeCountObjects);
+    asNEATPatchNodeTypeCounts = averageAttributes(asNEATPatchNodeTypeCountObjects);
+    cppnNodeTypeCountsStdDev = standardDeviationAttributes(cppNodeTypeCountObjects);
+    asNEATPatchNodeTypeCountsStdDev = standardDeviationAttributes(asNEATPatchNodeTypeCountObjects);
+  }
+
+  return {
+    cppnCount, cppnCountStdDev,
+    cppnNodeCountStdDev, cppnConnectionCountStdDev, asNEATPatchNodeCountStdDev, asNEATPatchConnectionCountStdDev,
+    averageCppnNodeCount, averageCppnConnectionCount, averageAsNEATPatchNodeCount, averageAsNEATPatchConnectionCount,
+    averageNetworkOutputsCount, averageFrequencyRangesCount, networkOutputsCountStdDev, frequencyRangesCountStdDev,
+    cppnNodeTypeCounts, asNEATPatchNodeTypeCounts,
+    cppnNodeTypeCountsStdDev, asNEATPatchNodeTypeCountsStdDev
+  };
 }
 
 export async function getGenomeStatisticsAveragedForOneIteration( 
@@ -1609,11 +1767,13 @@ async function getGenomeStatistics( genomeId, evoRunConfig, evoRunId ) {
     uniqueRoundedFrequencies.add(roundedFrequency);
   });
 
+  const nodeTypeStats = await getGenomeNodeTypeStatistics(genomeId, evoRunConfig, evoRunId);
 
   return { 
     cppnCount,
     cppnNodeCount: averageCppnNodeCount, cppnConnectionCount: averageCppnConnectionCount, asNEATPatchNodeCount, asNEATPatchConnectionCount,
-    networkOutputsCount: uniqueNetworkOutputs.size, frequencyRangesCount: uniqueRoundedFrequencies.size
+    networkOutputsCount: uniqueNetworkOutputs.size, frequencyRangesCount: uniqueRoundedFrequencies.size,
+    nodeTypeStats
   };
 }
 
