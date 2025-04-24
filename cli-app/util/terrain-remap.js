@@ -22,6 +22,15 @@ export async function mapEliteMapToMapWithDifferentBDs(
   useGPU,
   sampleRate
 ) {
+
+  const evoRunDirPathSeparator = evoRunDirPath.endsWith('/') ? '' : '/';
+  const eliteMapFileName = `${getEliteMapKey(evolutionRunId, terrainNameTo)}.json`;
+  const eliteMapFilePath = `${evoRunDirPath}${evoRunDirPathSeparator}${eliteMapFileName}`;
+  if (fs.existsSync(eliteMapFilePath)) {
+    console.log(`Elite map file already exists at path: ${eliteMapFilePath}`);
+    return;
+  }
+
   // doing similar things as in getFeaturesAndScoresForGenomeIds ... and even getFeaturesAndScoresFromEliteMap
   // - but but not reusing those completely, as there are some idiosyncrasies
   const eliteMap = readEliteMapFromDisk( evolutionRunId, evoRunDirPath, terrainNameFrom );

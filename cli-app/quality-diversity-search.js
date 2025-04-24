@@ -470,7 +470,7 @@ export async function runCoreEvolution(
   // - gc will be triggered manually at regular intervals below
 // TODO temporarily commenting out:  runCmd('git config --global gc.auto 0');
 // ... turn on
-runCmd('git config --global gc.auto 1');
+// runCmd('git config --global gc.auto 1');
 
 
   let seedFeaturesAndScores = [];

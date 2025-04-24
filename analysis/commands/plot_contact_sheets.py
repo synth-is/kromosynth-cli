@@ -84,7 +84,7 @@ def make_contact_sheet(files, output_name, thumbnail_size, margin, cols):
         x += thumbnail_size[0] + margin
         if x + thumbnail_size[0] > page_width - margin:
             x = margin
-            y -= thumbnail_size[1] + margin + (len(wrapped_lines) * 12) + 10  # Adjusted additional spacing
+            y -= thumbnail_size[1] + margin + (len(wrapped_lines) * 12) + 80  # Adjusted additional spacing
 
     c.save()
 
