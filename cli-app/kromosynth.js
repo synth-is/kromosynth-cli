@@ -632,6 +632,9 @@ const cli = meow(`
 			type: 'string',
 			default: ''
 		},
+		lineageDataFile: {
+			type: 'string'
+		},
 	}
 });
 
@@ -1620,7 +1623,7 @@ async function qdAnalysis_evoRuns() {
   const evoRunsConfig = getEvolutionRunsConfig();
   const {
     analysisOperations, stepSize, scoreThreshold, uniqueGenomes, excludeEmptyCells, classRestriction, maxIterationIndex, 
-    writeToFolder, terrainName
+    writeToFolder, terrainName, lineageDataFile
   } = cli.flags;
   const analysisOperationsList = analysisOperations.split(",");
   let classRestrictionList;
@@ -1638,48 +1641,75 @@ async function qdAnalysis_evoRuns() {
     analysisResultFilePath = `${writeToFolder}/evolution-run-analysis_${analysisOperationsList}${terrainName ? '_terrain-'+terrainName : ''}_step-${stepSize}${scoreThreshold ? '_thrshld_'+scoreThreshold:''}_${Date.now()}.json`;
   }
   
+  // Read lineage data from file if provided
+  let lineageData;
+  if (lineageDataFile) {
+    try {
+      lineageData = JSON.parse(fs.readFileSync(lineageDataFile, 'utf8'));
+      console.log(`Loaded lineage data from ${lineageDataFile}`);
+    } catch (error) {
+      console.error(`Error reading lineage data file: ${error}`);
+    }
+  }
+  
   // Collect run IDs for phylogenetic comparison if needed
   const runIdsForComparison = [];
   
   for (let currentEvolutionRunIndex = 0; currentEvolutionRunIndex < evoRunsConfig.evoRuns.length; currentEvolutionRunIndex++) {
-    const currentEvoConfig = evoRunsConfig.evoRuns[currentEvolutionRunIndex];
-    for (let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++) {
-      let { id: evolutionRunId } = currentEvoConfig.iterations[currentEvolutionRunIteration];
-      if (evolutionRunId) {
-        const evoRunConfigMain = getEvolutionRunConfig(evoRunsConfig.baseEvolutionRunConfigFile);
-        const evoRunConfigDiff = getEvolutionRunConfig(currentEvoConfig.diffEvolutionRunConfigFile);
-        const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
+		const currentEvoConfig = evoRunsConfig.evoRuns[currentEvolutionRunIndex];
+		for (let currentEvolutionRunIteration = 0; currentEvolutionRunIteration < currentEvoConfig.iterations.length; currentEvolutionRunIteration++) {
+			let { id: evolutionRunId } = currentEvoConfig.iterations[currentEvolutionRunIteration];
+			if (evolutionRunId) {
+			const evoRunConfigMain = getEvolutionRunConfig(evoRunsConfig.baseEvolutionRunConfigFile);
+			const evoRunConfigDiff = getEvolutionRunConfig(currentEvoConfig.diffEvolutionRunConfigFile);
+			const evoRunConfig = {...evoRunConfigMain, ...evoRunConfigDiff};
 
-        const evoParamsMain = getEvoParams(evoRunsConfig.baseEvolutionaryHyperparametersFile);
-        const evoParamsDiff = getEvoParams(currentEvoConfig.diffEvolutionaryHyperparametersFile);
-        const evoParams = merge(evoParamsMain, evoParamsDiff);
-        
-        // Add this run ID to the comparison list if needed
-        if (analysisOperationsList.includes("phylogenetic-comparison")) {
-          runIdsForComparison.push(evolutionRunId);
-        }
+			const evoParamsMain = getEvoParams(evoRunsConfig.baseEvolutionaryHyperparametersFile);
+			const evoParamsDiff = getEvoParams(currentEvoConfig.diffEvolutionaryHyperparametersFile);
+			const evoParams = merge(evoParamsMain, evoParamsDiff);
+			
+			// Add this run ID to the comparison list if needed
+			if (analysisOperationsList.includes("phylogenetic-comparison")) {
+				runIdsForComparison.push(evolutionRunId);
+			}
 
-				let lineage;
-				if( analysisOperationsList.some(op => 
-					[
-						"lineage",
-						"phylogenetic-metrics",
-						"phylogenetic-metrics-over-time",
-						"terrain-transitions",
-						"density-dependence",
-						"phylogenetic-report",
-						"phylogenetic-comparison"
-					].includes(op)
-				)) {
-					lineage = await getLineageGraphData( evoRunConfig, evolutionRunId, stepSize );
+			let lineage;
+			if (
+				analysisOperationsList.some(op =>
+				[
+					"lineage",
+					"phylogenetic-metrics",
+					"phylogenetic-metrics-over-time",
+					"terrain-transitions",
+					"density-dependence",
+					"phylogenetic-report",
+					"phylogenetic-comparison"
+				].includes(op)
+				)
+			) {
+				if (lineageData) {
+				// Use lineage data from file if available
+				if (
+					lineageData.evoRuns &&
+					lineageData.evoRuns[currentEvolutionRunIndex] &&
+					lineageData.evoRuns[currentEvolutionRunIndex].iterations &&
+					lineageData.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration]
+				) {
+					lineage = lineageData.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].lineage;
+				} else {
+					lineage = undefined;
 				}
+				} else {
+				lineage = await getLineageGraphData(evoRunConfig, evolutionRunId, stepSize);
+				}
+			}
 
-        for (const oneAnalysisOperation of analysisOperationsList) {
-          const classLabels = await getClassLabels(evoRunConfig, evolutionRunId);
-          evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].classLabels = classLabels;
- 
-          // Add phylogenetic analysis operations
-          if (oneAnalysisOperation === "phylogenetic-metrics") {
+			for (const oneAnalysisOperation of analysisOperationsList) {
+				const classLabels = await getClassLabels(evoRunConfig, evolutionRunId);
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].classLabels = classLabels;
+	 
+				// Add phylogenetic analysis operations
+				if (oneAnalysisOperation === "phylogenetic-metrics") {
             console.log(`Running phylogenetic metrics analysis for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
             
             // Run basic phylogenetic analysis (no visualization to save time)
@@ -1687,7 +1717,7 @@ async function qdAnalysis_evoRuns() {
               visualize: true,
               trackOverTime: false,
               stepSize: stepSize,
-              report: true
+              report: false
             };
             
             try {
