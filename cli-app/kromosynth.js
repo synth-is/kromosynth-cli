@@ -84,12 +84,29 @@ import {
 	comparePhylogeneticMetricsAcrossConfigurations 
 } from './phylogenetic-analysis-cli.js';
 
+import { 
+	analyzeFoundersAndInnovations,
+	findConcreteSteppingStoneExamples,
+	calculateNormalizedFounderImpact,
+	calculateQualityImprovementFactors,
+	calculateClassDiscoveryRates,
+	analyzeInnovationBurstPatterns,
+	findAllDescendants
+} from './founder-innovation-analysis.js';
+
+import {
+  aggregateEnhancedFounderInnovationMetrics,
+  aggregateTimelineData,
+  aggregateEnhancedPhylogeneticMetrics
+} from './enhanced-metrics-aggregation.js';
+
 import {
   analyzePhylogeneticTreeMetrics,
   trackPhylogeneticMetricsOverTime,
   analyzeTerrainTransitions,
   analyzeDensityDependence,
-  generatePhylogeneticReport
+  generatePhylogeneticReport,
+	createFounderDashboard
 } from './qd-run-analysis.js';
 
 import { mean, median, variance, std, map } from 'mathjs'
@@ -1683,7 +1700,9 @@ async function qdAnalysis_evoRuns() {
 					"terrain-transitions",
 					"density-dependence",
 					"phylogenetic-report",
-					"phylogenetic-comparison"
+					"phylogenetic-comparison",
+					"enhanced-phylogenetic-metrics","enhanced-phylogenetic-metrics-over-time","phylogenetic-configuration-comparison",
+					"founder-innovation"
 				].includes(op)
 				)
 			) {
@@ -1707,6 +1726,88 @@ async function qdAnalysis_evoRuns() {
 			for (const oneAnalysisOperation of analysisOperationsList) {
 				const classLabels = await getClassLabels(evoRunConfig, evolutionRunId);
 				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].classLabels = classLabels;
+
+
+				// "enhanced-phylogenetic-metrics","enhanced-phylogenetic-metrics-over-time","phylogenetic-configuration-comparison"
+				await enhancedQdAnalysisEvoRuns(oneAnalysisOperation, evoRunsAnalysis, currentEvolutionRunIndex, currentEvolutionRunIteration, evoRunConfig, evolutionRunId, lineage);
+				writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+
+				if (oneAnalysisOperation === "founder-innovation") {
+					console.log(`Analyzing founder genomes and innovation bursts for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+					
+					// Perform the analysis
+					const founderInnovationAnalysis = await analyzeFoundersAndInnovations(
+						evoRunConfig, evolutionRunId, lineage, false // Don't save separate file
+					);
+					
+					// Store in the analysis results
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].founderInnovation = founderInnovationAnalysis;
+					console.log(`Added founder and innovation analysis to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+					writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+					
+					// Find concrete stepping stone examples
+					const steppingStones = findConcreteSteppingStoneExamples(lineage);
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].steppingStones = steppingStones;
+					console.log(`Added concrete stepping stone examples to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+					writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+
+					if( cli.flags.generateDashboard ) {
+						await createFounderDashboard(evoRunConfig, evolutionRunId, founderInnovationAnalysis);
+					}
+
+					// Calculate enhanced metrics if we have valid founder and innovation data
+					if (evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].founderInnovation) {
+						console.log(`Enhancing founder and innovation analysis for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+						const iteration = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration];
+						const founderInnovation = iteration.founderInnovation;
+						
+						// Only proceed if we have valid lineage and founder data
+						if (lineage && founderInnovation.topFounders && founderInnovation.topFounders.length > 0) {
+							// Calculate enhanced metrics
+							const normalizedFounders = calculateNormalizedFounderImpact(
+								lineage, 
+								founderInnovation.topFounders
+							);
+							
+							const founderIdToDescendants = {};
+							founderInnovation.topFounders.map((founder) => {
+								const founderId = founder.id;
+								const descendants = findAllDescendants(lineage, founderId);
+								founderIdToDescendants[founderId] = descendants;
+							});
+
+							const qualityFounders = calculateQualityImprovementFactors(
+								lineage, 
+								founderInnovation.topFounders,
+								founderIdToDescendants
+							);
+							
+							const discoveryRateFounders = calculateClassDiscoveryRates(
+								lineage, 
+								founderInnovation.topFounders,
+								founderIdToDescendants
+							);
+							
+							const burstPatterns = analyzeInnovationBurstPatterns(
+								lineage, 
+								founderInnovation.innovationBursts
+							);
+							
+							// Add enhanced metrics to the results
+							evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].enhancedFounderInnovation = {
+								normalizedFounders: normalizedFounders.slice(0, 5), // Top 5 by normalized impact
+								qualityFounders: qualityFounders.slice(0, 5), // Top 5 by quality improvement
+								discoveryRateFounders: discoveryRateFounders.slice(0, 5), // Top 5 by discovery rate
+								burstPatterns
+							};
+							
+							console.log(`Added enhanced founder metrics to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+							writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+						}
+					}
+
+				}
+
 	 
 				// Add phylogenetic analysis operations
 				if (oneAnalysisOperation === "phylogenetic-metrics") {
@@ -1714,7 +1815,7 @@ async function qdAnalysis_evoRuns() {
             
             // Run basic phylogenetic analysis (no visualization to save time)
             const options = {
-              visualize: true,
+              visualize: false,
               trackOverTime: false,
               stepSize: stepSize,
               report: false
@@ -2433,11 +2534,320 @@ async function qdAnalysis_evoRuns() {
 
 				writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
 			}
+			/**
+			 * aggregation for founder-innovation analysis
+			 */
+			if (oneAnalysisOperation === "founder-innovation") {
+				console.log("aggregating founder and innovation metrics for evolution run #", currentEvolutionRunIndex, "...");
+				
+				// Helper function to calculate statistics from an array of values
+				function calculateStats(values) {
+					if (!values || values.length === 0) {
+						return { mean: 0, variance: 0, stdDev: 0 };
+					}
+					
+					const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+					
+					// Calculate variance
+					const variance = values.length > 1 ? 
+						values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length : 0;
+					
+					// Calculate standard deviation
+					const stdDev = Math.sqrt(variance);
+					
+					return { mean, variance, stdDev };
+				}
+				
+				// Filter out iterations without valid data
+				const validIterations = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations
+					.filter(iter => iter.founderInnovation && iter.founderInnovation.topFounders && iter.founderInnovation.topFounders.length > 0);
+				
+				// Extract data arrays for statistical calculations
+				const founderScores = validIterations
+					.map(iter => iter.founderInnovation.topFounders[0].founderScore);
+					
+				const founderDescendantCounts = validIterations
+					.map(iter => iter.founderInnovation.topFounders[0].descendantCount);
+					
+				const founderClassCounts = validIterations
+					.map(iter => iter.founderInnovation.topFounders[0].uniqueClassCount || 1);
+				
+				// Get burst data from valid iterations
+				const validBurstIterations = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations
+					.filter(iter => 
+						iter.founderInnovation && 
+						iter.founderInnovation.innovationBursts && 
+						iter.founderInnovation.innovationBursts.topBursts && 
+						iter.founderInnovation.innovationBursts.topBursts.length > 0
+					);
+					
+				const burstMagnitudes = validBurstIterations
+					.map(iter => iter.founderInnovation.innovationBursts.topBursts[0].burstMagnitude);
+					
+				const burstCounts = validBurstIterations
+					.map(iter => iter.founderInnovation.innovationBursts.topBursts.length);
+				
+				// Get stepping stone data
+				const validSteppingStoneIterations = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations
+					.filter(iter => iter.steppingStones && iter.steppingStones.length > 0);
+					
+				const steppingStoneScores = validSteppingStoneIterations
+					.map(iter => iter.steppingStones[0].steppingStoneScore);
+					
+				const steppingStoneDescendantCounts = validSteppingStoneIterations
+					.map(iter => iter.steppingStones[0].descendantCount);
+				
+				// Calculate statistics for each metric
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["founderInnovation"] = {
+					founders: {
+						// Top founder score statistics
+						topFounderScore: calculateStats(founderScores),
+						
+						// Descendant count statistics
+						descendantCount: calculateStats(founderDescendantCounts),
+						
+						// Unique class count statistics
+						uniqueClassCount: calculateStats(founderClassCounts)
+					},
+					
+					bursts: {
+						// Burst magnitude statistics
+						burstMagnitude: calculateStats(burstMagnitudes),
+						
+						// Burst count statistics
+						burstCount: calculateStats(burstCounts)
+					},
+					
+					steppingStones: {
+						// Stepping stone score statistics
+						steppingStoneScore: calculateStats(steppingStoneScores),
+						
+						// Stepping stone descendant count statistics
+						descendantCount: calculateStats(steppingStoneDescendantCounts)
+					}
+				};
+				
+				// Calculate innovation potential score across iterations (composite score)
+				const innovationPotentialScores = validIterations.map(iter => {
+					const topFounder = iter.founderInnovation.topFounders[0] || { founderScore: 0 };
+					const topBurst = iter.founderInnovation.innovationBursts.topBursts[0] || { burstMagnitude: 0 };
+					const terrainAdaptability = topFounder.uniqueTerrainCount || 1;
+					
+					// Rough approximation of extinction rate
+					const totalLineages = iter.founderInnovation.topFounders.reduce(
+						(sum, founder) => sum + (founder.descendantCount || 0), 0
+					);
+					const extinctionRate = totalLineages > 0 ? 
+						1 - (iter.founderInnovation.topFounders.length / totalLineages) : 0.5;
+					
+					// Calculate innovation potential score
+					return (topBurst.burstMagnitude * terrainAdaptability) / Math.max(0.1, extinctionRate);
+				});
+				
+				// Add composite metrics
+				evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["founderInnovation"]["compositeMetrics"] = {
+					innovationPotential: calculateStats(innovationPotentialScores)
+				};
+				
+				writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+
+
+
+				////// enhanced:
+
+				console.log("aggregating enhanced founder and innovation metrics for evolution run #", currentEvolutionRunIndex, "...");
+  
+				// Initialize enhanced metrics section if it doesn't exist
+				if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]) {
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"] = {};
+				}
+				
+				// Get valid iterations with enhanced founder innovation metrics
+				const validEnhancedIterations = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations
+					.filter(iter => 
+						iter.enhancedFounderInnovation && 
+						iter.enhancedFounderInnovation.normalizedFounders && 
+						iter.enhancedFounderInnovation.normalizedFounders.length > 0);
+				
+				if (validEnhancedIterations.length > 0) {
+					// --- Normalized Founder Metrics ---
+					const normalizedImpactScores = validEnhancedIterations
+						.map(iter => iter.enhancedFounderInnovation.normalizedFounders[0].normalizedImpact);
+					
+					const effectiveGenerations = validEnhancedIterations
+						.map(iter => iter.enhancedFounderInnovation.normalizedFounders[0].effectiveGenerations);
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["normalizedFounderImpact"] = {
+						mean: mean(normalizedImpactScores),
+						variance: variance(normalizedImpactScores),
+						stdDev: std(normalizedImpactScores)
+					};
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["effectiveGenerations"] = {
+						mean: mean(effectiveGenerations),
+						variance: variance(effectiveGenerations),
+						stdDev: std(effectiveGenerations)
+					};
+					
+					// --- Quality Improvement Metrics ---
+					const qualityImprovementScores = validEnhancedIterations
+						.map(iter => iter.enhancedFounderInnovation.qualityFounders[0].qualityImprovement);
+					
+					const avgQualityImprovementScores = validEnhancedIterations
+						.map(iter => iter.enhancedFounderInnovation.qualityFounders[0].avgQualityImprovement);
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["qualityImprovement"] = {
+						mean: mean(qualityImprovementScores),
+						variance: variance(qualityImprovementScores),
+						stdDev: std(qualityImprovementScores)
+					};
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["avgQualityImprovement"] = {
+						mean: mean(avgQualityImprovementScores),
+						variance: variance(avgQualityImprovementScores),
+						stdDev: std(avgQualityImprovementScores)
+					};
+					
+					// --- Class Discovery Rate Metrics ---
+					const classDiscoveryRates = validEnhancedIterations
+						.map(iter => iter.enhancedFounderInnovation.discoveryRateFounders[0].classDiscoveryRate);
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["classDiscoveryRate"] = {
+						mean: mean(classDiscoveryRates),
+						variance: variance(classDiscoveryRates),
+						stdDev: std(classDiscoveryRates)
+					};
+					
+					// --- Burst Pattern Metrics ---
+					// Aggregate burst distribution across run segments
+					const burstDistributions = validEnhancedIterations
+						.map(iter => iter.enhancedFounderInnovation.burstPatterns.burstDistribution);
+					
+					const burstStrengthTrends = validEnhancedIterations
+						.map(iter => iter.enhancedFounderInnovation.burstPatterns.burstStrengthTrend);
+					
+					const avgBurstGaps = validEnhancedIterations
+						.map(iter => iter.enhancedFounderInnovation.burstPatterns.averageBurstGap);
+					
+					const maxBurstGaps = validEnhancedIterations
+						.map(iter => iter.enhancedFounderInnovation.burstPatterns.maxBurstGap);
+					
+					const magnitudeCorrelations = validEnhancedIterations
+						.map(iter => iter.enhancedFounderInnovation.burstPatterns.magnitudeToNewClassesCorrelation);
+					
+					const lateDiscoveryScores = validEnhancedIterations
+						.map(iter => iter.enhancedFounderInnovation.burstPatterns.lateDiscoveryScore);
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["burstDistribution"] = {
+						mean: mean(burstDistributions),
+						variance: variance(burstDistributions),
+						stdDev: std(burstDistributions)
+					};
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["burstStrengthTrend"] = {
+						mean: mean(burstStrengthTrends),
+						variance: variance(burstStrengthTrends),
+						stdDev: std(burstStrengthTrends)
+					};
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["averageBurstGap"] = {
+						mean: mean(avgBurstGaps),
+						variance: variance(avgBurstGaps),
+						stdDev: std(avgBurstGaps)
+					};
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["maxBurstGap"] = {
+						mean: mean(maxBurstGaps),
+						variance: variance(maxBurstGaps),
+						stdDev: std(maxBurstGaps)
+					};
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["magnitudeToNewClassesCorrelation"] = {
+						mean: mean(magnitudeCorrelations),
+						variance: variance(magnitudeCorrelations),
+						stdDev: std(magnitudeCorrelations)
+					};
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["lateDiscoveryScore"] = {
+						mean: mean(lateDiscoveryScores),
+						variance: variance(lateDiscoveryScores),
+						stdDev: std(lateDiscoveryScores)
+					};
+					
+					// --- Composite Metrics ---
+					// Calculate exploration-exploitation balance
+					const explorationExploitationBalance = validEnhancedIterations.map(iter => {
+						const topFounder = iter.enhancedFounderInnovation.normalizedFounders[0];
+						const lateDiscovery = iter.enhancedFounderInnovation.burstPatterns.lateDiscoveryScore;
+						const classRate = iter.enhancedFounderInnovation.discoveryRateFounders[0].classDiscoveryRate;
+						
+						// Higher score indicates better balance between exploration and exploitation
+						return (topFounder.normalizedImpact * classRate * (1 + lateDiscovery)) / 1000;
+					});
+					
+					// Calculate adaption capacity
+					const adaptationCapacity = validEnhancedIterations.map(iter => {
+						const qualityImprovement = iter.enhancedFounderInnovation.qualityFounders[0].qualityImprovement;
+						const burstGap = iter.enhancedFounderInnovation.burstPatterns.averageBurstGap;
+						
+						// Higher adaptation capacity means better ability to shift to new areas
+						return qualityImprovement * (1 / Math.max(1, burstGap/100));
+					});
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["explorationExploitationBalance"] = {
+						mean: mean(explorationExploitationBalance),
+						variance: variance(explorationExploitationBalance),
+						stdDev: std(explorationExploitationBalance)
+					};
+					
+					evoRunsAnalysis.evoRuns[currentEvolutionRunIndex]["aggregates"]["enhancedFounderInnovation"]["adaptationCapacity"] = {
+						mean: mean(adaptationCapacity),
+						variance: variance(adaptationCapacity),
+						stdDev: std(adaptationCapacity)
+					};
+					
+					console.log(`Added enhanced founder and innovation aggregates to evolution run #${currentEvolutionRunIndex}`);
+				} else {
+					console.log(`No valid enhanced founder and innovation data for evolution run #${currentEvolutionRunIndex}`);
+				}
+
+				aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList);
+				
+				writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+			}
+
+
+
+			if (analysisOperationsList.includes("founder-innovation")) {
+				console.log(`Aggregating enhanced metrics for evolution run #${currentEvolutionRunIndex}...`);
+				
+				// Aggregate founder and innovation metrics
+				aggregateEnhancedFounderInnovationMetrics(evoRunsAnalysis, currentEvolutionRunIndex);
+				
+				// Aggregate timeline data at key checkpoints
+				aggregateTimelineData(evoRunsAnalysis, currentEvolutionRunIndex);
+				
+				console.log(`Enhanced metrics aggregation complete for evolution run #${currentEvolutionRunIndex}`);
+				writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+			}
+			
+			// Similarly, for phylogenetic metrics
+			if (analysisOperationsList.includes("phylogenetic-metrics") || 
+					analysisOperationsList.includes("terrain-transitions") || 
+					analysisOperationsList.includes("density-dependence")) {
+				
+				console.log(`Aggregating enhanced phylogenetic metrics for evolution run #${currentEvolutionRunIndex}...`);
+				
+				// Aggregate enhanced phylogenetic metrics
+				aggregateEnhancedPhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex);
+				
+				console.log(`Enhanced phylogenetic metrics aggregation complete for evolution run #${currentEvolutionRunIndex}`);
+				writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+			}
+			
+
 		}
 	}
-
-	// Aggregate metrics for this evolution run
-	aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList);
 
   // Run comparison between all runs if requested
   if (analysisOperationsList.includes("phylogenetic-comparison") && runIdsForComparison.length > 1) {
@@ -2474,6 +2884,95 @@ async function qdAnalysis_evoRuns() {
   
   return evoRunsAnalysis;
 }
+
+///// Enhanced Phylogenetic Metrics Analysis
+
+import { analyzeEnhancedPhylogeneticMetrics, trackEnhancedPhylogeneticMetricsOverTime
+	// , compareConfigurationVariants 
+} from './qd-run-analysis.js';
+
+async function enhancedQdAnalysisEvoRuns(oneAnalysisOperation, evoRunsAnalysis, currentEvolutionRunIndex, currentEvolutionRunIteration, evoRunConfig, evolutionRunId, lineage) {
+  // This would go in the qdAnalysis_evoRuns function in kromosynth.js
+  if (oneAnalysisOperation === "enhanced-phylogenetic-metrics") {
+    console.log(`Running enhanced phylogenetic metrics analysis for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+    
+    // Run enhanced phylogenetic analysis
+    const options = {
+      saveResults: true
+    };
+    
+    try {
+      const { metrics } = await analyzeEnhancedPhylogeneticMetrics(evoRunConfig, evolutionRunId, lineage, true);
+      evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].enhancedPhylogeneticMetrics = metrics;
+      console.log(`Added enhanced phylogenetic metrics to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+      
+      // Save to file here or later
+    } catch (error) {
+      console.error(`Error running enhanced phylogenetic analysis for ${evolutionRunId}:`, error);
+    }
+  }
+  
+  if (oneAnalysisOperation === "enhanced-phylogenetic-metrics-over-time") {
+    console.log(`Running enhanced phylogenetic metrics over time for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+    
+    try {
+      // Use stepSize from cli.flags
+      const stepSize = 10; // Default, or use cli.flags.stepSize
+      const metricsOverTime = trackEnhancedPhylogeneticMetricsOverTime(evoRunConfig, evolutionRunId, stepSize);
+      evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].enhancedPhylogeneticMetricsOverTime = metricsOverTime;
+      console.log(`Added enhanced phylogenetic metrics over time to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+      
+      // Save to file
+    } catch (error) {
+      console.error(`Error tracking enhanced phylogenetic metrics over time for ${evolutionRunId}:`, error);
+    }
+  }
+  
+  // if (oneAnalysisOperation === "phylogenetic-configuration-comparison") {
+  //   console.log("Running configuration comparison for all runs...");
+    
+  //   try {
+  //     const comparisonResults = compareConfigurationVariants(
+  //       evoRunsConfig, // This would be available in the outer scope of qdAnalysis_evoRuns
+  //       { saveResults: true }
+  //     );
+  //     evoRunsAnalysis.enhancedPhylogeneticConfigurationComparison = comparisonResults;
+      
+  //     // Print summary for user
+  //     console.log("\n===== PHYLOGENETIC CONFIGURATION COMPARISON SUMMARY =====");
+      
+  //     if (comparisonResults.summary.mostDiverseConfiguration) {
+  //       console.log(`Most Diverse Configuration: ${comparisonResults.summary.mostDiverseConfiguration}`);
+  //     }
+      
+  //     if (comparisonResults.summary.mostAdaptableConfiguration) {
+  //       console.log(`Most Adaptable Configuration: ${comparisonResults.summary.mostAdaptableConfiguration}`);
+  //     }
+      
+  //     if (comparisonResults.summary.mostEfficientConfiguration) {
+  //       console.log(`Most Efficient Configuration: ${comparisonResults.summary.mostEfficientConfiguration}`);
+  //     }
+      
+  //     if (comparisonResults.summary.significantComparisons.length > 0) {
+  //       console.log("\nSignificant Differences Between Configurations:");
+  //       comparisonResults.summary.significantComparisons.forEach(comparison => {
+  //         console.log(`\n${comparison.comparison}:`);
+  //         comparison.differences.forEach(diff => {
+  //           console.log(`  - ${diff.metric}: ${diff.better} is better (effect size: ${Math.abs(diff.effectSize).toFixed(2)})`);
+  //         });
+  //       });
+  //     }
+      
+  //     console.log("\n=========================================================");
+      
+  //   } catch (error) {
+  //     console.error("Error during phylogenetic configuration comparison:", error);
+  //   }
+  // }
+}
+
+///// End of Enhanced Phylogenetic Metrics Analysis
+
 
 /**
  * Aggregate phylogenetic metrics across iterations of an evolution run
@@ -2620,6 +3119,8 @@ function aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex,
     }
   }
 }
+
+
 
 function writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis ) {
 	const evoRunsAnalysisJSONString = JSON.stringify( evoRunsAnalysis, null, 2 );

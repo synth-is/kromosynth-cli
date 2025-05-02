@@ -3057,7 +3057,7 @@ export async function generatePhylogeneticReport(evoRunConfig, evoRunId, lineage
   const densityAnalysis = await analyzeDensityDependence(evoRunConfig, evoRunId, lineage);
   
   // Additional QD-specific analysis
-  const { genomeCounts } = await getGenomeCountsForAllIterations(evoRunConfig, evoRunId);
+  // const { genomeCounts } = await getGenomeCountsForAllIterations(evoRunConfig, evoRunId);
   const coverageData = await getCoverageForAllIterations(evoRunConfig, evoRunId);
   const qdScores = await calculateQDScoresForAllIterations(evoRunConfig, evoRunId);
   
@@ -3086,7 +3086,7 @@ export async function generatePhylogeneticReport(evoRunConfig, evoRunId, lineage
     qdMetrics: {
       finalCoverage: Array.isArray(coverageData) ? coverageData[coverageData.length - 1] : null,
       finalQDScore: Array.isArray(qdScores) ? qdScores[qdScores.length - 1] : null,
-      genomeCount: Array.isArray(genomeCounts) ? genomeCounts[genomeCounts.length - 1] : null
+      // genomeCount: Array.isArray(genomeCounts) ? genomeCounts[genomeCounts.length - 1] : null
     },
     terrainAnalysis: {
       transitions: terrainAnalysis.terrainMetrics.terrainTransitions,
@@ -3110,4 +3110,146 @@ export async function generatePhylogeneticReport(evoRunConfig, evoRunId, lineage
   console.log(`Saved comprehensive phylogenetic report to ${reportFilePath}`);
   
   return report;
+}
+
+
+///// Enhanced phylogenetic metrics
+import { calculateEnhancedPhylogeneticMetrics } from './enhanced-phylogenetic-metrics.js';
+
+/**
+ * Enhanced version of analyzePhylogeneticTreeMetrics that includes the more comprehensive metrics
+ * @param {Object} evoRunConfig - Configuration for the evolutionary run
+ * @param {string} evoRunId - ID of the evolutionary run
+ * @param {Array} lineage - Optional lineage data if already available
+ * @param {boolean} saveToFile - Whether to save results to a file
+ * @returns {Object} Metrics calculations
+ */
+export async function analyzeEnhancedPhylogeneticMetrics(evoRunConfig, evoRunId, lineage, saveToFile = true) {
+  console.log(`Analyzing enhanced phylogenetic metrics for run ${evoRunId}...`);
+  
+  // Get lineage data if not provided
+  const lineageData = lineage || await getLineageGraphData(evoRunConfig, evoRunId);
+  
+  // Calculate enhanced metrics
+  const metrics = calculateEnhancedPhylogeneticMetrics(lineageData);
+  
+  if (saveToFile) {
+    // Save to file
+    const metricsStringified = JSON.stringify(metrics, null, 2);
+    const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+    const metricsFilePath = `${evoRunDirPath}enhanced-phylogenetic-metrics.json`;
+    fs.writeFileSync(metricsFilePath, metricsStringified);
+    console.log(`Saved enhanced phylogenetic metrics to ${metricsFilePath}`);
+  }
+  
+  return {
+    metrics,
+    lineageData // Return lineage data to avoid recomputing it for other analyses
+  };
+}
+
+/**
+ * @param {Object} evoRunConfig - Configuration for the evolutionary run
+ * @param {string} evoRunId - ID of the evolutionary run
+ * @param {number} stepSize - Steps between measurements
+ * @returns {Object} Enhanced metrics over time
+ */
+export async function trackEnhancedPhylogeneticMetricsOverTime(evoRunConfig, evoRunId, stepSize = 10) {
+  console.log(`Tracking enhanced phylogenetic metrics over time for run ${evoRunId}...`);
+  
+  // Get lineage data chronologically by fetching at each step
+  const commitIdsFilePath = path.join(getEvoRunDirPath(evoRunConfig, evoRunId), 'commit-ids.txt');
+  
+  // Get commit count
+  let commitCount = 0;
+  if (fs.existsSync(commitIdsFilePath)) {
+    const commitIdsContent = fs.readFileSync(commitIdsFilePath, 'utf8');
+    commitCount = commitIdsContent.split('\n').filter(line => line.trim().length > 0).length;
+  } else {
+    throw new Error(`Commit IDs file not found at ${commitIdsFilePath}`);
+  }
+  
+  const metricsOverTime = {
+    treeSizeMetrics: [],
+    branchLengthMetrics: [],
+    branchingPatterns: [],
+    densityDependence: [],
+    terrainAdaptability: [],
+    extinctionRates: []
+  };
+  
+  // Sample at regular intervals
+  for (let iterationIndex = 0; iterationIndex < commitCount; iterationIndex += stepSize) {
+    console.log(`Calculating enhanced metrics for iteration ${iterationIndex}...`);
+    
+    // Get lineage data up to this iteration
+    const lineageData = await getLineageGraphData(evoRunConfig, evoRunId, 1, true, iterationIndex);
+    
+    // Calculate enhanced metrics
+    const metrics = calculateEnhancedPhylogeneticMetrics(lineageData);
+    
+    // Record metrics
+    metricsOverTime.treeSizeMetrics.push({
+      iteration: iterationIndex,
+      meanSize: metrics.treeSize.meanSize,
+      maxSize: metrics.treeSize.maxSize,
+      coefficientOfVariation: metrics.treeSize.coefficientOfVariation
+    });
+    
+    metricsOverTime.branchLengthMetrics.push({
+      iteration: iterationIndex,
+      mean: metrics.branchLengths.mean,
+      median: metrics.branchLengths.median,
+      stdDev: metrics.branchLengths.stdDev
+    });
+    
+    if (metrics.branchingPatterns.branchingRates.length > 0) {
+      metricsOverTime.branchingPatterns.push({
+        iteration: iterationIndex,
+        maxBranchingRate: metrics.branchingPatterns.maxBranchingRate,
+        recentBranchingRate: metrics.branchingPatterns.branchingRates[
+          metrics.branchingPatterns.branchingRates.length - 1
+        ].branchingRate
+      });
+    }
+    
+    metricsOverTime.densityDependence.push({
+      iteration: iterationIndex,
+      correlation: metrics.densityDependence.densityDependenceCorrelation,
+      isDensityDependent: metrics.densityDependence.isDensityDependent,
+      currentDiversity: Object.values(metrics.densityDependence.diversityByGeneration).pop() || 0
+    });
+    
+    metricsOverTime.terrainAdaptability.push({
+      iteration: iterationIndex,
+      adaptability: metrics.terrainAdaptability.terrainAdaptability,
+      multiTerrainGenomeCount: metrics.terrainAdaptability.multiTerrainGenomeCount
+    });
+    
+    metricsOverTime.extinctionRates.push({
+      iteration: iterationIndex,
+      overallRate: metrics.extinctions.overallExtinctionRate,
+      highRiskClasses: metrics.extinctions.highRiskClasses
+    });
+  }
+  
+  // Save metrics over time
+  const metricsOverTimeStringified = JSON.stringify(metricsOverTime, null, 2);
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  const metricsFilePath = `${evoRunDirPath}enhanced-phylogenetic-metrics-over-time_step-${stepSize}.json`;
+  fs.writeFileSync(metricsFilePath, metricsOverTimeStringified);
+  
+  return metricsOverTime;
+}
+
+import { generateDashboardHTML } from './founder-innovation-visualizations.js';
+export async function createFounderDashboard(evoRunConfig, evoRunId, analysis) {
+  const dashboardHTML = generateDashboardHTML(analysis);
+  
+  // Save HTML to file
+  const fs = await import('fs');
+  const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
+  fs.writeFileSync(`${evoRunDirPath}founder-dashboard.html`, dashboardHTML);
+  
+  console.log(`Founder dashboard created at ${evoRunDirPath}founder-dashboard.html`);
 }
