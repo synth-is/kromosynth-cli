@@ -97,7 +97,8 @@ import {
 import {
   aggregateEnhancedFounderInnovationMetrics,
   aggregateTimelineData,
-  aggregateEnhancedPhylogeneticMetrics
+  aggregateEnhancedPhylogeneticMetrics,
+	aggregatePhylogeneticMetrics
 } from './enhanced-metrics-aggregation.js';
 
 import {
@@ -2811,11 +2812,10 @@ async function qdAnalysis_evoRuns() {
 					console.log(`No valid enhanced founder and innovation data for evolution run #${currentEvolutionRunIndex}`);
 				}
 
-				aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList);
+				// aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList);
 				
 				writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
 			}
-
 
 
 			if (analysisOperationsList.includes("founder-innovation")) {
@@ -2846,7 +2846,9 @@ async function qdAnalysis_evoRuns() {
 			}
 			
 
-		}
+		} // end for( const oneAnalysisOperation of analysisOperationsList ) {
+		aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList);
+		writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
 	}
 
   // Run comparison between all runs if requested
@@ -2973,152 +2975,6 @@ async function enhancedQdAnalysisEvoRuns(oneAnalysisOperation, evoRunsAnalysis, 
 
 ///// End of Enhanced Phylogenetic Metrics Analysis
 
-
-/**
- * Aggregate phylogenetic metrics across iterations of an evolution run
- */
-function aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList) {
-  // Skip if no iterations to aggregate
-  if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.length) return;
-  
-  // Initialize aggregates object if needed
-  if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates) {
-    evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates = {};
-  }
-  
-  // Aggregate phylogenetic metrics if they exist
-  if (analysisOperationsList.includes("phylogenetic-metrics")) {
-    console.log(`Aggregating phylogenetic metrics for evolution run #${currentEvolutionRunIndex}...`);
-    
-    const phylogeneticMetricsAcrossIterations = [];
-    
-    for (let i = 0; i < evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.length; i++) {
-      const iteration = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[i];
-      if (iteration.phylogeneticMetrics) {
-        phylogeneticMetricsAcrossIterations.push(iteration.phylogeneticMetrics);
-      }
-    }
-    
-    if (phylogeneticMetricsAcrossIterations.length > 0) {
-      // Create aggregate structure
-      const aggregatedMetrics = {
-        treeSize: {
-          extantLineages: {
-            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.extantLineages)),
-            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.extantLineages))
-          },
-          totalSamples: {
-            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.totalSamples)),
-            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.totalSamples))
-          },
-          uniqueLineages: {
-            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.uniqueLineages)),
-            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.uniqueLineages))
-          }
-        },
-        events: {
-          births: {
-            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.birthCount)),
-            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.birthCount))
-          },
-          deaths: {
-            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.deathCount)),
-            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.deathCount))
-          },
-          extinctions: {
-            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.extinctionCount)),
-            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.events.extinctionCount))
-          }
-        },
-        shape: {
-          sackinIndex: {
-            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.shape.sackinIndex)),
-            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.shape.sackinIndex))
-          },
-          collessIndex: {
-            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.shape.collessIndex)),
-            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.shape.collessIndex))
-          }
-        },
-        terrainTransitions: {
-          terrainAdaptability: {
-            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.terrainTransitions.terrainAdaptability)),
-            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.terrainTransitions.terrainAdaptability))
-          }
-        },
-        densityDependence: {
-          correlation: {
-            mean: mean(phylogeneticMetricsAcrossIterations.map(m => m.metrics.densityDependence.densityDependenceCorrelation)),
-            stdDev: std(phylogeneticMetricsAcrossIterations.map(m => m.metrics.densityDependence.densityDependenceCorrelation))
-          },
-          isDensityDependent: {
-            // Calculate percentage of runs that are density-dependent
-            percentage: (phylogeneticMetricsAcrossIterations.filter(m => 
-              m.metrics.densityDependence.isDensityDependent).length / 
-              phylogeneticMetricsAcrossIterations.length) * 100
-          }
-        }
-      };
-      
-      evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.phylogeneticMetrics = aggregatedMetrics;
-    }
-  }
-  
-  // Aggregate terrain transitions if they exist
-  if (analysisOperationsList.includes("terrain-transitions")) {
-    console.log(`Aggregating terrain transitions for evolution run #${currentEvolutionRunIndex}...`);
-    
-    const terrainTransitionsAcrossIterations = [];
-    
-    for (let i = 0; i < evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.length; i++) {
-      const iteration = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[i];
-      if (iteration.terrainTransitions) {
-        terrainTransitionsAcrossIterations.push(iteration.terrainTransitions);
-      }
-    }
-    
-    if (terrainTransitionsAcrossIterations.length > 0) {
-      // Calculate mean values
-      const terrainAdaptability = mean(terrainTransitionsAcrossIterations.map(
-        t => t.terrainMetrics.terrainAdaptability));
-      
-      const multiTerrainGenomeCount = mean(terrainTransitionsAcrossIterations.map(
-        t => t.terrainMetrics.multiTerrainGenomeCount));
-      
-      evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.terrainTransitions = {
-        terrainAdaptability,
-        multiTerrainGenomeCount
-      };
-    }
-  }
-  
-  // Aggregate density dependence if it exists
-  if (analysisOperationsList.includes("density-dependence")) {
-    console.log(`Aggregating density dependence for evolution run #${currentEvolutionRunIndex}...`);
-    
-    const densityDependenceAcrossIterations = [];
-    
-    for (let i = 0; i < evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.length; i++) {
-      const iteration = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[i];
-      if (iteration.densityDependence) {
-        densityDependenceAcrossIterations.push(iteration.densityDependence);
-      }
-    }
-    
-    if (densityDependenceAcrossIterations.length > 0) {
-      const correlation = mean(densityDependenceAcrossIterations.map(
-        d => d.densityDependenceCorrelation));
-      
-      const isDensityDependentPercentage = (densityDependenceAcrossIterations.filter(
-        d => d.isDensityDependent).length / densityDependenceAcrossIterations.length) * 100;
-      
-      evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.densityDependence = {
-        correlation,
-        isDensityDependentPercentage
-      };
-    }
-  }
-}
 
 
 

@@ -433,3 +433,334 @@ export function aggregateEnhancedPhylogeneticMetrics(evoRunsAnalysis, currentEvo
     };
   }
 }
+
+
+/**
+ * Comprehensive aggregation function for both regular and enhanced phylogenetic metrics
+ * @param {Object} evoRunsAnalysis - The analysis results containing iterations data
+ * @param {number} currentEvolutionRunIndex - Index of the current evolution run
+ * @param {Array} analysisOperationsList - List of analysis operations being performed
+ */
+export function aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList) {
+  // Skip if no iterations to aggregate
+  if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.length) return;
+  
+  // Initialize aggregates object if needed
+  if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates) {
+    evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates = {};
+  }
+  
+  // Create consolidated phylogenetic metrics container if it doesn't exist
+  if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.phylogeneticMetrics) {
+    evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.phylogeneticMetrics = {};
+  }
+  
+  // Determine which metrics to aggregate based on what's available
+  const hasRegularMetrics = analysisOperationsList.includes("phylogenetic-metrics");
+  const hasEnhancedMetrics = analysisOperationsList.includes("enhanced-phylogenetic-metrics");
+  
+  // ==== Regular Phylogenetic Metrics ====
+  if (hasRegularMetrics) {
+    // Get valid iterations with phylogenetic metrics data
+    const validIterations = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.filter(
+      iter => iter.phylogeneticMetrics && iter.phylogeneticMetrics.metrics
+    );
+    
+    if (validIterations.length > 0) {
+      // ---- Tree Size Metrics ----
+      const extantLineages = validIterations.map(iter => iter.phylogeneticMetrics.metrics.extantLineages);
+      const totalSamples = validIterations.map(iter => iter.phylogeneticMetrics.metrics.totalSamples);
+      const uniqueLineages = validIterations.map(iter => iter.phylogeneticMetrics.metrics.uniqueLineages);
+      
+      // ---- Event Metrics ----
+      const birthCounts = validIterations.map(iter => iter.phylogeneticMetrics.metrics.events.birthCount);
+      const deathCounts = validIterations.map(iter => iter.phylogeneticMetrics.metrics.events.deathCount);
+      const extinctionCounts = validIterations.map(iter => iter.phylogeneticMetrics.metrics.events.extinctionCount);
+      
+      // ---- Tree Shape Metrics ----
+      const sackinIndices = validIterations.map(iter => iter.phylogeneticMetrics.metrics.shape.sackinIndex);
+      const collessIndices = validIterations.map(iter => iter.phylogeneticMetrics.metrics.shape.collessIndex);
+      
+      // ---- Terrain Transition Metrics ----
+      const terrainAdaptability = validIterations.map(
+        iter => iter.phylogeneticMetrics.metrics.terrainTransitions.terrainAdaptability
+      );
+      
+      // ---- Density Dependence Metrics ----
+      const densityDependence = validIterations.map(
+        iter => iter.phylogeneticMetrics.metrics.densityDependence.densityDependenceCorrelation
+      );
+      
+      const isDensityDependentCounts = validIterations.map(
+        iter => iter.phylogeneticMetrics.metrics.densityDependence.isDensityDependent ? 1 : 0
+      );
+      
+      // Calculate statistics and store in aggregates
+      evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.phylogeneticMetrics = {
+        treeSize: {
+          extantLineages: {
+            mean: mean(extantLineages),
+            variance: variance(extantLineages),
+            stdDev: std(extantLineages)
+          },
+          totalSamples: {
+            mean: mean(totalSamples),
+            variance: variance(totalSamples),
+            stdDev: std(totalSamples)
+          },
+          uniqueLineages: {
+            mean: mean(uniqueLineages),
+            variance: variance(uniqueLineages),
+            stdDev: std(uniqueLineages)
+          }
+        },
+        events: {
+          births: {
+            mean: mean(birthCounts),
+            variance: variance(birthCounts),
+            stdDev: std(birthCounts)
+          },
+          deaths: {
+            mean: mean(deathCounts),
+            variance: variance(deathCounts),
+            stdDev: std(deathCounts)
+          },
+          extinctions: {
+            mean: mean(extinctionCounts),
+            variance: variance(extinctionCounts),
+            stdDev: std(extinctionCounts)
+          }
+        },
+        shape: {
+          sackinIndex: {
+            mean: mean(sackinIndices),
+            variance: variance(sackinIndices),
+            stdDev: std(sackinIndices)
+          },
+          collessIndex: {
+            mean: mean(collessIndices),
+            variance: variance(collessIndices),
+            stdDev: std(collessIndices)
+          }
+        },
+        terrainTransitions: {
+          terrainAdaptability: {
+            mean: mean(terrainAdaptability),
+            variance: variance(terrainAdaptability),
+            stdDev: std(terrainAdaptability)
+          }
+        },
+        densityDependence: {
+          correlation: {
+            mean: mean(densityDependence),
+            variance: variance(densityDependence),
+            stdDev: std(densityDependence)
+          },
+          isDensityDependent: {
+            // Calculate percentage of runs that are density-dependent
+            percentage: (mean(isDensityDependentCounts) * 100).toFixed(1) + '%'
+          }
+        }
+      };
+    }
+  }
+  
+  // ==== Enhanced Phylogenetic Metrics ====
+  if (hasEnhancedMetrics) {
+    // Get valid iterations with enhanced phylogenetic metrics data
+    const validIterations = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.filter(
+      iter => iter.enhancedPhylogeneticMetrics && 
+             (iter.enhancedPhylogeneticMetrics.treeSize || 
+              iter.enhancedPhylogeneticMetrics.branchLengths ||
+              iter.enhancedPhylogeneticMetrics.branchingPatterns ||
+              iter.enhancedPhylogeneticMetrics.densityDependence ||
+              iter.enhancedPhylogeneticMetrics.extinctions ||
+              iter.enhancedPhylogeneticMetrics.terrainAdaptability)
+    );
+    
+    if (validIterations.length > 0) {
+      // Create enhanced metrics container if it doesn't exist
+      if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.enhancedPhylogeneticMetrics) {
+        evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.enhancedPhylogeneticMetrics = {};
+      }
+      
+      // ---- Tree Size Metrics ----
+      const validTreeSizeIterations = validIterations.filter(iter => iter.enhancedPhylogeneticMetrics.treeSize);
+      
+      if (validTreeSizeIterations.length > 0) {
+        const meanSizes = validTreeSizeIterations.map(iter => iter.enhancedPhylogeneticMetrics.treeSize.meanSize);
+        const maxSizes = validTreeSizeIterations.map(iter => iter.enhancedPhylogeneticMetrics.treeSize.maxSize);
+        const coefficientsOfVariation = validTreeSizeIterations.map(
+          iter => iter.enhancedPhylogeneticMetrics.treeSize.coefficientOfVariation
+        );
+        
+        evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.enhancedPhylogeneticMetrics.treeSize = {
+          meanSize: {
+            mean: mean(meanSizes),
+            variance: variance(meanSizes),
+            stdDev: std(meanSizes)
+          },
+          maxSize: {
+            mean: mean(maxSizes),
+            variance: variance(maxSizes),
+            stdDev: std(maxSizes)
+          },
+          coefficientOfVariation: {
+            mean: mean(coefficientsOfVariation),
+            variance: variance(coefficientsOfVariation),
+            stdDev: std(coefficientsOfVariation)
+          }
+        };
+      }
+      
+      // ---- Branch Length Metrics ----
+      const validBranchLengthIterations = validIterations.filter(iter => iter.enhancedPhylogeneticMetrics.branchLengths);
+      
+      if (validBranchLengthIterations.length > 0) {
+        const means = validBranchLengthIterations.map(iter => iter.enhancedPhylogeneticMetrics.branchLengths.mean);
+        const medians = validBranchLengthIterations.map(iter => iter.enhancedPhylogeneticMetrics.branchLengths.median);
+        const variances = validBranchLengthIterations.map(iter => iter.enhancedPhylogeneticMetrics.branchLengths.variance);
+        
+        evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.enhancedPhylogeneticMetrics.branchLengths = {
+          mean: {
+            mean: mean(means),
+            variance: variance(means),
+            stdDev: std(means)
+          },
+          median: {
+            mean: mean(medians),
+            variance: variance(medians),
+            stdDev: std(medians)
+          },
+          variance: {
+            mean: mean(variances),
+            variance: variance(variances),
+            stdDev: std(variances)
+          }
+        };
+      }
+      
+      // ---- Branching Patterns ----
+      const validBranchingPatternIterations = validIterations.filter(
+        iter => iter.enhancedPhylogeneticMetrics.branchingPatterns
+      );
+      
+      if (validBranchingPatternIterations.length > 0) {
+        const maxBranchingRates = validBranchingPatternIterations.map(
+          iter => iter.enhancedPhylogeneticMetrics.branchingPatterns.maxBranchingRate
+        );
+        
+        evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.enhancedPhylogeneticMetrics.branchingPatterns = {
+          maxBranchingRate: {
+            mean: mean(maxBranchingRates),
+            variance: variance(maxBranchingRates),
+            stdDev: std(maxBranchingRates)
+          }
+        };
+      }
+      
+      // ---- Extinction Metrics ----
+      const validExtinctionIterations = validIterations.filter(
+        iter => iter.enhancedPhylogeneticMetrics.extinctions
+      );
+      
+      if (validExtinctionIterations.length > 0) {
+        const overallRates = validExtinctionIterations.map(
+          iter => iter.enhancedPhylogeneticMetrics.extinctions.overallExtinctionRate
+        );
+        
+        // Calculate average high-risk classes
+        const highRiskClassCounts = {};
+        validExtinctionIterations.forEach(iter => {
+          if (iter.enhancedPhylogeneticMetrics.extinctions.highRiskClasses) {
+            iter.enhancedPhylogeneticMetrics.extinctions.highRiskClasses.forEach(cls => {
+              if (!highRiskClassCounts[cls.eliteClass]) {
+                highRiskClassCounts[cls.eliteClass] = {
+                  count: 0,
+                  totalRate: 0
+                };
+              }
+              highRiskClassCounts[cls.eliteClass].count++;
+              highRiskClassCounts[cls.eliteClass].totalRate += cls.extinctionRate;
+            });
+          }
+        });
+        
+        // Convert to array and sort by frequency
+        const highRiskClassesAggregated = Object.entries(highRiskClassCounts).map(([eliteClass, data]) => ({
+          eliteClass,
+          frequency: data.count / validExtinctionIterations.length,
+          averageExtinctionRate: data.totalRate / data.count
+        })).sort((a, b) => b.frequency - a.frequency).slice(0, 5);
+        
+        evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.enhancedPhylogeneticMetrics.extinctions = {
+          overallExtinctionRate: {
+            mean: mean(overallRates),
+            variance: variance(overallRates),
+            stdDev: std(overallRates)
+          },
+          highRiskClasses: highRiskClassesAggregated
+        };
+      }
+      
+      // ---- Terrain Adaptability ----
+      const validTerrainIterations = validIterations.filter(
+        iter => iter.enhancedPhylogeneticMetrics.terrainAdaptability
+      );
+      
+      if (validTerrainIterations.length > 0) {
+        const adaptabilityScores = validTerrainIterations.map(
+          iter => iter.enhancedPhylogeneticMetrics.terrainAdaptability.terrainAdaptability
+        );
+        
+        const multiTerrainCounts = validTerrainIterations.map(
+          iter => iter.enhancedPhylogeneticMetrics.terrainAdaptability.multiTerrainGenomeCount
+        );
+        
+        evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.enhancedPhylogeneticMetrics.terrainAdaptability = {
+          terrainAdaptability: {
+            mean: mean(adaptabilityScores),
+            variance: variance(adaptabilityScores),
+            stdDev: std(adaptabilityScores)
+          },
+          multiTerrainGenomeCount: {
+            mean: mean(multiTerrainCounts),
+            variance: variance(multiTerrainCounts),
+            stdDev: std(multiTerrainCounts)
+          }
+        };
+      }
+    }
+  }
+  
+  // ==== Analysis Integration ====
+  // Integrate metrics from both approaches for better cross-comparison
+  if (hasRegularMetrics && hasEnhancedMetrics) {
+    // Create integrated metrics section
+    if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.integratedPhylogeneticMetrics) {
+      evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.integratedPhylogeneticMetrics = {};
+    }
+    
+    // Add meaningful combinations from both types of metrics
+    const regularMetrics = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.phylogeneticMetrics || {};
+    const enhancedMetrics = evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.enhancedPhylogeneticMetrics || {};
+    
+    // Example of integration: Evolutionary dynamics index
+    // Combine data from both sets of metrics to create a more comprehensive picture
+    if (regularMetrics.treeSize && enhancedMetrics.branchingPatterns) {
+      const treeSize = regularMetrics.treeSize;
+      const branchingPatterns = enhancedMetrics.branchingPatterns;
+      
+      // Create a composite evolutionary dynamics score
+      // This is just an example - adjust formula based on what makes sense for your analysis
+      const dynamicsScore = {
+        score: (treeSize.uniqueLineages.mean / 100) * branchingPatterns.maxBranchingRate.mean,
+        description: "Composite score reflecting both tree diversity and branching dynamics"
+      };
+      
+      evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates.integratedPhylogeneticMetrics.evolutionaryDynamics = dynamicsScore;
+    }
+    
+    // Add more integrated metrics as needed
+  }
+}
