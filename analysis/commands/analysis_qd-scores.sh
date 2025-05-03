@@ -7,8 +7,8 @@
     --step-size 100 \
     --data-path "qdScores" \
     --ylabel "QD score" \
-    --terrain-name "customRef1"
-
+    --terrain-name "customRef1" \
+    --skip-if-exists \
 #    --skip-analysis \
 #    --plotting-script /Users/bjornpjo/Developer/apps/kromosynth-cli/analysis/generic_plotter.py \    
 

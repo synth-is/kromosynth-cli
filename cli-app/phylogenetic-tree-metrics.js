@@ -57,7 +57,12 @@ function buildPhylogeneticTree(lineageData) {
 export function calculateExtantLineages(lineageData, maxGeneration = null) {
   // If maxGeneration is not provided, find the highest generation
   if (maxGeneration === null) {
-    maxGeneration = Math.max(...lineageData.map(genome => genome.gN));
+    // Avoid stack overflow for large arrays by using a loop
+    let maxGen = -Infinity;
+    for (let i = 0; i < lineageData.length; i++) {
+      if (lineageData[i].gN > maxGen) maxGen = lineageData[i].gN;
+    }
+    maxGeneration = maxGen;
   }
   
   // Get unique genome IDs in the final generation
