@@ -325,7 +325,7 @@ const cli = meow(`
 		--use-gpu
 		--sample-rate
 
-	Examples
+		Examples
 		$ kromosynth new-genome [--write-to-file]
 		$ kromosynth mutate-genome [--read-from-file | --read-from-input] [--write-to-file | --write-to-output]
 		$ kromosynth render-audio [--read-from-file | --read-from-input] [--write-to-file | --play-on-default-audio-device]
@@ -2048,7 +2048,7 @@ async function qdAnalysis_evoRuns() {
 						// const lineage = await getLineageGraphData( evoRunConfig, evolutionRunId, stepSize );
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].lineage = lineage;
 						console.log(`Added lineage to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
-						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis, currentEvolutionRunIteration );
 					}
 					if( oneAnalysisOperation === "duration-pitch-delta-velocity-combinations" ) {
 						const durationPitchDeltaVelocityCombinations = await getDurationPitchDeltaVelocityCombinations( evoRunConfig, evolutionRunId, stepSize, uniqueGenomes );
@@ -2978,26 +2978,32 @@ async function enhancedQdAnalysisEvoRuns(oneAnalysisOperation, evoRunsAnalysis, 
 
 
 
-function writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis ) {
-	const evoRunsAnalysisJSONString = JSON.stringify( evoRunsAnalysis, null, 2 );
-	// if analysisResultFilePath does not exist, create it
-	if( !fs.existsSync( analysisResultFilePath ) ) fs.mkdirSync( path.dirname(analysisResultFilePath), {recursive: true} );
-	fs.writeFileSync( analysisResultFilePath, evoRunsAnalysisJSONString );
-	console.log(`Wrote: ${analysisResultFilePath}`);
-}
-
-async function qdAnalysis_playEliteMap() {
-	let {
-		evolutionRunId, evolutionRunIteration, scoreThreshold,
-		startCellKey, startCellKeyIndex,
-	} = cli.flags;
-	if( evolutionRunId ) {
-		const evoRunConfig = getEvolutionRunConfig();
-		await playAllClassesInEliteMap(
-			evoRunConfig, evolutionRunId, evolutionRunIteration, scoreThreshold,
-			startCellKey, startCellKeyIndex
-		);
+function writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis, iterationIndex ) {
+	let filePath = analysisResultFilePath;
+	if (typeof iterationIndex === "number") {
+		const ext = path.extname(analysisResultFilePath);
+		const base = analysisResultFilePath.slice(0, -ext.length);
+		filePath = `${base}_iteration-${iterationIndex}_lineage${ext}`;
+		// Only write the lineage data for this iteration, but keep the same JSON structure as the main analysis file
+		const output = {
+			baseEvolutionRunConfigFile: evoRunsAnalysis.baseEvolutionRunConfigFile,
+			baseEvolutionaryHyperparametersFile: evoRunsAnalysis.baseEvolutionaryHyperparametersFile,
+			evoRuns: evoRunsAnalysis.evoRuns.map((run, runIdx) => ({
+				...(run.label ? { label: run.label } : {}),
+				...(run.diffEvolutionRunConfigFile ? { diffEvolutionRunConfigFile: run.diffEvolutionRunConfigFile } : {}),
+				...(run.diffEvolutionaryHyperparametersFile ? { diffEvolutionaryHyperparametersFile: run.diffEvolutionaryHyperparametersFile } : {}),
+				iterations: run.iterations && run.iterations[iterationIndex] && run.iterations[iterationIndex].lineage !== undefined
+					? [ { ...run.iterations[iterationIndex], onlyLineage: true } ]
+					: []
+			}))
+		};
+		fs.writeFileSync(filePath, JSON.stringify(output, null, 2));
+		console.log(`Wrote: ${filePath}`);
+		return;
 	}
+	const evoRunsAnalysisJSONString = JSON.stringify( evoRunsAnalysis, null, 2 );
+	fs.writeFileSync(filePath, evoRunsAnalysisJSONString);
+	console.log(`Wrote: ${filePath}`);	
 }
 
 async function qdAnalysis_playClass() {

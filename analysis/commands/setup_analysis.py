@@ -26,16 +26,19 @@ def clean_old_analysis_files(analysis_path):
     # Group files by their base name (everything before the timestamp)
     file_groups = {}
     for file in glob.glob(os.path.join(analysis_path, '*.json')):
-        # Split filename into base and timestamp
-        # e.g., "evolution-run-analysis_qd-scores_step-100_1730545634653.json"
-        # becomes "evolution-run-analysis_qd-scores_step-100" and "1730545634653"
-        base = '_'.join(os.path.basename(file).split('_')[:-1])
-        timestamp = int(os.path.basename(file).split('_')[-1].split('.')[0])
-        
+        basename = os.path.basename(file)
+        parts = basename.split('_')
+        # Try to find the timestamp (should be last part before .json and should be an int)
+        try:
+            timestamp_part = parts[-1].split('.')[0]
+            timestamp = int(timestamp_part)
+            base = '_'.join(parts[:-1])
+        except ValueError:
+            # If not a timestamp, skip this file (e.g., "evolution-run-analysis_iteration-0_lineage.json")
+            continue
         if base not in file_groups:
             file_groups[base] = []
         file_groups[base].append((timestamp, file))
-    
     # For each group, keep only the newest file
     for base, files in file_groups.items():
         if len(files) > 1:
@@ -58,8 +61,11 @@ def find_latest_lineage_file(base_analysis_path, step_size=None, terrain_name=No
     filtered_files = []
     for file_path in lineage_files:
         file_name = os.path.basename(file_path)
-        components = file_name.split('_')[:-1]  # Remove timestamp
-        if len(components) < 2 or components[1] != "lineage":
+        components = file_name.split('_')
+        # Accept both timestamped and non-timestamped lineage files
+        # e.g. evolution-run-analysis_iteration-0_lineage.json or evolution-run-analysis_lineage_step-1_123456789.json
+        # Check for "lineage" in the name
+        if not any("lineage" in comp for comp in components):
             continue
         # Check step_size
         if step_size:
@@ -71,8 +77,16 @@ def find_latest_lineage_file(base_analysis_path, step_size=None, terrain_name=No
                 continue
         filtered_files.append(file_path)
     files_to_consider = filtered_files if filtered_files else lineage_files
-    # Sort by timestamp and return newest
-    newest_file = sorted(files_to_consider, key=lambda x: int(os.path.basename(x).split('_')[-1].split('.')[0]))[-1]
+    # Sort by timestamp if available, else by mtime
+    def get_timestamp_or_mtime(f):
+        parts = os.path.basename(f).split('_')
+        try:
+            ts = int(parts[-1].split('.')[0])
+            return ts
+        except ValueError:
+            # fallback to file modification time
+            return int(os.path.getmtime(f))
+    newest_file = sorted(files_to_consider, key=get_timestamp_or_mtime)[-1]
     return newest_file
 
 def create_and_run_analysis_script(script_path, config_path, analysis_path, analysis_operation, step_size=None, terrain_name=None):
@@ -83,7 +97,7 @@ def create_and_run_analysis_script(script_path, config_path, analysis_path, anal
     base_cmd += f'--write-to-folder {analysis_path}'
 
     # Add lineage file if required
-    lineage_ops = {"founder-innovation", "phylogenetic-metrics", "enhanced-phylogenetic-metrics"}
+    lineage_ops = {"founder-innovation", "phylogenetic-metrics", "enhanced-phylogenetic-metrics", "lineage"}
     if analysis_operation in lineage_ops:
         # analysis_path is .../analysis/{analysis_operation}
         # lineage is in .../analysis/lineage
@@ -121,9 +135,15 @@ def create_and_run_analysis_script(script_path, config_path, analysis_path, anal
     analysis_files = glob.glob(os.path.join(analysis_path, '*.json'))
     if not analysis_files:
         return []
-    
-    # Sort by timestamp and return only the newest file
-    newest_file = sorted(analysis_files, key=lambda x: int(os.path.basename(x).split('_')[-1].split('.')[0]))[-1]
+    # Sort by timestamp if available, else by mtime
+    def get_timestamp_or_mtime(f):
+        parts = os.path.basename(f).split('_')
+        try:
+            ts = int(parts[-1].split('.')[0])
+            return ts
+        except ValueError:
+            return int(os.path.getmtime(f))
+    newest_file = sorted(analysis_files, key=get_timestamp_or_mtime)[-1]
     return [newest_file]
 
 def create_plot_command(plotting_script_path, analysis_file, plot_path, analysis_operation, terrain_name, step_size=None, **kwargs):
