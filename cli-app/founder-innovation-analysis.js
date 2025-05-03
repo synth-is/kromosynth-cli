@@ -476,7 +476,10 @@ export function findConcreteSteppingStoneExamples(lineageData) {
   
   lineageData.forEach(genome => {
     // Skip very recent genomes
-    const maxGeneration = Math.max(...lineageData.map(g => g.gN));
+    let maxGeneration = -Infinity;
+    for (let i = 0; i < lineageData.length; i++) {
+      if (lineageData[i].gN > maxGeneration) maxGeneration = lineageData[i].gN;
+    }
     if (genome.gN > maxGeneration * 0.7) return;
     
     // Count descendants
