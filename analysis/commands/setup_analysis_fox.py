@@ -46,6 +46,34 @@ def clean_old_analysis_files(analysis_path):
                 print(f"Removing older analysis file: {file}")
                 os.remove(file)
 
+def find_latest_lineage_file(base_analysis_path, step_size=None, terrain_name=None):
+    """Find the newest lineage analysis file in the lineage analysis directory."""
+    lineage_dir = os.path.join(base_analysis_path, 'lineage')
+    if not os.path.exists(lineage_dir):
+        return None
+    lineage_files = glob.glob(os.path.join(lineage_dir, '*.json'))
+    if not lineage_files:
+        return None
+    # Optionally filter by step_size and terrain_name
+    filtered_files = []
+    for file_path in lineage_files:
+        file_name = os.path.basename(file_path)
+        components = file_name.split('_')[:-1]  # Remove timestamp
+        if len(components) < 2 or components[1] != "lineage":
+            continue
+        # Check step_size
+        if step_size:
+            if not any(comp == f"step-{step_size}" for comp in components):
+                continue
+        # Check terrain_name
+        if terrain_name:
+            if not any(comp == terrain_name or comp == f"terrain-{terrain_name}" for comp in components):
+                continue
+        filtered_files.append(file_path)
+    files_to_consider = filtered_files if filtered_files else lineage_files
+    # Sort by timestamp and return newest
+    newest_file = sorted(files_to_consider, key=lambda x: int(os.path.basename(x).split('_')[-1].split('.')[0]))[-1]
+    return newest_file
 
 def create_and_run_analysis_script(script_path, config_path, analysis_path, analysis_operation, step_size=None, terrain_name=None):
     """Create and execute the analysis.sh script, returning the generated files."""
@@ -53,7 +81,19 @@ def create_and_run_analysis_script(script_path, config_path, analysis_path, anal
     base_cmd = f'node /fp/projects01/ec29/bthj/kromosynth-cli/cli-app/kromosynth.js evo-runs-analysis --analysis-operations {analysis_operation} '
     base_cmd += f'--evolution-runs-config-json-file {config_path} '
     base_cmd += f'--write-to-folder {analysis_path}'
-    
+
+    # Add lineage file if required
+    lineage_ops = {"founder-innovation", "phylogenetic-metrics", "enhanced-phylogenetic-metrics"}
+    if analysis_operation in lineage_ops:
+        # analysis_path is .../analysis/{analysis_operation}
+        # lineage is in .../analysis/lineage
+        base_analysis_path = os.path.dirname(analysis_path)  # .../analysis
+        lineage_file = find_latest_lineage_file(base_analysis_path, step_size, terrain_name)
+        if lineage_file:
+            base_cmd += f' --lineage-data-file {lineage_file}'
+        else:
+            print(f"Warning: No lineage analysis file found for operation '{analysis_operation}' in {os.path.join(base_analysis_path, 'lineage')}")
+
     if step_size:
         base_cmd += f' --step-size {step_size}'
     
