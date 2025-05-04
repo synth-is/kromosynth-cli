@@ -1692,24 +1692,31 @@ async function qdAnalysis_evoRuns() {
 			}
 
 			let lineage;
-			if (
-				analysisOperationsList.some(op =>
-				[
-					"lineage",
-					"phylogenetic-metrics",
-					"phylogenetic-metrics-over-time",
-					"terrain-transitions",
-					"density-dependence",
-					"phylogenetic-report",
-					"phylogenetic-comparison",
-					"enhanced-phylogenetic-metrics","enhanced-phylogenetic-metrics-over-time","phylogenetic-configuration-comparison",
-					"founder-innovation"
-				].includes(op)
-				)
-			) {
-				if (lineageData) {
-				// Use lineage data from file if available
-				if (
+			// BEGIN: Check for per-iteration lineage file
+			if (lineageDataFile) {
+				const ext = path.extname(lineageDataFile);
+				const base = lineageDataFile.slice(0, -ext.length);
+				const perIterationFilePath = `${base}_iteration-${currentEvolutionRunIteration}_lineage${ext}`;
+				if (fs.existsSync(perIterationFilePath)) {
+					try {
+						const perIterationData = JSON.parse(fs.readFileSync(perIterationFilePath, 'utf8'));
+						// Try to extract the lineage for this run/iteration
+						if (
+							perIterationData.evoRuns &&
+							perIterationData.evoRuns[currentEvolutionRunIndex] &&
+							perIterationData.evoRuns[currentEvolutionRunIndex].iterations &&
+							perIterationData.evoRuns[currentEvolutionRunIndex].iterations[0] &&
+							perIterationData.evoRuns[currentEvolutionRunIndex].iterations[0].lineage !== undefined
+						) {
+							lineage = perIterationData.evoRuns[currentEvolutionRunIndex].iterations[0].lineage;
+						} else {
+							lineage = undefined;
+						}
+					} catch (error) {
+						console.error(`Error reading per-iteration lineage data file: ${error}`);
+						lineage = undefined;
+					}
+				} else if (
 					lineageData.evoRuns &&
 					lineageData.evoRuns[currentEvolutionRunIndex] &&
 					lineageData.evoRuns[currentEvolutionRunIndex].iterations &&
@@ -1718,11 +1725,11 @@ async function qdAnalysis_evoRuns() {
 					lineage = lineageData.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].lineage;
 				} else {
 					lineage = undefined;
-				}
-				} else {
+					}
+			} else {
 				lineage = await getLineageGraphData(evoRunConfig, evolutionRunId, stepSize);
-				}
 			}
+			// END: Check for per-iteration lineage file
 
 			for (const oneAnalysisOperation of analysisOperationsList) {
 				const classLabels = await getClassLabels(evoRunConfig, evolutionRunId);
