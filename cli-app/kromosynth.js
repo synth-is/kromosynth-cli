@@ -2046,6 +2046,12 @@ async function qdAnalysis_evoRuns() {
 					}
 					if( oneAnalysisOperation === "lineage" ) {
 						// const lineage = await getLineageGraphData( evoRunConfig, evolutionRunId, stepSize );
+						// Clear out lineage data from other iterations, only keep for the current one
+						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.forEach((it, idx) => {
+							if (idx !== currentEvolutionRunIteration && it.lineage !== undefined) {
+								delete it.lineage;
+							}
+						});
 						evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].lineage = lineage;
 						console.log(`Added lineage to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
 						writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis, currentEvolutionRunIteration );
@@ -2847,8 +2853,8 @@ async function qdAnalysis_evoRuns() {
 			
 
 		} // end for( const oneAnalysisOperation of analysisOperationsList ) {
-		aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList);
-		writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
+		const aggregatedPhylogeneticMetrics = aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList);
+		if( aggregatedPhylogeneticMetrics ) writeAnalysisResult(analysisResultFilePath, evoRunsAnalysis);
 	}
 
   // Run comparison between all runs if requested
@@ -2997,7 +3003,7 @@ function writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis, iteration
 					: []
 			}))
 		};
-		fs.writeFileSync(filePath, JSON.stringify(output, null, 2));
+		fs.writeFileSync(filePath, JSON.stringify(output));
 		console.log(`Wrote: ${filePath}`);
 		return;
 	}
