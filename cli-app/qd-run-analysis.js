@@ -2367,8 +2367,13 @@ export async function getLineageGraphData(evoRunConfig, evoRunId, stepSize = 1, 
   }
   
   // Second pass: gather detailed genome information but only once per genome
+  let processedGenomes = 0;
+  const totalGenomes = Object.keys(genomeTerrainInfo).length;
   for (const genomeId of Object.keys(genomeTerrainInfo)) {
     if (lineageGraphDataObj[genomeId] === undefined) {
+      if (processedGenomes % 100 === 0) {
+        log(`Second pass: Processing genome ${processedGenomes + 1}/${totalGenomes} (ID: ${genomeId})`);
+      }
       // Sort appearances by generation to find the earliest one
       genomeTerrainInfo[genomeId].terrainAppearances.sort((a, b) => a.generation - b.generation);
       
@@ -2416,10 +2421,11 @@ export async function getLineageGraphData(evoRunConfig, evoRunId, stepSize = 1, 
         velocity,
         parentGenomes
       };
+      processedGenomes++;
     }
   }
   
-  // Convert lineageGraphDataObj to array format
+  console.log("Convert lineageGraphDataObj to array format");
   const lineageGraphData = Object.values(lineageGraphDataObj).map(genomeData => ({
     id: genomeData.id,
     eliteClass: genomeData.eliteClass,
