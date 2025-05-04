@@ -197,6 +197,7 @@ export async function runCoreEvolution(
     evaluationCandidateWavFilesDirPath,
     probabilityMutatingWaveNetwork, probabilityMutatingPatch, oneCPPNPerFrequency,
     classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
+    classScoringMFCCFocusAreas, classScoringAudioSubregionCount,
     antiAliasing,
     frequencyUpdatesApplyToAllPathcNetworkOutputs,
     classScoringVariationsAsContainerDimensions,
@@ -688,6 +689,7 @@ export async function runCoreEvolution(
         probabilityMutatingWaveNetwork, probabilityMutatingPatch, oneCPPNPerFrequency,
         audioGraphMutationParams, evolutionaryHyperparameters,
         classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
+        classScoringMFCCFocusAreas, classScoringAudioSubregionCount,
         classScoringVariationsAsContainerDimensions,
         classificationGraphModel, yamnetModelUrl, ckptDir, measureCollectivePerformance,
         sampleRate,
@@ -794,6 +796,7 @@ async function mapElitesBatch(
   probabilityMutatingWaveNetwork, probabilityMutatingPatch, oneCPPNPerFrequency,
   audioGraphMutationParams, evolutionaryHyperparameters,
   classScoringDurations, classScoringNoteDeltas, classScoringVelocities,
+  classScoringMFCCFocusAreas, classScoringAudioSubregionCount,
   classScoringVariationsAsContainerDimensions,
   classificationGraphModel, yamnetModelUrl, ckptDir, measureCollectivePerformance,
   renderSampleRateForClassifier,
@@ -1276,9 +1279,10 @@ async function mapElitesBatch(
                       eliteMap.classConfigurations, eliteMapIndex,
                       measureCollectivePerformance, ckptDir, evoRunDirPath,
                       zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
-                      dynamicComponents, featureIndices
+                      dynamicComponents, featureIndices,
+                      classScoringMFCCFocusAreas, classScoringAudioSubregionCount
                     );
-                    seedFeaturesAndScores.push(seedGenomeScoreAndFeatures);
+                    seedFeaturesAndScores.push(...seedGenomeScoreAndFeatures);
                   }
                   Environment.persistence.saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
                 }
@@ -1323,13 +1327,14 @@ async function mapElitesBatch(
                         scoreProportion,
                         measureCollectivePerformance, ckptDir,
                         zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
-                        dynamicComponents, featureIndices
+                        dynamicComponents, featureIndices,
+                        classScoringMFCCFocusAreas, classScoringAudioSubregionCount
                       ).catch( e => {
                         console.error("Error getting genome class scores by diversity projection with new genomes", e);
                         reject(e);
                       });
                       oneCombinationClassScores.oneClassKeySuffix = oneClassKeySuffix;
-                      newGenomeClassScores.push( oneCombinationClassScores );
+                      newGenomeClassScores.push( ...oneCombinationClassScores );
                       iterationIncrement++;
                     }
                   }
@@ -1337,7 +1342,7 @@ async function mapElitesBatch(
               } else {
                 newGenomeClassScores = [];
                 newGenomeClassScores.push( 
-                  await getGenomeClassScoresByDiversityProjectionWithNewGenomes(
+                  ... await getGenomeClassScoresByDiversityProjectionWithNewGenomes(
                     [newGenomeString],
                     classScoringDurations,
                     classScoringNoteDeltas,
@@ -1353,7 +1358,8 @@ async function mapElitesBatch(
                     scoreProportion,
                     measureCollectivePerformance, ckptDir,
                     zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
-                    dynamicComponents, featureIndices
+                    dynamicComponents, featureIndices,
+                    classScoringMFCCFocusAreas, classScoringAudioSubregionCount
                   ).catch( e => {
                     console.error("Error getting genome class scores by diversity projection with new genomes", e);
                     reject(e);
@@ -1391,6 +1397,7 @@ async function mapElitesBatch(
                       geneEvaluationServerHost, featureExtractionHost, ckptDir,
                       zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
                       dynamicComponents, featureIndices
+                      // TODO  classScoringMFCCFocusAreas and classScoringAudioSubregionCount ?
                     );
                     for( const oneClassKey in oneCombinationClassScores ) {
                       const oneClassScores = oneCombinationClassScores[oneClassKey];
@@ -1416,6 +1423,7 @@ async function mapElitesBatch(
                 geneEvaluationServerHost, featureExtractionHost, ckptDir,
                 zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
                 dynamicComponents, featureIndices
+                // TODO  classScoringMFCCFocusAreas and classScoringAudioSubregionCount ?
               );
             }
           }
@@ -1428,8 +1436,8 @@ async function mapElitesBatch(
           classRestriction && classRestriction.length ?
               newGenomeClassScores && newGenomeClassScores[ classRestriction[0] ] ? newGenomeClassScores[ classRestriction[0] ].score : "N/A"
             :
-            newGenomeClassScores && newGenomeClassScores.length === 1 && newGenomeClassScores[0] !== undefined ? /* one feature mapping for the new genome */
-              newGenomeClassScores[0].newGenomeFitnessValue
+            Array.isArray( newGenomeClassScores ) && newGenomeClassScores.length  ? /* one feature mapping for the new genome */
+              newGenomeClassScores.map( oneClassScore => oneClassScore.newGenomeFitnessValue ).join(", ") 
             :
             newGenomeClassScores && newGenomeClassScores["Music"] ? newGenomeClassScores["Music"].score : newGenomeClassScores && Object.keys(newGenomeClassScores)[0] && newGenomeClassScores[Object.keys(newGenomeClassScores)[0]] ? newGenomeClassScores[Object.keys(newGenomeClassScores)[0]].score : "N/A"
         );
@@ -1500,6 +1508,7 @@ async function mapElitesBatch(
             newGenomeClassScoresValue.scoreClass = scoreClass;
             newGenomeClassScoresValue.surprise = surprise;
             // massage newGenomeClassScores into something compatible with the API below
+            // TODO: some entries in newGenomeClassScores can map to the same key (e.g. with Trace-Elites-like execution, so we might have a few "traces" in some cases, without have done proper performance evaluation; perhaps not a problem?)
             newGenomeClassScores[diversityMapKey] = newGenomeClassScoresValue;
           }
           batchIterationResults[i].newGenomeClassScores = newGenomeClassScores;
@@ -2002,6 +2011,7 @@ async function getGenomeClassScores(
   geneEvaluationServerHost, featureExtractionHost, ckptDir,
   zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
   dynamicComponents, featureIndices
+  // TODO  classScoringMFCCFocusAreas and classScoringAudioSubregionCount ?
 ) {
   let newGenomeClassScores;
   // in this case we'll render and evaluate all the rendered combinations in this stack (Node.js)
@@ -2187,22 +2197,21 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
   scoreProportion,
   measureCollectivePerformance, ckptDir,
   zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
-  dynamicComponents, featureIndices
+  dynamicComponents, featureIndices,
+  classScoringMFCCFocusAreas, classScoringAudioSubregionCount
 ) {
+  let classScoringAudioSubregions;
+  if (typeof classScoringAudioSubregionCount === "number" && Number.isInteger(classScoringAudioSubregionCount)) {
+    // Set classScoringAudioSubregions as an array of proportions like "1/4", "2/4", ...
+    classScoringAudioSubregions = Array.from({ length: classScoringAudioSubregionCount }, (_, i) => `${i + 1}/${classScoringAudioSubregionCount}`);
+  }
+
   // not supporting arrays of durations, noteDeltas and velocities for now, as is done in getGenomeClassScores
   const duration = Array.isArray(durations) ? durations[0] : durations;
   const noteDelta = Array.isArray(noteDeltas) ? noteDeltas[0] : noteDeltas;
   const velocity = Array.isArray(velocities) ? velocities[0] : velocities;
 
   const { classConfigurations } = eliteMap;
-
-  let newGenomeFeatureVector;
-  let newGenomeFeatureType;
-  let newGenomeEmbedding;
-  
-  let newGenomeFitnessValue;
-  let newGenomeFitnessClass;
-  // get the feature vector for the new genome
 
   const audioBuffer = await Environment.evaluation.getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
     genomeString,
@@ -2218,47 +2227,83 @@ async function getGenomeClassScoresByDiversityProjectionWithNewGenomes(
       console.error(`Error rendering gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
     }
   );
+  let results = [];
 
-  if( audioBuffer && audioBuffer.length && ! audioBuffer.some( value => isNaN(value) ) ) {
-    const { 
-      projectionFeatures: features, projectionFeaturesType: featuresType, projectionEmbedding: embedding, quality 
-    } = await getFeaturesAndScoreForAudioBuffer(
-      audioBuffer,
-      evaluationFeatureExtractionHost, evaluationQualityHost,
-      classConfigurations, eliteMapIndex,
-      measureCollectivePerformance, ckptDir, evoRunDirPath,
-      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
-      dynamicComponents, featureIndices
-    );
-    newGenomeFeatureVector = features;
-    newGenomeFeatureType = featuresType;
-    newGenomeEmbedding = embedding;
-    let newGenomeQuality = quality;
+  // Determine if we need to iterate over MFCC focus areas and/or audio subregions
+  const mfccFocusAreas = Array.isArray(classScoringMFCCFocusAreas) ? classScoringMFCCFocusAreas : [];
+  const audioSubregions = Array.isArray(classScoringAudioSubregions) ? classScoringAudioSubregions : [];
 
-    const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass( newGenomeQuality.fitness );
-    if( isTopScoreFitnessWithAssociatedClass ) {
-      newGenomeQuality.fitness.top_score = newGenomeQuality.fitness.top_score * scoreProportion;
-      newGenomeFitnessValue = newGenomeQuality.fitness;
-      newGenomeFitnessClass = newGenomeQuality.fitness.top_score_class;
-    } else {
-      newGenomeFitnessValue = newGenomeQuality.fitness * scoreProportion;
+  // Helper to call getFeaturesAndScoreForAudioBuffer with correct params
+  async function evaluateOne(mfccFocusArea, classScoringAudioSubregion) {
+    let newGenomeFeatureVector;
+    let newGenomeFeatureType;
+    let newGenomeEmbedding;
+    let newGenomeFitnessValue;
+    let newGenomeFitnessClass;
+
+    if (audioBuffer && audioBuffer.length && !audioBuffer.some(value => isNaN(value))) {
+      const {
+        projectionFeatures: features,
+        projectionFeaturesType: featuresType,
+        projectionEmbedding: embedding,
+        quality
+      } = await getFeaturesAndScoreForAudioBuffer(
+        audioBuffer,
+        evaluationFeatureExtractionHost, evaluationQualityHost,
+        classConfigurations, eliteMapIndex,
+        measureCollectivePerformance, ckptDir, evoRunDirPath,
+        zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+        dynamicComponents, featureIndices,
+        mfccFocusArea, classScoringAudioSubregion
+      );
+      newGenomeFeatureVector = features;
+      newGenomeFeatureType = featuresType;
+      newGenomeEmbedding = embedding;
+      let newGenomeQuality = quality;
+
+      const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass(newGenomeQuality.fitness);
+      if (isTopScoreFitnessWithAssociatedClass) {
+        newGenomeQuality.fitness.top_score = newGenomeQuality.fitness.top_score * scoreProportion;
+        newGenomeFitnessValue = newGenomeQuality.fitness;
+        newGenomeFitnessClass = newGenomeQuality.fitness.top_score_class;
+      } else {
+        newGenomeFitnessValue = newGenomeQuality.fitness * scoreProportion;
+      }
     }
+
+    return {
+      newGenomeFitnessValue,
+      newGenomeFitnessClass,
+      duration,
+      noteDelta,
+      velocity,
+      features: newGenomeFeatureVector,
+      featuresType: newGenomeFeatureType,
+      embedding: newGenomeEmbedding,
+      mfccFocusArea,
+      classScoringAudioSubregion
+    };
   }
 
-  let newGenomeClassScores;
+  if (mfccFocusAreas.length && audioSubregions.length) {
+    for (const mfccFocusArea of mfccFocusAreas) {
+      for (const classScoringAudioSubregion of audioSubregions) {
+        results.push(await evaluateOne(mfccFocusArea, classScoringAudioSubregion));
+      }
+    }
+  } else if (mfccFocusAreas.length) {
+    for (const mfccFocusArea of mfccFocusAreas) {
+      results.push(await evaluateOne(mfccFocusArea, undefined));
+    }
+  } else if (audioSubregions.length) {
+    for (const classScoringAudioSubregion of audioSubregions) {
+      results.push(await evaluateOne(undefined, classScoringAudioSubregion));
+    }
+  } else {
+    results.push(await evaluateOne(undefined, undefined));
+  }
 
-  newGenomeClassScores = {
-    newGenomeFitnessValue,
-    newGenomeFitnessClass,
-    duration,
-    noteDelta,
-    velocity,
-    features: newGenomeFeatureVector,
-    featuresType: newGenomeFeatureType,
-    embedding: newGenomeEmbedding
-  };
-
-  return newGenomeClassScores;
+  return results;
 }
 
 async function getDiverstyProjectionsFromFeatures(
@@ -2359,8 +2404,15 @@ async function getGenomeScoreAndFeatures(
   classConfigurations, eliteMapIndex,
   measureCollectivePerformance, ckptDir, evoRunDirPath,
   zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
-  dynamicComponents, featureIndices
+  dynamicComponents, featureIndices,
+  classScoringMFCCFocusAreas, classScoringAudioSubregionCount
 ) {
+  let classScoringAudioSubregions;
+  if (typeof classScoringAudioSubregionCount === "number" && Number.isInteger(classScoringAudioSubregionCount)) {
+    // Set classScoringAudioSubregions as an array of proportions like "1/4", "2/4", ...
+    classScoringAudioSubregions = Array.from({ length: classScoringAudioSubregionCount }, (_, i) => `${i + 1}/${classScoringAudioSubregionCount}`);
+  }
+
   const audioBuffer = await Environment.evaluation.getAudioBufferChannelDataForGenomeAndMetaFromWebsocet(
     genomeString,
     duration,
@@ -2374,66 +2426,85 @@ async function getGenomeScoreAndFeatures(
     console.error(`Error rendering geneome ${genomeId}`, e);
   });
 
-  let newGenomeFeatureVector;
-  let newGenomeFeatureType;
-  let newGenomeEmbedding;
-  let newGenomeQuality;
-  let fitness;
-  if( audioBuffer && audioBuffer.length && ! audioBuffer.some( value => isNaN(value) ) ) {
-    // get features from audio buffer
-    // const featuresResponse = await getFeaturesFromWebsocket(
-    //   audioBuffer,
-    //   evaluationFeatureExtractionHost
-    // ).catch(e => {
-    //   console.error(`getGenomeScoreAndFeatures: Error getting features for genomeId ${genomeId}`, e);
-    // });
-    // newGenomeFeatureVector = featuresResponse.features;
+  let results = [];
 
-    // // get quality from audio buffer
-    // newGenomeQuality = await getQualityFromWebsocket(
-    //   audioBuffer,
-    //   evaluationQualityHost
-    // ).catch(e => {
-    //   console.error(`getGenomeScoreAndFeatures: Error getting quality  for genome ID ${genomeId}`, e);
-    // });
+  // Determine if we need to iterate over MFCC focus areas and/or audio subregions
+  const mfccFocusAreas = Array.isArray(classScoringMFCCFocusAreas) ? classScoringMFCCFocusAreas : [];
+  const audioSubregions = Array.isArray(classScoringAudioSubregions) ? classScoringAudioSubregions : [];
 
-    const { 
-      projectionFeatures: features, projectionFeaturesType: featuresType, embedding, quality 
-    } = await getFeaturesAndScoreForAudioBuffer(
-      audioBuffer,
-      evaluationFeatureExtractionHost, evaluationQualityHost,
-      classConfigurations, eliteMapIndex,
-      measureCollectivePerformance, 
-      ckptDir, 
-      evoRunDirPath,
-      zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
-      dynamicComponents, featureIndices
-    );
-    newGenomeFeatureVector = features;
-    newGenomeFeatureType = featuresType;
-    newGenomeEmbedding = embedding;
-    newGenomeQuality = quality;
+  // Helper to call getFeaturesAndScoreForAudioBuffer with correct params
+  async function evaluateOne(mfccFocusArea, classScoringAudioSubregion) {
+    let newGenomeFeatureVector;
+    let newGenomeFeatureType;
+    let newGenomeEmbedding;
+    let newGenomeQuality;
+    let fitness;
 
-    const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass( newGenomeQuality.fitness );
-    if( isTopScoreFitnessWithAssociatedClass ) {
-      newGenomeQuality.fitness.top_score *= scoreProportion;
-      fitness = newGenomeQuality.fitness;
-    } else {
-      fitness = newGenomeQuality.fitness * scoreProportion;
+    if (audioBuffer && audioBuffer.length && !audioBuffer.some(value => isNaN(value))) {
+      const {
+        projectionFeatures: features,
+        projectionFeaturesType: featuresType,
+        projectionEmbedding: embedding,
+        quality
+      } = await getFeaturesAndScoreForAudioBuffer(
+        audioBuffer,
+        evaluationFeatureExtractionHost, evaluationQualityHost,
+        classConfigurations, eliteMapIndex,
+        measureCollectivePerformance,
+        ckptDir,
+        evoRunDirPath,
+        zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
+        dynamicComponents, featureIndices,
+        mfccFocusArea, classScoringAudioSubregion
+      );
+      newGenomeFeatureVector = features;
+      newGenomeFeatureType = featuresType;
+      newGenomeEmbedding = embedding;
+      newGenomeQuality = quality;
+
+      const isTopScoreFitnessWithAssociatedClass = getIsTopScoreFitnessWithAssociatedClass(newGenomeQuality.fitness);
+      if (isTopScoreFitnessWithAssociatedClass) {
+        newGenomeQuality.fitness.top_score *= scoreProportion;
+        fitness = newGenomeQuality.fitness;
+      } else {
+        fitness = newGenomeQuality.fitness * scoreProportion;
+      }
     }
+
+    return {
+      genomeId,
+      // genomeString,
+      fitness,
+      duration,
+      noteDelta,
+      velocity,
+      features: newGenomeFeatureVector,
+      featuresType: newGenomeFeatureType,
+      embedding: newGenomeEmbedding,
+      mfccFocusArea,
+      classScoringAudioSubregion
+    };
   }
 
-  return {
-    genomeId,
-    // genomeString,
-    fitness,
-    duration,
-    noteDelta,
-    velocity,
-    features: newGenomeFeatureVector,
-    featuresType: newGenomeFeatureType,
-    embedding: newGenomeEmbedding
-  };
+  if (mfccFocusAreas.length && audioSubregions.length) {
+    for (const mfccFocusArea of mfccFocusAreas) {
+      for (const classScoringAudioSubregion of audioSubregions) {
+        results.push(await evaluateOne(mfccFocusArea, classScoringAudioSubregion));
+      }
+    }
+  } else if (mfccFocusAreas.length) {
+    for (const mfccFocusArea of mfccFocusAreas) {
+      results.push(await evaluateOne(mfccFocusArea, undefined));
+    }
+  } else if (audioSubregions.length) {
+    for (const classScoringAudioSubregion of audioSubregions) {
+      results.push(await evaluateOne(undefined, classScoringAudioSubregion));
+    }
+  } else {
+    results.push(await evaluateOne(undefined, undefined));
+  }
+
+  return results;
 }
 
 function getQuerySetEmbedsPath( evoRunDirPath, refSetName ) {
@@ -2450,7 +2521,8 @@ async function getFeaturesAndScoreForAudioBuffer(
   ckptDir,
   evoRunDirPath,
   zScoreNormalisationReferenceFeaturesPaths, zScoreNormalisationTrainFeaturesPath,
-  dynamicComponents, featureIndices
+  dynamicComponents, featureIndices,
+  mfccFocusArea, classScoringAudioSubregion
 ) {
   let qualityFromEmbeds = false;
   let qualityFromFeatures = false;
@@ -2488,7 +2560,8 @@ async function getFeaturesAndScoreForAudioBuffer(
       audioBuffer,
       evaluationFeatureExtractionHost + qualityFeatureExtractionEndpoint,
       ckptDir,
-      sampleRate
+      sampleRate,
+      mfccFocusArea, classScoringAudioSubregion
     );
     qualityFeaturesResponse = projectionFeaturesResponse = featuresResponse;
   } else {
@@ -2498,13 +2571,15 @@ async function getFeaturesAndScoreForAudioBuffer(
         audioBuffer,
         evaluationFeatureExtractionHost + qualityFeatureExtractionEndpoint,
         ckptDir,
-        sampleRate
+        sampleRate,
+        mfccFocusArea, classScoringAudioSubregion
       ),
       Environment.evaluation.getFeaturesFromWebsocket(
         audioBuffer,
         evaluationFeatureExtractionHost + projectionFeatureExtractionEndpoint,
         ckptDir,
-        sampleRate
+        sampleRate,
+        mfccFocusArea, classScoringAudioSubregion
       )
     ]);
   }

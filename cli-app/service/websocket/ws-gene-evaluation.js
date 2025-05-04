@@ -204,14 +204,29 @@ export function getFeaturesFromWebsocket(
   audioBufferChannelData,
   evaluationFeatureHost,
   ckptDir = "",
-  sampleRate = ""
+  sampleRate = "",
+  mfccFocusArea, classScoringAudioSubregion
 ) {
   // if evaluationFeatureHost contains query parameters, add ckptDir and sampleRate as query parameters, if not, then add those as the only query parameters
   let evaluationFeatureHostWithQueryParams;
-  if( evaluationFeatureHost.includes('?') ) {
-    evaluationFeatureHostWithQueryParams = `${evaluationFeatureHost}&ckpt_dir=${ckptDir}&sample_rate=${sampleRate}`;
+  // Build query parameters dynamically, only including those that are defined
+  const params = [];
+  if (ckptDir !== undefined && ckptDir !== null && ckptDir !== "") {
+    params.push(`ckpt_dir=${encodeURIComponent(ckptDir)}`);
+  }
+  if (sampleRate !== undefined && sampleRate !== null && sampleRate !== "") {
+    params.push(`sample_rate=${encodeURIComponent(sampleRate)}`);
+  }
+  if (mfccFocusArea !== undefined && mfccFocusArea !== null) {
+    params.push(`mfcc_focus=${encodeURIComponent(mfccFocusArea)}`);
+  }
+  if (classScoringAudioSubregion !== undefined && classScoringAudioSubregion !== null) {
+    params.push(`audio_sub_region=${encodeURIComponent(classScoringAudioSubregion)}`);
+  }
+  if (evaluationFeatureHost.includes('?')) {
+    evaluationFeatureHostWithQueryParams = `${evaluationFeatureHost}&${params.join('&')}`;
   } else {
-    evaluationFeatureHostWithQueryParams = `${evaluationFeatureHost}?ckpt_dir=${ckptDir}&sample_rate=${sampleRate}`;
+    evaluationFeatureHostWithQueryParams = `${evaluationFeatureHost}?${params.join('&')}`;
   }
   console.log('getFeaturesFromWebsocket', evaluationFeatureHostWithQueryParams);
   const ws = getClient( evaluationFeatureHostWithQueryParams );

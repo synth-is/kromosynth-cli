@@ -1,3 +1,4 @@
+import { has } from 'lodash-es';
 import { mean, variance, std } from 'mathjs'
 /**
  * Enhanced metrics aggregation for phylogenetic and founder-innovation analysis
@@ -443,7 +444,7 @@ export function aggregateEnhancedPhylogeneticMetrics(evoRunsAnalysis, currentEvo
  */
 export function aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRunIndex, analysisOperationsList) {
   // Skip if no iterations to aggregate
-  if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.length) return;
+  if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations.length) return false;
   
   // Initialize aggregates object if needed
   if (!evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].aggregates) {
@@ -763,4 +764,5 @@ export function aggregatePhylogeneticMetrics(evoRunsAnalysis, currentEvolutionRu
     
     // Add more integrated metrics as needed
   }
+  return hasRegularMetrics || hasEnhancedMetrics;
 }
