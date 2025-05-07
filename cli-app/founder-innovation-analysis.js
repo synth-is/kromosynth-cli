@@ -551,7 +551,11 @@ export function findConcreteSteppingStoneExamples(lineageData) {
  * @returns {Array} Founders with normalized metrics
  */
 export function calculateNormalizedFounderImpact(lineageData, founderData) {
-  const totalGenerations = Math.max(...lineageData.map(g => g.gN));
+  // Efficiently compute totalGenerations without creating a large array
+  let totalGenerations = 0;
+  for (let i = 0; i < lineageData.length; i++) {
+    if (lineageData[i].gN > totalGenerations) totalGenerations = lineageData[i].gN;
+  }
   
   return founderData.map(founder => {
     const generationsActive = totalGenerations - founder.generation;
@@ -612,7 +616,11 @@ export function calculateClassDiscoveryRates(lineageData, founderData, founderId
       if (d.eliteClass) uniqueClasses.add(d.eliteClass);
     });
     
-    const generationsActive = Math.max(...lineageData.map(g => g.gN)) - founder.generation;
+    let maxGeneration = -Infinity;
+    for (let i = 0; i < lineageData.length; i++) {
+      if (lineageData[i].gN > maxGeneration) maxGeneration = lineageData[i].gN;
+    }
+    const generationsActive = maxGeneration - founder.generation;
     
     return {
       ...founder,
@@ -631,7 +639,10 @@ export function calculateClassDiscoveryRates(lineageData, founderData, founderId
  * @returns {Object} Enhanced burst pattern analysis
  */
 export function analyzeInnovationBurstPatterns(lineageData, burstData) {
-  const totalGenerations = Math.max(...lineageData.map(g => g.gN));
+  let totalGenerations = -Infinity;
+  for (let i = 0; i < lineageData.length; i++) {
+    if (lineageData[i].gN > totalGenerations) totalGenerations = lineageData[i].gN;
+  }
   const bursts = burstData.topBursts;
   
   // Calculate temporal distribution of bursts

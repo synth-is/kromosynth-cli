@@ -1697,7 +1697,9 @@ async function qdAnalysis_evoRuns() {
 				const ext = path.extname(lineageDataFile);
 				const base = lineageDataFile.slice(0, -ext.length);
 				const perIterationFilePath = `${base}_iteration-${currentEvolutionRunIteration}_lineage${ext}`;
+				console.log(`Checking for per-iteration lineage file: ${perIterationFilePath}`);
 				if (fs.existsSync(perIterationFilePath)) {
+					console.log(`Found per-iteration lineage file: ${perIterationFilePath}`);
 					try {
 						const perIterationData = JSON.parse(fs.readFileSync(perIterationFilePath, 'utf8'));
 						// Try to extract the lineage for this run/iteration
