@@ -1593,7 +1593,10 @@ async function mapElitesBatch(
               console.error("eliteMap.cells[classKey].elts is undefined");
             }
             cellKeyToExistingEliteGenomeId[classKey] = eliteMap.cells[classKey].elts.length ? eliteMap.cells[classKey].elts[0].g : undefined;
-            const {score, scoreClass, surprise, duration, noteDelta, velocity} = newGenomeClassScores[classKey];
+            const {
+              score, scoreClass, surprise, duration, noteDelta, velocity, 
+              classScoringAudioSubregion, mfccFocusArea
+            } = newGenomeClassScores[classKey];
             const updated = Date.now();
 
             eliteMap.cells[classKey].elts = [{
@@ -1603,6 +1606,8 @@ async function mapElitesBatch(
               ss: surprise,
               // ns: novelty is populated during retraining
               gN: eliteMap.generationNumber, // generationNumber: eliteMap.generationNumber,
+              csas: classScoringAudioSubregion,
+              mfccFA: mfccFocusArea,
             }];
 
             newGenome.tags.push({
@@ -1611,6 +1616,8 @@ async function mapElitesBatch(
               updated,
               mapId: eliteMap._id,
               generationNumber: eliteMap.generationNumber,
+              csas: classScoringAudioSubregion,
+              mfccFA: mfccFocusArea,
             });
 
             eliteMap.cells[classKey].uBC = 10;
