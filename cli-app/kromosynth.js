@@ -53,37 +53,23 @@ import {
 } from './qd-run-analysis.js';
 import { 
 	getEvolutionRunsConfig,
-	getParamsFromJSONFile,
-	getParamsFromJSONString,
 	readJSONFromFile,
 	getEvolutionRunConfig,
 	getEvoParams,
 } from './kromosynth-common.js';
-import {
-	getEnhancedDiversityMetrics, trackDiversityOverTime,
-} from './qd-run-analysis-enhanced.js'
-import { yamnetTags_non_musical, yamnetTags_musical } from './util/classificationTags.js';
+
 import {
 	getAudioContext, getNewOfflineAudioContext, playAudio, SAMPLE_RATE
 } from './util/rendering-common.js';
 import { renderSfz } from './virtual-instrument.js';
 import { 
-	// median, 
-	calcStandardDeviation, calcVariance, calcMean,
-	runCmd,
-	averageAttributes, standardDeviationAttributes, 
-	getCommitCount, getClassLabelsWithElites, 
-	getEliteMap, getEliteMaps, 
+	getCommitCount, getEliteMaps, 
 	getClassLabelsWithElitesFromEliteMap
 } from './util/qd-common.js';
 import { readGenomeAndMetaFromDisk } from './util/qd-common-elite-map-persistence.js';
 import { extractFeaturesFromAllAudioFiles } from './extract-audio-features-from-dataset.js';
 import { traceLineage, findLatestDescendantsByClass } from './util/lineage.js';
 import { mapEliteMapToMapWithDifferentBDs } from './util/terrain-remap.js';
-
-
-
-import { mean, median, variance, std, map } from 'mathjs'
 
 
 const GENOME_OUTPUT_BEGIN = "GENOME_OUTPUT_BEGIN";

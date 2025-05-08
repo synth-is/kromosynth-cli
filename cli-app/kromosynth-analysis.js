@@ -36,12 +36,23 @@ import {
   getEvolutionRunConfig,
   getEvoParams,
 } from './kromosynth-common.js';
+import {
+  analyzePhylogeneticTreeMetrics,
+  trackPhylogeneticMetricsOverTime,
+  analyzeTerrainTransitions,
+  analyzeDensityDependence,
+  generatePhylogeneticReport,
+  createFounderDashboard
+} from './qd-run-analysis.js';
+import { 
+	runCmd,
+	averageAttributes, standardDeviationAttributes,
+} from './util/qd-common.js';
 import { 
   runPhylogeneticAnalysis, 
   comparePhylogeneticMetrics,
   comparePhylogeneticMetricsAcrossConfigurations 
 } from './phylogenetic-analysis-cli.js';
-
 import { 
   analyzeFoundersAndInnovations,
   findConcreteSteppingStoneExamples,
@@ -51,25 +62,20 @@ import {
   analyzeInnovationBurstPatterns,
   findAllDescendants
 } from './founder-innovation-analysis.js';
-
 import {
   aggregateEnhancedFounderInnovationMetrics,
   aggregateTimelineData,
   aggregateEnhancedPhylogeneticMetrics,
   aggregatePhylogeneticMetrics
 } from './enhanced-metrics-aggregation.js';
-
 import {
-  analyzePhylogeneticTreeMetrics,
-  trackPhylogeneticMetricsOverTime,
-  analyzeTerrainTransitions,
-  analyzeDensityDependence,
-  generatePhylogeneticReport,
-  createFounderDashboard
-} from './qd-run-analysis.js';
+	getEnhancedDiversityMetrics, trackDiversityOverTime,
+} from './qd-run-analysis-enhanced.js'
+import { yamnetTags_non_musical, yamnetTags_musical } from './util/classificationTags.js';
 import merge from 'deepmerge';
 import path from 'path';
 import fs from 'fs';
+import { mean, median, variance, std, map } from 'mathjs'
 
 ///// elite map analysis
 
