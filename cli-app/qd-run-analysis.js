@@ -2299,6 +2299,25 @@ export async function getLineageGraphData(evoRunConfig, evoRunId, stepSize = 1, 
     const fileNames = fs.readdirSync(evoRunDirPath);
     const eliteMapFiles = fileNames.filter(file => file.startsWith(`elites_${evoRunId}`));
     
+    let refSetNames;
+    if (
+      evoRunConfig.evolutionRunConfig &&
+      evoRunConfig.evolutionRunConfig.classifiers &&
+      evoRunConfig.evolutionRunConfig.classifiers.length > 0 &&
+      evoRunConfig.evolutionRunConfig.classifiers[0].classConfigurations
+    ) {
+      refSetNames = evoRunConfig.evolutionRunConfig.classifiers[0].classConfigurations
+        .map(cfg => cfg.refSetName)
+        .filter(Boolean);
+      console.log("Ref set names from evoRunConfig:", refSetNames);
+    }
+
+    // If refSetNames is set, filter eliteMapFiles to only those ending with any refSetName before the .json extension
+    if (refSetNames && refSetNames.length > 0) {
+      eliteMapFiles = eliteMapFiles.filter(fileName =>
+      refSetNames.some(refSetName => fileName.endsWith(`_${refSetName}.json`))
+      );
+    }
     terrainNames = eliteMapFiles.map(fileName => {
       const match = fileName.match(new RegExp(`elites_${evoRunId}_?(.*)\\.json`));
       return match && match[1] ? match[1] : '';

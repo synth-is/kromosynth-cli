@@ -3,7 +3,7 @@ import { runCmd } from './qd-common.js';
 import { gzipSync, gunzipSync } from 'fflate';
 
 // Helper functions for compression
-function writeCompressedJSON(filePath, content) {
+export function writeCompressedJSON(filePath, content) {
   const jsonString = JSON.stringify(content);
   const uint8 = new TextEncoder().encode(jsonString);
   const compressed = gzipSync(uint8);

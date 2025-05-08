@@ -48,6 +48,9 @@ import {
 	qdAnalysis_playClass,
 } from './kromosynth-analysis.js';
 import {
+	qdAnalysis_evoRunsFromDir
+} from './kromosynth-analysis-dir.js';
+import {
 
 	renderEliteMapsTimeline
 } from './qd-run-analysis.js';
@@ -354,6 +357,9 @@ const cli = meow(`
 	importMeta: import.meta,
 	flags: {
 		evoRunDirPath: {
+			type: 'string'
+		},
+		evoRunsDirPath: {
 			type: 'string'
 		},
 		readFromFile: {
@@ -717,6 +723,9 @@ async function executeEvolutionTask() {
 			break;
 		case "evo-runs-analysis":
 			qdAnalysis_evoRuns( cli );
+			break;
+		case "evo-runs-dir-analysis":
+			qdAnalysis_evoRunsFromDir( cli );
 			break;
 
 		case "evo-run-play-class":
