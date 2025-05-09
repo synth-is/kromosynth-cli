@@ -187,6 +187,10 @@ const cli = meow(`
 			Extract audio features from a dataset of audio files
 			- several features types, such as MFCC, Chroma, etc.
 
+		evo-runs-dir-analysis
+			Perform a selection of analysis steps for all evolution runs in a directory
+			--concurrency-limit  Number of parallel analysis tasks to run (default: 1 for sequential processing)
+
 	Options
 		Commands: <new-genome, mutate-genome, render-audio or classify-genome>
 		--read-from-file, -r  Gene file to read from
@@ -617,6 +621,11 @@ const cli = meow(`
 		},
 		lineageDataFile: {
 			type: 'string'
+		},
+
+		concurrencyLimit: {
+			type: 'number',
+			default: 1 // Default to sequential processing
 		},
 	}
 });
