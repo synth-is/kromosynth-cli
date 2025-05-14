@@ -48,7 +48,8 @@ import {
 	qdAnalysis_playClass,
 } from './kromosynth-analysis.js';
 import {
-	qdAnalysis_evoRunsFromDir
+	qdAnalysis_evoRunsFromDir,
+	evoRunsDirAnalysisAggregate
 } from './kromosynth-analysis-dir.js';
 import {
 
@@ -190,6 +191,9 @@ const cli = meow(`
 		evo-runs-dir-analysis
 			Perform a selection of analysis steps for all evolution runs in a directory
 			--concurrency-limit  Number of parallel analysis tasks to run (default: 1 for sequential processing)
+
+		evo-runs-dir-analysis-aggregate
+			Aggregate previously analyzed evolution runs data by folder type (grouped by naming pattern)
 
 	Options
 		Commands: <new-genome, mutate-genome, render-audio or classify-genome>
@@ -735,6 +739,9 @@ async function executeEvolutionTask() {
 			break;
 		case "evo-runs-dir-analysis":
 			qdAnalysis_evoRunsFromDir( cli );
+			break;
+		case "evo-runs-dir-analysis-aggregate":
+			evoRunsDirAnalysisAggregate( cli );
 			break;
 
 		case "evo-run-play-class":

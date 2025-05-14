@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { writeCompressedJSON } from '../../cli-app/util/qd-common-elite-map-persistence.js';
 
 function serializeTreeToJson(node) {
   return {
@@ -17,10 +18,11 @@ function serializeTreeToJson(node) {
   };
 }
 
-export function saveTreeToJson(root, data, iteration = 0, outputDir = './output', fileNameSuffix = '') {
+export function saveTreeToJson(root, data, iteration = 0, outputDir = './output', fileNameSuffix = '', compress = true) {
   const iterationId = data.evoRuns[0].iterations[iteration].id;
   const fileName = `tree_${iterationId}${fileNameSuffix}.json`;
   const filePath = path.join(outputDir, fileName);
+  const compressedFilePath = `${filePath}.gz`;
 
   const jsonTree = serializeTreeToJson(root);
   
@@ -29,8 +31,13 @@ export function saveTreeToJson(root, data, iteration = 0, outputDir = './output'
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  fs.writeFileSync(filePath, JSON.stringify(jsonTree
-    // , null, 2
-  ));
-  console.log(`Tree saved to ${filePath}`);
+  if (compress) {
+    writeCompressedJSON(compressedFilePath, jsonTree);
+    console.log(`Compressed tree saved to ${compressedFilePath}`);
+  } else {
+    fs.writeFileSync(filePath, JSON.stringify(jsonTree
+      // , null, 2
+    ));
+    console.log(`Tree saved to ${filePath}`);
+  }
 }
