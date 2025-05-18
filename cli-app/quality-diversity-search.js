@@ -428,7 +428,7 @@ export async function runCoreEvolution(
       }
     });
   }
-  cellFeatures = Environment.persistence.readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRunId, eliteMap );
+  cellFeatures = await Environment.persistence.readCellFeaturesFromDiskForEliteMap( evoRunDirPath, evolutionRunId, eliteMap );
 
 
   let noveltyArchive;
@@ -606,7 +606,7 @@ export async function runCoreEvolution(
           genomeIdsFromCurrentAndNextEliteMaps.add(genomeId);
         });
 
-        const cellFeaturesFromCurrentAndNextEliteMaps = Environment.persistence.readFeaturesForGenomeIdsFromDisk( 
+        const cellFeaturesFromCurrentAndNextEliteMaps = await Environment.persistence.readFeaturesForGenomeIdsFromDisk( 
           evoRunDirPath, evolutionRunId, genomeIdsFromCurrentAndNextEliteMaps 
         );
 
@@ -1284,7 +1284,7 @@ async function mapElitesBatch(
                     );
                     seedFeaturesAndScores.push(...seedGenomeScoreAndFeatures);
                   }
-                  Environment.persistence.saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
+                  await Environment.persistence.saveGenomeToDisk( await getGenomeFromGenomeString(newGenomeString), evolutionRunId, genomeId, evoRunDirPath, addGenomesToGit );
                 }
               }
               resolve({
@@ -1551,7 +1551,7 @@ async function mapElitesBatch(
       let { newGenomeString } = batchIterationResults[batchResultIdx];
       if( ! newGenomeString ) {
         // when coming from a seed round, or population from getFeaturesAndScoresForGenomeIds, newGenomeString is undefined
-        newGenomeString = Environment.persistence.readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
+        newGenomeString = await Environment.persistence.readGenomeAndMetaFromDisk( evolutionRunId, genomeId, evoRunDirPath );
       }
 
       ///// add to archive
@@ -2038,7 +2038,7 @@ async function getGenomeClassScores(
         console.error(`Error evaluating gene at generation ${eliteMap.generationNumber} for evolution run ${evolutionRunId}`, e);
         clearServiceConnectionList(geneEvaluationServerHost);
         getGenomeFromGenomeString( newGenomeString ).then( async failedGenome =>
-          Environment.persistence.saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
+          await Environment.persistence.saveGenomeToDisk( failedGenome, evolutionRunId, genomeId, evoRunFailedGenesDirPath, false )
         );
       }
     );
@@ -3069,7 +3069,7 @@ async function retrainProjectionModel(
   for (const [cellKey, elite] of cellElitesMap) {
     let newCellKey;
     if (classScoringVariationsAsContainerDimensions) {
-      const genomeString = Environment.persistence.readGenomeAndMetaFromDisk(evolutionRunId, elite.g, evoRunDirPath);
+      const genomeString = await Environment.persistence.readGenomeAndMetaFromDisk(evolutionRunId, elite.g, evoRunDirPath);
       const { duration, noteDelta, velocity } = getDurationNoteDeltaVelocityFromGenomeString(genomeString, cellKey);
       newCellKey = diversityProjection.feature_map[i].join('_') + `-${duration}_${noteDelta}_${velocity}`;
     } else {

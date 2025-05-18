@@ -1,9 +1,12 @@
 import fs from 'fs';
 import {
-  calculateCosineSimilarity, getCommitIdsFilePathFromRunConfig, getCommitCount, getEliteMapFromRunConfig
+  calculateCosineSimilarity, getCommitIdsFilePathFromRunConfig, getCommitCount, getEliteMapFromRunConfig,
+  getCellFeaturesForGenomeId
 } from './qd-run-analysis.js';
 import { getEvoRunDirPath } from './util/qd-common.js';
-import { readCompressedOrPlainJSON } from './util/qd-common-elite-map-persistence.js';
+import { Environment } from './environment.js';
+await Environment.initialize('node'); // assume we'll only be performing analysis in the Node.js environment
+// import { readCompressedOrPlainJSON } from './util/qd-common-elite-map-persistence.js';
 
 /**
  * Memory-efficient implementation of enhanced diversity metrics
@@ -32,49 +35,48 @@ export async function getEnhancedDiversityMetrics(evoRunConfig, evoRunId, useDir
   let featureVectors = [];
   
   if (useDirectFeatureReading) {
-    console.log('Reading features directly from cellFeatures directory...');
-    
-    if (!fs.existsSync(cellFeaturesPath)) {
-      throw new Error(`cellFeatures directory not found at ${cellFeaturesPath}`);
+    console.log('Reading features directly from persistence provider...');
+    // Use the persistence provider to get all genome IDs with features
+    let genomeIds = [];
+    if (Environment && Environment.persistence && Environment.persistence.listAllFeatureGenomeIds) {
+      genomeIds = await Environment.persistence.listAllFeatureGenomeIds(evoRunDirPath);
+    } else if (fs.existsSync(cellFeaturesPath)) {
+      // Fallback: enumerate files if DB doesn't support listing
+      genomeIds = fs.readdirSync(cellFeaturesPath)
+        .filter(filename => filename.startsWith('features_'))
+        .map(filename => {
+          const match = filename.match(/features_[^_]+_(.+)\.json(\.gz)?$/);
+          return match ? match[1] : null;
+        })
+        .filter(Boolean);
+    } else {
+      throw new Error(`No way to enumerate available features in DB or disk at ${cellFeaturesPath}`);
     }
 
-    const featureFiles = fs.readdirSync(cellFeaturesPath)
-      .filter(filename => filename.startsWith('features_'));
+    console.log(`Found ${genomeIds.length} genome IDs with features`);
 
-    console.log(`Found ${featureFiles.length} feature files`);
-
-    for (let i = 0; i < featureFiles.length; i++) {
+    for (let i = 0; i < genomeIds.length; i++) {
       try {
-        const filename = featureFiles[i];
-        const filePath = `${cellFeaturesPath}/${filename}`;
-        
-        // Handle both .json.gz and .json files
-        let features;
-        if (filename.endsWith('.json.gz')) {
-          features = readCompressedOrPlainJSON(filePath, null);
-        } else {
-          const content = fs.readFileSync(filePath, 'utf8');
-          features = JSON.parse(content);
+        const genomeId = genomeIds[i];
+        // Get feature extraction type from first valid genome if not yet set
+        if (!featureExtractionType) {
+          const features = await getCellFeaturesForGenomeId(evoRunDirPath, evoRunId, genomeId);
+          if (features && typeof features === 'object') {
+            const firstKey = Object.keys(features)[0];
+            featureExtractionType = firstKey;
+          }
         }
-
-        // Get feature extraction type from first valid file if not yet set
-        if (!featureExtractionType && Object.keys(features).length > 0) {
-          featureExtractionType = Object.keys(features)[0];
-        }
-
-        if (features[featureExtractionType]?.features) {
-          featureVectors.push(features[featureExtractionType].features);
+        const cellFeatures = await getCellFeaturesForGenomeId(evoRunDirPath, evoRunId, genomeId, featureExtractionType);
+        if (cellFeatures) {
+          featureVectors.push(cellFeatures);
         }
       } catch (error) {
-        console.warn(`Warning: Could not read features from file ${i + 1}:`, error.message);
+        console.warn(`Warning: Could not read features for genome ${i + 1}:`, error.message);
       }
-
-      // Print progress every 100 files
       if ((i + 1) % 100 === 0) {
-        console.log(`Processed ${i + 1} out of ${featureFiles.length} feature files...`);
+        console.log(`Processed ${i + 1} out of ${genomeIds.length} genome features...`);
       }
     }
-
   } else {
     console.log('Collecting genome IDs from elite maps...');
     
@@ -107,15 +109,10 @@ export async function getEnhancedDiversityMetrics(evoRunConfig, evoRunId, useDir
     // Second pass: collect features
     let processedCount = 0;
     for (const oneGenomeId of discoveredGenomeIds) {
-      const gzipPath = `${cellFeaturesPath}/features_${evoRunId}_${oneGenomeId}.json.gz`;
-      const plainPath = `${cellFeaturesPath}/features_${evoRunId}_${oneGenomeId}.json`;
-      
       try {
-        // Use the utility function to read either gzipped or plain JSON
-        const features = readCompressedOrPlainJSON(gzipPath, plainPath);
-        
-        if (features && features[featureExtractionType]?.features) {
-          featureVectors.push(features[featureExtractionType].features);
+        const cellFeatures = await getCellFeaturesForGenomeId(evoRunDirPath, evoRunId, oneGenomeId, featureExtractionType);
+        if (cellFeatures) {
+          featureVectors.push(cellFeatures);
         }
       } catch (error) {
         console.warn(`Warning: Could not read features for genome ${oneGenomeId}:`, error.message);
@@ -1087,13 +1084,10 @@ export async function trackDiversityOverTime(evoRunConfig, evoRunId, stepSize = 
       for (const oneCellKey of Object.keys(eliteMap.cells)) {
         if (eliteMap.cells[oneCellKey].elts.length) {
           const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
-          const gzipPath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json.gz`;
-          const plainPath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json`;
-          
           try {
-            const cellFeatures = readCompressedOrPlainJSON(gzipPath, plainPath);
-            if (cellFeatures && cellFeatures[featureExtractionType]?.features) {
-              featureVectors.push(cellFeatures[featureExtractionType].features);
+            const cellFeatures = await getCellFeaturesForGenomeId(getEvoRunDirPath(evoRunConfig, evoRunId), evoRunId, genomeId, featureExtractionType);
+            if (cellFeatures) {
+              featureVectors.push(cellFeatures);
             }
           } catch (error) {
             console.warn(`Could not read features for genome ${genomeId}: ${error.message}`);
