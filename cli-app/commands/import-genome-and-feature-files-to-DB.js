@@ -8,8 +8,11 @@ import { execSync } from 'child_process';
 const gunzip = promisify(zlib.gunzip);
 const gzip = promisify(zlib.gzip);
 
+// Accept EVORUNS_BASE_DIR as a command line argument
+const DEFAULT_EVORUNS_BASE_DIR = '/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/evoruns';
+const EVORUNS_BASE_DIR = process.argv[2] || DEFAULT_EVORUNS_BASE_DIR;
+
 // Configuration
-const EVORUNS_BASE_DIR = '/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/evoruns';
 const BATCH_SIZE = 1000;
 const GENOME_PREFIX = 'genome_';
 const FEATURES_PREFIX = 'features_';
