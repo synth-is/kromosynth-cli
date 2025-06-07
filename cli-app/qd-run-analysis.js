@@ -2316,7 +2316,7 @@ export async function getLineageGraphData(evoRunConfig, evoRunId, stepSize = 1, 
   if (!processSingleMap) {
     const fileNames = fs.readdirSync(evoRunDirPath);
     const eliteMapFiles = fileNames.filter(
-      file => file.startsWith(`elites_${evoRunId}`) && !file.endsWith('_0.json') && !file.includes('spectral')
+      file => file.startsWith(`elites_${evoRunId}`) && !file.endsWith('_0.json') && !file.includes('spectral') && !file.includes('random')
 
     );
     
