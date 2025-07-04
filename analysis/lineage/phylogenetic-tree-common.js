@@ -76,7 +76,7 @@ export function buildSimplifiedTree(
 
   function getOrCreateNode(item) {
     if (!nodeMap.has(item.id)) {
-      const normalizedClass = normalizeClassName(item.eliteClass);
+      const normalizedClass = item.eliteClass; // TODO: configurable: normalizeClassName(item.eliteClass);
       nodeMap.set(item.id, {
         id: item.id,
         name: normalizedClass,
