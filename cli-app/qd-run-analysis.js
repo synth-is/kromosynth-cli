@@ -13,7 +13,12 @@ import {
   averageAttributes, standardDeviationAttributes,
   getEliteMap
 } from './util/qd-common.js';
-import { readGenomeAndMetaFromDisk, readCompressedOrPlainJSON } from './util/qd-common-elite-map-persistence.js';
+import { Environment } from './environment.js';
+await Environment.initialize('node'); // assume we'll only be performing analysis in the Node.js environment
+import { 
+  readGenomeAndMetaFromDisk, 
+  readCompressedOrPlainJSON 
+} from './util/qd-common-elite-map-persistence.js';
 import nthline from 'nthline';
 import {
 	getAudioBufferFromGenomeAndMeta, getGenomeFromGenomeString,
@@ -37,7 +42,7 @@ export async function getClassLabels( evoRunConfig, evoRunId ) {
 // checks if the evoRunConfig contains classConfigurations, each with a "refSetName" defining a "terrain" for one eliteMap
 // - if so, returns the terrain names, indicating that there are multiple eliteMaps
 export function getTerrainNames( evoRunConfig ) {
-  const classConfigurations = evoRunConfig.classifiers[evoRunConfig.classifierIndex].classConfigurations;
+  const classConfigurations = evoRunConfig.classifierIndex && evoRunConfig.classifiers[evoRunConfig.classifierIndex].classConfigurations;
   if( classConfigurations ) {
     return classConfigurations.map( classConfiguration => classConfiguration.refSetName );
   }
@@ -115,7 +120,38 @@ function calculateAveragePairwiseDistanceCosine(embeddings) {
   return pairCount > 0 ? sumDistances / pairCount : 0;
 }
 
-export function getDiversityFromEmbeddingFiles( evoRunConfig, evoRunId) {
+// Helper to read cell features for a genomeId using the persistence provider (DB or fallback to file)
+export async function getCellFeaturesForGenomeId(evoRunDirPath, evoRunId, genomeId, featureExtractionType) {
+  // Try DB first (via Environment.persistence), fallback to file if not found
+  const featuresObj = await Environment.persistence.readFeaturesForGenomeIdsFromDisk(
+    evoRunDirPath, evoRunId, [genomeId]
+  );
+  let features = featuresObj && featuresObj[genomeId];
+  if (!features) {
+    // Fallback to file-based read
+    const gzipPath = `${evoRunDirPath}cellFeatures/features_${evoRunId}_${genomeId}.json.gz`;
+    const plainPath = `${evoRunDirPath}cellFeatures/features_${evoRunId}_${genomeId}.json`;
+    try {
+      features = readCompressedOrPlainJSON(gzipPath, plainPath);
+    } catch (err) {
+      features = undefined;
+    }
+  }
+  if (!features) return undefined;
+  if (featureExtractionType && features[featureExtractionType]?.features) {
+    return features[featureExtractionType].features;
+  }
+  // If featureExtractionType is not specified, try to return the first available features
+  if (typeof features === 'object') {
+    const firstKey = Object.keys(features)[0];
+    if (features[firstKey]?.features) {
+      return features[firstKey].features;
+    }
+  }
+  return undefined;
+}
+
+export async function getDiversityFromEmbeddingFiles( evoRunConfig, evoRunId) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
   const embeddingFilePaths = fs.readdirSync(evoRunDirPath).filter( filePath => filePath.includes("cellFeatures_") );
   const diversity = {};
@@ -154,7 +190,6 @@ export function getDiversityFromEmbeddingFiles( evoRunConfig, evoRunId) {
 export async function getEliteMapDiversityAtLastIteration(evoRunConfig, evoRunId) {
   const eliteMap = await getEliteMapFromRunConfig(evoRunConfig, evoRunId, undefined, false);
   const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
-  const cellFeaturesPath = `${evoRunDirPath}cellFeatures`;
   let featureExtractionType;
 
   if (!eliteMap.classConfigurations?.length || 
@@ -169,14 +204,11 @@ export async function getEliteMapDiversityAtLastIteration(evoRunConfig, evoRunId
   for (const oneCellKey of Object.keys(eliteMap.cells)) {
     if (eliteMap.cells[oneCellKey].elts.length) {
       const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
-      const gzipPath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json.gz`;
-      const plainPath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json`;
-      
-      const cellFeatures = readCompressedOrPlainJSON(gzipPath, plainPath);
-      if (cellFeatures && cellFeatures[featureExtractionType]?.features) {
-        featureVectors.push(cellFeatures[featureExtractionType].features);
+      const cellFeatures = await getCellFeaturesForGenomeId(evoRunDirPath, evoRunId, genomeId, featureExtractionType);
+      if (cellFeatures) {
+        featureVectors.push(cellFeatures);
       } else {
-        console.error("cellFeatures file not found for genomeId", genomeId);
+        console.error("cellFeatures not found for genomeId", genomeId);
       }
     }
   }
@@ -212,18 +244,15 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
 
   const processIteration = async (eliteMap, featureExtractionType) => {
     const featureVectors = [];
-    const cellFeaturesPath = `${getEvoRunDirPath(evoRunConfig, evoRunId)}cellFeatures`;
+    const evoRunDirPath = getEvoRunDirPath(evoRunConfig, evoRunId);
 
     // Collect feature vectors as before
     for (const oneCellKey of Object.keys(eliteMap.cells)) {
       if (eliteMap.cells[oneCellKey].elts.length) {
         const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
-        const gzipPath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json.gz`;
-        const plainPath = `${cellFeaturesPath}/features_${evoRunId}_${genomeId}.json`;
-        
-        const cellFeatures = readCompressedOrPlainJSON(gzipPath, plainPath);
-        if (cellFeatures && cellFeatures[featureExtractionType]?.features) {
-          featureVectors.push(cellFeatures[featureExtractionType].features);
+        const cellFeatures = await getCellFeaturesForGenomeId(evoRunDirPath, evoRunId, genomeId, featureExtractionType);
+        if (cellFeatures) {
+          featureVectors.push(cellFeatures);
         }
       }
     }
@@ -237,11 +266,6 @@ export async function getEliteMapDiversityForAllIterations(evoRunConfig, evoRunI
       }
     }
 
-    // TODO: postponing Gini index calculation for now; doesn't seem too interesting and requires further updates to the handling of the modifide structure in the callee
-    // return {
-    //   averagePairwiseDistance: calculateAveragePairwiseDistanceCosine(featureVectors),
-    //   giniIndex: calculateGiniIndex(pairwiseDistances)
-    // };
     return calculateAveragePairwiseDistanceCosine(featureVectors);
   };
 
@@ -306,49 +330,48 @@ export async function getDiversityFromAllDiscoveredElites(evoRunConfig, evoRunId
   const featureVectors = [];
   
   if (useDirectFeatureReading) {
-    console.log('Reading features directly from cellFeatures directory...');
-    
-    if (!fs.existsSync(cellFeaturesPath)) {
-      throw new Error(`cellFeatures directory not found at ${cellFeaturesPath}`);
+    console.log('Reading features directly from persistence provider...');
+    // Use the persistence provider to get all genome IDs with features
+    let genomeIds = [];
+    if (Environment.persistence.listAllFeatureGenomeIds) {
+      genomeIds = await Environment.persistence.listAllFeatureGenomeIds(evoRunDirPath);
+    } else if (fs.existsSync(cellFeaturesPath)) {
+      // Fallback: enumerate files if DB doesn't support listing
+      genomeIds = fs.readdirSync(cellFeaturesPath)
+        .filter(filename => filename.startsWith('features_'))
+        .map(filename => {
+          const match = filename.match(/features_[^_]+_(.+)\.json(\.gz)?$/);
+          return match ? match[1] : null;
+        })
+        .filter(Boolean);
+    } else {
+      throw new Error(`No way to enumerate available features in DB or disk at ${cellFeaturesPath}`);
     }
 
-    const featureFiles = fs.readdirSync(cellFeaturesPath)
-      .filter(filename => filename.startsWith('features_'));
+    console.log(`Found ${genomeIds.length} genome IDs with features`);
 
-    console.log(`Found ${featureFiles.length} feature files`);
-
-    for (let i = 0; i < featureFiles.length; i++) {
+    for (let i = 0; i < genomeIds.length; i++) {
       try {
-        const filename = featureFiles[i];
-        const filePath = `${cellFeaturesPath}/${filename}`;
-        
-        // Handle both .json.gz and .json files
-        let features;
-        if (filename.endsWith('.json.gz')) {
-          features = readCompressedOrPlainJSON(filePath, null);
-        } else {
-          const content = fs.readFileSync(filePath, 'utf8');
-          features = JSON.parse(content);
+        const genomeId = genomeIds[i];
+        // Get feature extraction type from first valid genome if not yet set
+        if (!featureExtractionType) {
+          const features = await getCellFeaturesForGenomeId(evoRunDirPath, evoRunId, genomeId);
+          if (features && typeof features === 'object') {
+            const firstKey = Object.keys(features)[0];
+            featureExtractionType = firstKey;
+          }
         }
-
-        // Get feature extraction type from first valid file if not yet set
-        if (!featureExtractionType && Object.keys(features).length > 0) {
-          featureExtractionType = Object.keys(features)[0];
-        }
-
-        if (features[featureExtractionType]?.features) {
-          featureVectors.push(features[featureExtractionType].features);
+        const cellFeatures = await getCellFeaturesForGenomeId(evoRunDirPath, evoRunId, genomeId, featureExtractionType);
+        if (cellFeatures) {
+          featureVectors.push(cellFeatures);
         }
       } catch (error) {
-        console.warn(`Warning: Could not read features from file ${i + 1}:`, error.message);
+        console.warn(`Warning: Could not read features for genome ${i + 1}:`, error.message);
       }
-
-      // Print progress every 100 files
       if ((i + 1) % 100 === 0) {
-        console.log(`Processed ${i + 1} out of ${featureFiles.length} feature files...`);
+        console.log(`Processed ${i + 1} out of ${genomeIds.length} genome features...`);
       }
     }
-
   } else {
     console.log('Collecting genome IDs from elite maps...');
     
@@ -381,15 +404,10 @@ export async function getDiversityFromAllDiscoveredElites(evoRunConfig, evoRunId
     // Second pass: collect features
     let processedCount = 0;
     for (const oneGenomeId of discoveredGenomeIds) {
-      const gzipPath = `${cellFeaturesPath}/features_${evoRunId}_${oneGenomeId}.json.gz`;
-      const plainPath = `${cellFeaturesPath}/features_${evoRunId}_${oneGenomeId}.json`;
-      
       try {
-        // Use the utility function to read either gzipped or plain JSON
-        const features = readCompressedOrPlainJSON(gzipPath, plainPath);
-        
-        if (features && features[featureExtractionType]?.features) {
-          featureVectors.push(features[featureExtractionType].features);
+        const cellFeatures = await getCellFeaturesForGenomeId(evoRunDirPath, evoRunId, oneGenomeId, featureExtractionType);
+        if (cellFeatures) {
+          featureVectors.push(cellFeatures);
         }
       } catch (error) {
         console.warn(`Warning: Could not read features for genome ${oneGenomeId}:`, error.message);
@@ -1146,7 +1164,7 @@ export async function renderEliteMapsTimeline(
           // }
 
           // Read genome data
-          const genomeString = await readGenomeAndMetaFromDisk(evoRunId, genomeId, oneEvorunPath);
+          const genomeString = await Environment.persistence.readGenomeAndMetaFromDisk(evoRunId, genomeId, oneEvorunPath);
           const genomeAndMeta = JSON.parse(genomeString);
           let tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === cellKey);
           if( !tagForCell && genomeAndMeta.genome.tags.length ) {
@@ -1720,7 +1738,7 @@ export async function getGenomeStatisticsAveragedForOneIteration(
 
 async function getGenomeStatistics( genomeId, evoRunConfig, evoRunId ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+  const genomeString = await Environment.persistence.readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
   const genomeAndMeta = await getGenomeFromGenomeString( genomeString, {} /*evoParams*/ );
   
   // const cppnNodeCount = genomeAndMeta.waveNetwork.offspring.nodes.length;
@@ -1779,7 +1797,7 @@ async function getGenomeStatistics( genomeId, evoRunConfig, evoRunId ) {
 
 async function getGenomeNodeTypeStatistics( genomeId, evoRunConfig, evoRunId ) {
   const evoRunDirPath = getEvoRunDirPath( evoRunConfig, evoRunId );
-  const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+  const genomeString = await Environment.persistence.readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
   const genomeAndMeta = await getGenomeFromGenomeString( genomeString, {} /*evoParams*/ );
   let cppnNodeTypes;
   let cppnCount = 0;
@@ -2084,7 +2102,7 @@ export async function getGoalSwitches( evoRunConfig, evoRunId, stepSize = 1, evo
             classChampionAndGoalSwitchCount[oneCellKey].lastClass = oneCellKey;
             classChampionAndGoalSwitchCount[oneCellKey].score = score;
 
-            const classEliteGenomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+            const classEliteGenomeString = await Environment.persistence.readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
             const classEliteGenome = await getGenomeFromGenomeString(classEliteGenomeString, evoParams);
             // check if attribute parentGenomes of classEliteGenome is defined and the array contains a genome with an eliteClass attribute that is not equal to oneCellKey
             if( classEliteGenome.parentGenomes && classEliteGenome.parentGenomes.find( parentGenome => parentGenome.eliteClass !== oneCellKey ) ) {
@@ -2182,7 +2200,7 @@ export async function getGoalSwitchesThroughLineages( evoRunConfig, evoRunId, ev
       scoresToCells[oneCellKey] = currentEliteScore;
       let classEliteGenome;
       do {
-        const classEliteGenomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+        const classEliteGenomeString = await Environment.persistence.readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
         classEliteGenome = await getGenomeFromGenomeString(classEliteGenomeString, evoParams);
         if( classEliteGenome.parentGenomes ) {
           // check if the eliteClasses belong to different contexts
@@ -2297,8 +2315,30 @@ export async function getLineageGraphData(evoRunConfig, evoRunId, stepSize = 1, 
   let terrainNames = [];
   if (!processSingleMap) {
     const fileNames = fs.readdirSync(evoRunDirPath);
-    const eliteMapFiles = fileNames.filter(file => file.startsWith(`elites_${evoRunId}`));
+    const eliteMapFiles = fileNames.filter(
+      file => file.startsWith(`elites_${evoRunId}`) && !file.endsWith('_0.json') && !file.includes('spectral') && !file.includes('random')
+
+    );
     
+    let refSetNames;
+    if (
+      evoRunConfig.evolutionRunConfig &&
+      evoRunConfig.evolutionRunConfig.classifiers &&
+      evoRunConfig.evolutionRunConfig.classifiers.length > 0 &&
+      evoRunConfig.evolutionRunConfig.classifiers[0].classConfigurations
+    ) {
+      refSetNames = evoRunConfig.evolutionRunConfig.classifiers[0].classConfigurations
+        .map(cfg => cfg.refSetName)
+        .filter(Boolean);
+      console.log("Ref set names from evoRunConfig:", refSetNames);
+    }
+
+    // If refSetNames is set, filter eliteMapFiles to only those ending with any refSetName before the .json extension
+    if (refSetNames && refSetNames.length > 0) {
+      eliteMapFiles = eliteMapFiles.filter(fileName =>
+      refSetNames.some(refSetName => fileName.endsWith(`_${refSetName}.json`))
+      );
+    }
     terrainNames = eliteMapFiles.map(fileName => {
       const match = fileName.match(new RegExp(`elites_${evoRunId}_?(.*)\\.json`));
       return match && match[1] ? match[1] : '';
@@ -2381,7 +2421,7 @@ export async function getLineageGraphData(evoRunConfig, evoRunId, stepSize = 1, 
       const earliestAppearance = genomeTerrainInfo[genomeId].terrainAppearances[0];
       
       // Read the genome just once
-      const genomeString = await readGenomeAndMetaFromDisk(evoRunId, genomeId, evoRunDirPath);
+      const genomeString = await Environment.persistence.readGenomeAndMetaFromDisk(evoRunId, genomeId, evoRunDirPath);
       const genome = await getGenomeFromGenomeString(genomeString);
       
       // Get parent info
@@ -2462,7 +2502,7 @@ export async function getDurationPitchDeltaVelocityCombinations( evoRunConfig, e
         const cell = eliteMap.cells[oneCellKey];
         if( cell.elts.length ) {
           const genomeId = cell.elts[0].g;
-          const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+          const genomeString = await Environment.persistence.readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
           const genome = await getGenomeFromGenomeString(genomeString);
           genome.tags.forEach(oneTag => {
             if( oneTag.tag === oneCellKey && ( !uniqueGenomes || !genomeSet.has(genomeId) ) ) {
@@ -2632,7 +2672,7 @@ export async function playAllClassesInEliteMap(
         const genomeId = eliteMap.cells[oneCellKey].elts[0].g;
         const score = eliteMap.cells[oneCellKey].elts[0].s;
         if( undefined === scoreThreshold || scoreThreshold <= score ) {
-          const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+          const genomeString = await Environment.persistence.readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
           const genomeAndMeta = JSON.parse( genomeString );
           const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === oneCellKey);
           const { duration, noteDelta, velocity, updated } = tagForCell;
@@ -2691,7 +2731,7 @@ export async function playOneClassAcrossEvoRun(cellKey, evoRunConfig, evoRunId, 
         const genomeId = eliteMap.cells[cellKey].elts[0].g;
         const score = eliteMap.cells[cellKey].elts[0].s;
         if( lastPlayedGenomeId !== genomeId || paused ) {
-          const genomeString = await readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
+          const genomeString = await Environment.persistence.readGenomeAndMetaFromDisk( evoRunId, genomeId, evoRunDirPath );
           const genomeAndMeta = JSON.parse( genomeString );
           const tagForCell = genomeAndMeta.genome.tags.find(t => t.tag === cellKey);
           const { duration, noteDelta, velocity, updated } = tagForCell;

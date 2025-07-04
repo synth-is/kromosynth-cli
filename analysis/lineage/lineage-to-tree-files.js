@@ -11,9 +11,9 @@ data.evoRuns[0].iterations.forEach((iteration, index) => {
   console.log(`Processing iteration ${index + 1} of ${data.evoRuns[0].iterations.length} (${iterationId})`);
 
   const treeDataAll = buildSimplifiedTree(data, Infinity, false, null, index, true, true);
-  saveTreeToJson(treeDataAll, data, index, outputDir, '_all');
+  saveTreeToJson(treeDataAll, data, index, outputDir, '_all', true); // Use compression
   // const treeDataMusical = buildSimplifiedTree(data, Infinity, false, null, index, true, false);
-  // saveTreeToJson(treeDataMusical, data, index, outputDir, '_musical');
+  // saveTreeToJson(treeDataMusical, data, index, outputDir, '_musical', true); // Use compression
   // const treeDataNonMusical = buildSimplifiedTree(data, Infinity, false, null, index, false, true);
-  // saveTreeToJson(treeDataNonMusical, data, index, outputDir, '_nonmusical');
+  // saveTreeToJson(treeDataNonMusical, data, index, outputDir, '_nonmusical', true); // Use compression
 });
