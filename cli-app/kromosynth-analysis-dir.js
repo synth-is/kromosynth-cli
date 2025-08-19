@@ -548,6 +548,7 @@ export async function qdAnalysis_evoRunsFromDir(cli) {
     maxIterationIndex,
     terrainName,
     concurrencyLimit, // New parameter for controlling parallel execution
+    forceProcessing,
     writeToFolder
   } = cli.flags;
   
@@ -743,7 +744,7 @@ export async function qdAnalysis_evoRunsFromDir(cli) {
     
     // Try to read existing analysis from either compressed or plain file
     const existingAnalysis = readCompressedOrPlainJSON(paths.gzipPath, paths.plainPath);
-    if (existingAnalysis && existingAnalysis.generationNumber === generationNumber) {
+    if (existingAnalysis && existingAnalysis.generationNumber === generationNumber && !forceProcessing) {
       console.log(`Analysis file for ${oneAnalysisOperation} already exists with same generation number. Skipping.`);
       return;
     }
@@ -758,6 +759,16 @@ export async function qdAnalysis_evoRunsFromDir(cli) {
       // Check if lineage file already exists
       const lineageFileName = `lineage_${evolutionRunId}_step-${stepSize}.json`;
       const lineagePaths = getCompressedAndPlainPaths(analysisResultsDir, lineageFileName);
+
+      // If neither compressed nor plain lineage file exists and forceProcessing is not set, skip processing
+      if (
+        !forceProcessing &&
+        !fs.existsSync(lineagePaths.gzipPath) &&
+        !fs.existsSync(lineagePaths.plainPath)
+      ) {
+        console.log(`No lineage file found for ${evolutionRunId} and forceProcessing is not set. Skipping operation: ${oneAnalysisOperation}`);
+        return;
+      }
       
       // Try reading from either compressed or plain file
       lineage = readCompressedOrPlainJSON(lineagePaths.gzipPath, lineagePaths.plainPath)?.lineage;
