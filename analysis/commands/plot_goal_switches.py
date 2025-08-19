@@ -10,21 +10,26 @@ def read_json_file(filepath, metric_name):
     with open(filepath, 'r') as f:
         data = json.load(f)
     
-    # Extract both metrics
+    # Extract metrics
     metrics_container = data['evoRuns'][0]['aggregates'][metric_name]
     
-    return {
+    result = {
         'goal_switches': {
             'mean': metrics_container['averageGoalSwitchCounts']['means'],
             'stddev': metrics_container['averageGoalSwitchCounts']['stdDevs'],
             'variance': metrics_container['averageGoalSwitchCounts']['variances']
-        },
-        'champion_counts': {
+        }
+    }
+    
+    # Only add champion counts if available
+    if 'averageChampionCounts' in metrics_container:
+        result['champion_counts'] = {
             'mean': metrics_container['averageChampionCounts']['means'],
             'stddev': metrics_container['averageChampionCounts']['stdDevs'],
             'variance': metrics_container['averageChampionCounts']['variances']
         }
-    }
+    
+    return result
 
 def create_comparison_plot(data_files, labels, output_file, metric_name, xlabel, figsize=(10, 8)):
     """Create a horizontal point plot with error bars."""
@@ -64,19 +69,20 @@ def create_comparison_plot(data_files, labels, output_file, metric_name, xlabel,
             label='Goal Switches' if i == 0 else None  # Only add to legend once
         )
         
-        # Plot champion counts with squares
-        ax.errorbar(
-            x=metrics['champion_counts']['mean'],
-            y=i,
-            xerr=metrics['champion_counts']['stddev'],
-            fmt='s',
-            color='red',
-            capsize=5,
-            capthick=1.5,
-            elinewidth=1.5,
-            markersize=6,
-            label='Elite Counts' if i == 0 else None  # Only add to legend once
-        )
+        # Plot champion counts only if available
+        if 'champion_counts' in metrics:
+            ax.errorbar(
+                x=metrics['champion_counts']['mean'],
+                y=i,
+                xerr=metrics['champion_counts']['stddev'],
+                fmt='s',
+                color='red',
+                capsize=5,
+                capthick=1.5,
+                elinewidth=1.5,
+                markersize=6,
+                label='Elite Counts' if i == 0 else None  # Only add to legend once
+            )
     
     # Customize the plot
     ax.set_yticks(y_positions)
