@@ -4,8 +4,10 @@ apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects
     /fp/projects01/ec29/bthj/QD/unsupervised/runsconf/singleMapBDs \
     /fp/projects01/ec29/bthj/QD/analysis/unsupervised/singleMapBDs \
     score-matrix \
+    --data-path "scoreMatrix" \
     --plotting-script /fp/projects01/ec29/bthj/kromosynth-cli/analysis/scoreMatrixHeatMap.py \
     --transparent-background \
     --color-map plasma \
+    --skip-if-exists \
     # --terrain-name ALL
     # --step-size 500

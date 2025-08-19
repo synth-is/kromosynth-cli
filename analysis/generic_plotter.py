@@ -156,7 +156,7 @@ def main():
     plt.rcParams.update(params)
 
     cm = 1/2.54
-    fig = plt.figure(figsize=(12*cm, 8*cm))
+    fig = plt.figure(figsize=(12*cm, 9*cm))
     
     left_margin = 0.25
     bottom_margin = 0.25

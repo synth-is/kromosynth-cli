@@ -23,7 +23,7 @@ apptainer exec --mount 'type=bind,source=/fp/projects01,destination=/fp/projects
   --terrain-name-from "${TERRAIN_NAME_FROM}" --terrain-name-to "${TERRAIN_NAME_TO}" \
   --genome-rendering-host ws://int-2.fox.ad.fp.educloud.no:11406 \
   --feature-extraction-host ws://int-2.fox.ad.fp.educloud.no:15021 --quality-evaluation-feature-extraction-endpoint "/${QUALITY_EVALUATION_FEATURE_TYPE}" --projection-feature-extraction-endpoint "${PROJECTION_FEATURE_EXTRACTION_ENDPOINT_TYPE}" \
-  --quality-evaluation-host ws://int-2.fox.ad.fp.educloud.no:60603 --quality-evaluation-endpoint "/adaptive?reference_embedding_path=/Users/bjornpjo/Downloads/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=${QUALITY_EVALUATION_FEATURE_TYPE}" \
+  --quality-evaluation-host ws://int-2.fox.ad.fp.educloud.no:60603 --quality-evaluation-endpoint "/adaptive?reference_embedding_path=/fp/projects01/ec29/bthj/dataset-features/nsynth-valid/family-split_features/string/string_acoustic_057-070-127.json&reference_embedding_key=${QUALITY_EVALUATION_FEATURE_TYPE}" \
   --projection-host ws://int-2.fox.ad.fp.educloud.no:54929 --projection-endpoint "${PROJECTION_ENDPOINT}" \
   --use-gpu true --sample-rate 16000
 
