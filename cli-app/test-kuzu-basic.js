@@ -26,16 +26,28 @@ async function testBasicFunctions() {
     const mockLineageData = [
       {
         id: 'genome_001',
-        eliteClass: 'test_class_1',
+        name: '57',
+        class: 'test_class_1',
         gN: 1,
         s: 0.75,
+        count: 1,
+        uBC: 0,
+        duration: 4,
+        noteDelta: 0,
+        velocity: 1,
         parents: []
       },
       {
-        id: 'genome_002', 
-        eliteClass: 'test_class_2',
+        id: 'genome_002',
+        name: '49', 
+        class: 'test_class_2',
         gN: 2,
         s: 0.85,
+        count: 1,
+        uBC: 5,
+        duration: 4,
+        noteDelta: 0,
+        velocity: 1,
         parents: [{ genomeId: 'genome_001', breedingMethod: 'mutation' }]
       }
     ];

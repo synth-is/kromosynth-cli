@@ -26,7 +26,7 @@ export async function initializeKuzuDB(dbPath) {
     const conn = new kuzu.Connection(db);
     
     // Create schema using exact documentation pattern
-    await conn.query("CREATE NODE TABLE Sound(id STRING PRIMARY KEY, name STRING, elite_class STRING, generation INT64, score DOUBLE)");
+    await conn.query("CREATE NODE TABLE Sound(id STRING PRIMARY KEY, name STRING, elite_class STRING, generation INT64, score DOUBLE, count INT64, uBC INT64, duration INT64, noteDelta INT64, velocity INT64)");
     await conn.query("CREATE REL TABLE PARENT_OF(FROM Sound TO Sound, method STRING)");
     
     // Explicit connection management
@@ -65,9 +65,21 @@ export async function populateKuzuDBWithLineage(evoRunConfig, evoRunId, lineageD
     
     console.log('Inserting sounds...');
     for (const genome of lineageData) {
+      // Extract all attributes with defaults for missing values
+      const id = genome.id || 'unknown';
+      const name = genome.name || genome.class || 'sound';
+      const elite_class = genome.class || genome.eliteClass || 'unknown';
+      const generation = genome.gN || 0;
+      const score = genome.s || 0.0;
+      const count = genome.count || 1;
+      const uBC = genome.uBC || 0;
+      const duration = genome.duration || 0;
+      const noteDelta = genome.noteDelta || 0;
+      const velocity = genome.velocity || 0;
+      
       // Use exact CREATE pattern from documentation
-      await conn.query(`CREATE (u:Sound {id: '${genome.id}', name: '${genome.eliteClass || 'sound'}', elite_class: '${genome.eliteClass || 'unknown'}', generation: ${genome.gN || 0}, score: ${genome.s || 0.0}})`);
-      console.log(`✅ Sound ${genome.id} inserted`);
+      await conn.query(`CREATE (u:Sound {id: '${id}', name: '${name}', elite_class: '${elite_class}', generation: ${generation}, score: ${score}, count: ${count}, uBC: ${uBC}, duration: ${duration}, noteDelta: ${noteDelta}, velocity: ${velocity}})`);
+      console.log(`✅ Sound ${id} inserted (class: ${elite_class}, gen: ${generation}, score: ${score.toFixed(3)})`);
     }
     
     console.log('Inserting relationships...');
@@ -146,13 +158,34 @@ export async function getDatabaseStats(dbPath) {
     const relCount = await conn.query('MATCH ()-[r:PARENT_OF]->() RETURN count(r) as count');
     const relResult = await relCount.getAll();
     
+    // Get some sample stats
+    const generationStats = await conn.query('MATCH (s:Sound) RETURN min(s.generation) as min_gen, max(s.generation) as max_gen, avg(s.generation) as avg_gen');
+    const genResult = await generationStats.getAll();
+    
+    const scoreStats = await conn.query('MATCH (s:Sound) RETURN min(s.score) as min_score, max(s.score) as max_score, avg(s.score) as avg_score');
+    const scoreResult = await scoreStats.getAll();
+    
+    const classCount = await conn.query('MATCH (s:Sound) RETURN count(DISTINCT s.elite_class) as unique_classes');
+    const classResult = await classCount.getAll();
+    
     // Explicit cleanup
     if (typeof conn.close === 'function') conn.close();
     if (typeof db.close === 'function') db.close();
     
     return {
       sounds: soundResult[0].count,
-      relationships: relResult[0].count
+      relationships: relResult[0].count,
+      generations: {
+        min: genResult[0].min_gen,
+        max: genResult[0].max_gen,
+        avg: genResult[0].avg_gen
+      },
+      scores: {
+        min: scoreResult[0].min_score,
+        max: scoreResult[0].max_score,
+        avg: scoreResult[0].avg_score
+      },
+      unique_classes: classResult[0].unique_classes
     };
     
   } catch (error) {
