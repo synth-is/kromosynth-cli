@@ -72,6 +72,7 @@ import {
 	getEnhancedDiversityMetrics, trackDiversityOverTime,
 } from './qd-run-analysis-enhanced.js'
 import { yamnetTags_non_musical, yamnetTags_musical } from './util/classificationTags.js';
+import { initializeKuzuDB, populateKuzuDBWithLineage } from './kuzu-db-integration.js';
 import merge from 'deepmerge';
 import path from 'path';
 import fs from 'fs';
@@ -235,6 +236,53 @@ export async function qdAnalysis_evoRunDurationPitchDeltaVelocityCombinations( c
     const evoRunConfig = getEvolutionRunConfig(undefined, cli);
     const durationDeltaPitchCombinations = await getDurationPitchDeltaVelocityCombinations( evoRunConfig, evolutionRunId, stepSize, uniqueGenomes );
     console.log(durationDeltaPitchCombinations);
+  }
+}
+
+export async function qdAnalysis_evoRunPopulateKuzuDB( cli ) {
+  let {evolutionRunId, stepSize} = cli.flags;
+  if( evolutionRunId ) {
+    const evoRunConfig = getEvolutionRunConfig(undefined, cli);
+    
+    console.log(`Populating KuzuDB for evolution run: ${evolutionRunId}`);
+    
+    try {
+      // Extract lineage data
+      console.log(`Extracting lineage data...`);
+      const lineageData = await getLineageGraphData(evoRunConfig, evolutionRunId, stepSize);
+      
+      // Initialize and populate KuzuDB
+      const dbPath = `${evoRunConfig.evoRunsDirPath}${evolutionRunId}/${evolutionRunId}.kuzu`;
+      console.log(`Initializing KuzuDB at: ${dbPath}`);
+      
+      const dbInitResult = await initializeKuzuDB(dbPath);
+      const populateResult = await populateKuzuDBWithLineage(evoRunConfig, evolutionRunId, lineageData);
+      
+      console.log(`✅ KuzuDB populated successfully!`);
+      console.log(`   Database: ${populateResult.dbPath}`);
+      console.log(`   Sounds: ${populateResult.stats.total_sounds}`);
+      console.log(`   Relationships: ${populateResult.stats.total_parent_relationships}`);
+      
+      // Output result as JSON for potential piping
+      console.log(JSON.stringify({
+        success: true,
+        dbPath: populateResult.dbPath,
+        stats: populateResult.stats,
+        timestamp: new Date().toISOString()
+      }, null, 2));
+      
+    } catch (error) {
+      console.error(`❌ Error populating KuzuDB:`, error);
+      console.log(JSON.stringify({
+        success: false,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      }, null, 2));
+      process.exit(1);
+    }
+  } else {
+    console.error('No evolutionRunId provided');
+    process.exit(1);
   }
 }
 
@@ -597,6 +645,47 @@ export async function qdAnalysis_evoRuns( cli ) {
             console.log(`Added diversity over time to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
             writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
           }
+
+        if( oneAnalysisOperation === "populate-kuzudb" ) {
+          console.log(`Populating KuzuDB for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+          
+          try {
+            // Extract lineage data if not already available
+            let kuzuLineageData = lineage;
+            if (!kuzuLineageData) {
+              console.log(`Extracting lineage data for ${evolutionRunId}...`);
+              kuzuLineageData = await getLineageGraphData(evoRunConfig, evolutionRunId, stepSize);
+            }
+            
+            // Initialize and populate KuzuDB
+            const dbInitResult = await initializeKuzuDB(`${evoRunConfig.evoRunsDirPath}${evolutionRunId}/${evolutionRunId}.kuzu`);
+            const populateResult = await populateKuzuDBWithLineage(evoRunConfig, evolutionRunId, kuzuLineageData);
+            
+            // Store results in analysis data
+            evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].kuzuDBPopulation = {
+              dbPath: populateResult.dbPath,
+              stats: populateResult.stats,
+              success: populateResult.success,
+              timestamp: new Date().toISOString()
+            };
+            
+            console.log(`✅ KuzuDB populated successfully for ${evolutionRunId}`);
+            console.log(`   Database: ${populateResult.dbPath}`);
+            console.log(`   Sounds: ${populateResult.stats.total_sounds}`);
+            console.log(`   Relationships: ${populateResult.stats.total_parent_relationships}`);
+            
+            writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+            
+          } catch (error) {
+            console.error(`❌ Error populating KuzuDB for ${evolutionRunId}:`, error);
+            evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].kuzuDBPopulation = {
+              success: false,
+              error: error.message,
+              timestamp: new Date().toISOString()
+            };
+            writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+          }
+        }
           if( oneAnalysisOperation === "diversity-measures" ) { // across all iterations
             const diversityMeasures = await getEliteMapDiversityForAllIterations( evoRunConfig, evolutionRunId, stepSize );
             evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].diversityMeasures = diversityMeasures;
@@ -727,6 +816,48 @@ export async function qdAnalysis_evoRuns( cli ) {
             evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].lineage = lineage;
             console.log(`Added lineage to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
             writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis, currentEvolutionRunIteration );
+          }
+          if( oneAnalysisOperation === "populate-kuzudb" ) {
+            console.log(`Populating KuzuDB with lineage data for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
+            
+            if (lineage && lineage.length > 0) {
+              try {
+                // Construct KuzuDB path for this evolution run
+                const evoRunDirPath = `${evoRunConfig.evoRunsDirPath}${evolutionRunId}/`;
+                const kuzuDbPath = path.join(evoRunDirPath, `${evolutionRunId}.kuzu`);
+                
+                // Initialize KuzuDB for this evolution run
+                const initResult = await initializeKuzuDB(kuzuDbPath);
+                console.log(`Initialized KuzuDB: ${initResult.dbPath}`);
+                
+                // Populate with lineage data
+                const populateResult = await populateKuzuDBWithLineage(evoRunConfig, evolutionRunId, lineage);
+                console.log(`Populated KuzuDB with ${populateResult.stats.total_sounds} sounds and ${populateResult.stats.total_parent_relationships} relationships`);
+                
+                // Store database info in analysis results
+                evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].kuzudb = {
+                  dbPath: populateResult.dbPath,
+                  stats: populateResult.stats,
+                  success: populateResult.success
+                };
+                
+                writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+              } catch (error) {
+                console.error(`Error populating KuzuDB for ${evolutionRunId}:`, error);
+                evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].kuzudb = {
+                  error: error.message,
+                  success: false
+                };
+                writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+              }
+            } else {
+              console.warn(`No lineage data available for KuzuDB population for ${evolutionRunId}`);
+              evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].kuzudb = {
+                error: "No lineage data available",
+                success: false
+              };
+              writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
+            }
           }
           if( oneAnalysisOperation === "duration-pitch-delta-velocity-combinations" ) {
             const durationPitchDeltaVelocityCombinations = await getDurationPitchDeltaVelocityCombinations( evoRunConfig, evolutionRunId, stepSize, uniqueGenomes );
