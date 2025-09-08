@@ -15,6 +15,10 @@ export async function initializeKuzuDB(dbPath) {
     // Clean up existing database
     if (fs.existsSync(dbPath)) {
       fs.rmSync(dbPath, { recursive: true, force: true });
+      const walPath = dbPath.replace(/\.kuzu$/, '.wal');
+      if (fs.existsSync(walPath)) {
+        fs.rmSync(walPath, { force: true });
+      }
     }
     
     // Use exact pattern from working test
