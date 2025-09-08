@@ -72,7 +72,11 @@ import {
 	getEnhancedDiversityMetrics, trackDiversityOverTime,
 } from './qd-run-analysis-enhanced.js'
 import { yamnetTags_non_musical, yamnetTags_musical } from './util/classificationTags.js';
-import { initializeKuzuDB, populateKuzuDBWithLineage } from './kuzu-db-integration.js';
+// Use the feature-enabled integration for vector import/search
+import { 
+  initializeKuzuDBWithFeatures, 
+  populateKuzuDBWithLineageAndFeatures
+} from './kuzu-db-integration-with-features.js';
 import merge from 'deepmerge';
 import path from 'path';
 import fs from 'fs';
@@ -254,14 +258,16 @@ export async function qdAnalysis_evoRunPopulateKuzuDB( cli ) {
       // Initialize and populate KuzuDB
       const dbPath = `${evoRunConfig.evoRunsDirPath}${evolutionRunId}/${evolutionRunId}.kuzu`;
       console.log(`Initializing KuzuDB at: ${dbPath}`);
-      
-      const dbInitResult = await initializeKuzuDB(dbPath);
-      const populateResult = await populateKuzuDBWithLineage(evoRunConfig, evolutionRunId, lineageData);
+  // Populate handles initialization + schema extension internally
+  const populateResult = await populateKuzuDBWithLineageAndFeatures(evoRunConfig, evolutionRunId, lineageData, { dbPath });
       
       console.log(`✅ KuzuDB populated successfully!`);
       console.log(`   Database: ${populateResult.dbPath}`);
       console.log(`   Sounds: ${populateResult.stats.total_sounds}`);
       console.log(`   Relationships: ${populateResult.stats.total_parent_relationships}`);
+      if (populateResult.stats && populateResult.stats.feature_vectors) {
+        console.log(`   Feature vectors per dimension:`, populateResult.stats.feature_vectors);
+      }
       
       // Output result as JSON for potential piping
       console.log(JSON.stringify({
@@ -646,7 +652,7 @@ export async function qdAnalysis_evoRuns( cli ) {
             writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis );
           }
 
-        if( oneAnalysisOperation === "populate-kuzudb" ) {
+    if( oneAnalysisOperation === "populate-kuzudb" ) {
           console.log(`Populating KuzuDB for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
           
           try {
@@ -657,9 +663,11 @@ export async function qdAnalysis_evoRuns( cli ) {
               kuzuLineageData = await getLineageGraphData(evoRunConfig, evolutionRunId, stepSize);
             }
             
-            // Initialize and populate KuzuDB
-            const dbInitResult = await initializeKuzuDB(`${evoRunConfig.evoRunsDirPath}${evolutionRunId}/${evolutionRunId}.kuzu`);
-            const populateResult = await populateKuzuDBWithLineage(evoRunConfig, evolutionRunId, kuzuLineageData);
+            // Populate handles initialization + schema extension internally
+            const populateResult = await populateKuzuDBWithLineageAndFeatures(
+              evoRunConfig, evolutionRunId, kuzuLineageData,
+              { dbPath: `${evoRunConfig.evoRunsDirPath}${evolutionRunId}/${evolutionRunId}.kuzu` }
+            );
             
             // Store results in analysis data
             evoRunsAnalysis.evoRuns[currentEvolutionRunIndex].iterations[currentEvolutionRunIteration].kuzuDBPopulation = {
@@ -817,7 +825,7 @@ export async function qdAnalysis_evoRuns( cli ) {
             console.log(`Added lineage to iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
             writeAnalysisResult( analysisResultFilePath, evoRunsAnalysis, currentEvolutionRunIteration );
           }
-          if( oneAnalysisOperation === "populate-kuzudb" ) {
+      if( oneAnalysisOperation === "populate-kuzudb" ) {
             console.log(`Populating KuzuDB with lineage data for iteration ${currentEvolutionRunIteration} of evolution run #${currentEvolutionRunIndex}, ID: ${evolutionRunId}`);
             
             if (lineage && lineage.length > 0) {
@@ -826,12 +834,10 @@ export async function qdAnalysis_evoRuns( cli ) {
                 const evoRunDirPath = `${evoRunConfig.evoRunsDirPath}${evolutionRunId}/`;
                 const kuzuDbPath = path.join(evoRunDirPath, `${evolutionRunId}.kuzu`);
                 
-                // Initialize KuzuDB for this evolution run
-                const initResult = await initializeKuzuDB(kuzuDbPath);
-                console.log(`Initialized KuzuDB: ${initResult.dbPath}`);
-                
                 // Populate with lineage data
-                const populateResult = await populateKuzuDBWithLineage(evoRunConfig, evolutionRunId, lineage);
+                const populateResult = await populateKuzuDBWithLineageAndFeatures(
+                  evoRunConfig, evolutionRunId, lineage, { dbPath: kuzuDbPath }
+                );
                 console.log(`Populated KuzuDB with ${populateResult.stats.total_sounds} sounds and ${populateResult.stats.total_parent_relationships} relationships`);
                 
                 // Store database info in analysis results
