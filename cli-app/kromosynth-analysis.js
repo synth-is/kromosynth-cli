@@ -72,11 +72,11 @@ import {
 	getEnhancedDiversityMetrics, trackDiversityOverTime,
 } from './qd-run-analysis-enhanced.js'
 import { yamnetTags_non_musical, yamnetTags_musical } from './util/classificationTags.js';
-// Use the feature-enabled integration for vector import/search
+// Use the unified integration for vector import/search
 import { 
   initializeKuzuDBWithFeatures, 
   populateKuzuDBWithLineageAndFeatures
-} from './kuzu-db-integration-with-features.js';
+} from './kuzu-db-integration.js';
 import merge from 'deepmerge';
 import path from 'path';
 import fs from 'fs';
