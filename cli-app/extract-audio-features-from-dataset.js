@@ -325,18 +325,21 @@ export async function extractFeaturesFromAllAudioFiles(datasetPath, featureFileP
   }
 }
 
-const _datasetPath = process.argv[2];
-const _featureFilePath = process.argv[3];
-const _sampleRate = process.argv[4] || 16000;
-const _chkptDir = process.argv[5] || '/tmp/checkpoints';
-const _featureExtractionServerHost = process.argv[6] || 'ws://localhost:31051';
-const _suffixesFilter = process.argv[7] || undefined;
-console.log('datasetPath:', _datasetPath, 'featureFilePath:', _featureFilePath, 'sampleRate:', _sampleRate, 'chkptDir:', _chkptDir, 'featureExtractionServerHost:', _featureExtractionServerHost, 'suffixesFilter:', _suffixesFilter);
-// ensure the featureFilePath exists
-if (!fs.existsSync(_featureFilePath)) {
-  fs.mkdirSync(_featureFilePath, { recursive: true });
+// Only run this if the file is being executed directly (not imported)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const _datasetPath = process.argv[2];
+  const _featureFilePath = process.argv[3];
+  const _sampleRate = process.argv[4] || 16000;
+  const _chkptDir = process.argv[5] || '/tmp/checkpoints';
+  const _featureExtractionServerHost = process.argv[6] || 'ws://localhost:31051';
+  const _suffixesFilter = process.argv[7] || undefined;
+  console.log('datasetPath:', _datasetPath, 'featureFilePath:', _featureFilePath, 'sampleRate:', _sampleRate, 'chkptDir:', _chkptDir, 'featureExtractionServerHost:', _featureExtractionServerHost, 'suffixesFilter:', _suffixesFilter);
+  // ensure the featureFilePath exists
+  if (_featureFilePath && !fs.existsSync(_featureFilePath)) {
+    fs.mkdirSync(_featureFilePath, { recursive: true });
+  }
+  // extractFeaturesFromAllAudioFiles(_datasetPath, _featureFilePath, _sampleRate, _chkptDir, _featureExtractionServerHost, _suffixesFilter);
 }
-// extractFeaturesFromAllAudioFiles(_datasetPath, _featureFilePath, _sampleRate, _chkptDir, _featureExtractionServerHost, _suffixesFilter);
 
 // Usage example:
 // node extract-audio-features-from-dataset.js /Users/bjornpjo/Downloads/nsynth-valid/family-split /Users/bjornpjo/Downloads/nsynth-valid/family-split_features 16000 "020-127.wav,030-127.wav,040-127.wav,050-127.wav,060-127.wav,070-127.wav,080-127.wav,090-127.wav,100-127.wav"
