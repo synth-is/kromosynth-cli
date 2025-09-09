@@ -39,8 +39,8 @@ module.exports = {
       name   : "kromosynth-evaluation-socket-server_features",
       interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3',
       cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
-      script : "features.py",
-      args: "--host 127.0.0.1 --models-path /Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models",
+      script : "onset_features.py",
+      args: "--host 127.0.0.1",
       instances : 3,
       exec_mode : "fork",
       max_memory_restart: '2G',
@@ -48,15 +48,15 @@ module.exports = {
       cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
-        "PORT": 61051,
+        "PORT": 34051,
       }
     }
     ,
     { // see the `kromosynth-evaluate` repository: https://github.com/synth-is/kromosynth-evaluate
-      name   : "kromosynth-evaluation-socket-server_quality_ref_features",
+      name   : "kromosynth-evaluation-socket-server_quality_onset_features",
       interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3', // NB: different python environment
       cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
-      script : "quality_ref_features.py",
+      script : "rhythm_fitness.py",
       args: "--host 127.0.0.1",
       instances : 3,
       exec_mode : "fork",
@@ -68,30 +68,30 @@ module.exports = {
         "PORT": 32051,
       }
     }
-    ,
-    { // see the `kromosynth-evaluate` repository: https://github.com/synth-is/kromosynth-evaluate
-      name   : "kromosynth-evaluation-socket-server_projection_pca_quantised",
-      interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3',
-      cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
-      script : "projection_quantised.py",
-      args: "--host 127.0.0.1 --dimensions 2 --dimension-cells 100",
-      instances : 1, // only one instance for ParametricUMAP
-      exec_mode : "fork",
-      max_memory_restart: '4G',
-      // cron_restart: '*/30 * * * *',
-      // restart every three hours, as UMAP leaks memory: https://github.com/lmcinnes/umap/issues/535
-      // cron_restart: '0 */3 * * *',
-      cron_restart: '0 * * * *', // every * hours
-      increment_var : 'PORT',
-      env: {
-        "PORT": 33051,
-      }
-    }
-    ,
+    // ,
+    // { // see the `kromosynth-evaluate` repository: https://github.com/synth-is/kromosynth-evaluate
+    //   name   : "kromosynth-evaluation-socket-server_projection_onset_discretization",
+    //   interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3',
+    //   cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
+    //   script : "onset_discretization.py",
+    //   args: "--host 127.0.0.1",
+    //   instances : 3,
+    //   exec_mode : "fork",
+    //   max_memory_restart: '4G',
+    //   // cron_restart: '*/30 * * * *',
+    //   // restart every three hours, as UMAP leaks memory: https://github.com/lmcinnes/umap/issues/535
+    //   // cron_restart: '0 */3 * * *',
+    //   cron_restart: '0 * * * *', // every * hours
+    //   increment_var : 'PORT',
+    //   env: {
+    //     "PORT": 33051,
+    //   }
+    // }
+    // ,
     // {
     //   name   : "kromosynth-controller",
     //   script : "cli-app/kromosynth.js",
-    //   args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_single-map.jsonc",
+    //   args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_onset-rhythms.jsonc",
     //   instances : 1,
     //   // exec_mode : "fork",
     //   max_memory_restart: '4G',

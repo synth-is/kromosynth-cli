@@ -198,6 +198,7 @@ export default class DiversityTracker {
 
       ws.on('message', (message) => {
         try {
+          console.log('Received message:', message);
           const response = JSON.parse(message);
           if (response.status === 'OK') {
             if (response.diversity_metrics) {

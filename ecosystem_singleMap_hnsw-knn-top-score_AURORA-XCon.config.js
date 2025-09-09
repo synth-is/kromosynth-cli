@@ -45,30 +45,29 @@ module.exports = {
       exec_mode : "fork",
       max_memory_restart: '2G',
       // cron_restart: '*/30 * * * *',
-      cron_restart: '0 * * * *', // every * hours
+      // cron_restart: '0 * * * *', // every * hours
+      cron_restart: '0 * * * *',
       increment_var : 'PORT',
       env: {
-        "PORT": 61051,
+        "PORT": 31051,
       }
     }
-    ,
-    { // see the `kromosynth-evaluate` repository: https://github.com/synth-is/kromosynth-evaluate
-      name   : "kromosynth-evaluation-socket-server_quality_ref_features",
-      interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3', // NB: different python environment
-      cwd: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/unsupervised',
-      script : "quality_ref_features.py",
-      args: "--host 127.0.0.1",
-      instances : 3,
-      exec_mode : "fork",
-      max_memory_restart: '2G',
-      // cron_restart: '*/30 * * * *',
-      cron_restart: '0 * * * *', // every * hours
-      increment_var : 'PORT',
-      env: {
-        "PORT": 32051,
-      }
+  ,
+  { // see the `kromosynth-evaluate` repository
+    name   : "kromosynth-evaluation-socket-server",
+    script : "/Users/bjornpjo/Developer/apps/kromosynth-evaluate/evaluation/supervised/Node-socket/hnsw-knn-avg-score.js",
+    args: "--processTitle kromosynth-evaluation-hnsw-socket-server --modelUrl /Users/bjornpjo/Developer/apps/kromosynth-evaluate/measurements/models/hnsw-indexes/NSynth_1Billion_OrchideaSOL_-_filtered_-_mfcc --spaceName cosine",
+    instances : 1,
+    exec_mode : "cluster",
+    max_memory_restart: '700M',
+    cron_restart: '0 * * * *',
+    increment_var : 'PORT',
+    env: {
+      "PORT": 40051,
+      "TF_FORCE_GPU_ALLOW_GROWTH": true
     }
-    ,
+  }
+  ,
     { // see the `kromosynth-evaluate` repository: https://github.com/synth-is/kromosynth-evaluate
       name   : "kromosynth-evaluation-socket-server_projection_pca_quantised",
       interpreter: '/Users/bjornpjo/Developer/apps/kromosynth-evaluate/.venv/bin/python3',
@@ -88,17 +87,17 @@ module.exports = {
       }
     }
     ,
-    // {
-    //   name   : "kromosynth-controller",
-    //   script : "cli-app/kromosynth.js",
-    //   args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_single-map.jsonc",
-    //   instances : 1,
-    //   // exec_mode : "fork",
-    //   max_memory_restart: '4G',
-    //   cron_restart: '0 * * * *' // every * hours
-    //   // cron_restart: '*/30 * * * *' // every 30 minutes
-    //   // cron restart every three hours
-    //   // cron_restart: '0 */3 * * *'
-    // }
+    {
+      name   : "kromosynth-controller",
+      script : "cli-app/kromosynth.js",
+      args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_AURORA-XCon_hnsw.jsonc",
+      instances : 1,
+      // exec_mode : "fork",
+      max_memory_restart: '4G',
+      cron_restart: '0 * * * *' // every * hours
+      // cron_restart: '*/30 * * * *' // every 30 minutes
+      // cron restart every three hours
+      // cron_restart: '0 */3 * * *'
+    }
   ]
 }

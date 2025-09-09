@@ -54,7 +54,7 @@ if len(sys.argv) > 3:
 else:
      save_dir = './'
 
-hide_zeros = False
+hide_zeros = True
 constant_color = None
 colormap_name = 'blue-yellow'  # default colormap
 
@@ -111,17 +111,21 @@ for iteration in data['evoRuns'][0]['iterations']:
             plt.gca().invert_yaxis()
             plt.colorbar(im, label='Score')
 
-        if 'X' in oneMap:
-            labels = oneMap.split('X')
-            plt.xlabel(labels[0])
-            plt.ylabel(labels[1])
-        else:
-            plt.xlabel('Cell index')
-            plt.ylabel('Cell index')
+        # if 'X' in oneMap:
+        #     labels = oneMap.split('X')
+        #     plt.xlabel(labels[0])
+        #     plt.ylabel(labels[1])
+        # else:
+        #     plt.xlabel('Cell index')
+        #     plt.ylabel('Cell index')
+        plt.xlabel('spectral slope')
+        plt.ylabel('spectral rolloff')
 
         if 'coveragePercentage' in iteration and oneMap in iteration['coveragePercentage']:
             coverage = iteration['coveragePercentage'][oneMap]
-            plt.title(f"Coverage: {coverage}%")
+            # Modify the oneMap string for the title
+            title_oneMap = oneMap.replace("refSingleEmb_mfcc-sans0-statistics_", "").replace("_retrainIncr50_zScoreNSynthTrain", "")
+            plt.title(f"{title_oneMap}\nCoverage: {coverage}%")
 
         filename = f"{save_dir}{oneMap}_iteration_{iteration_id}"
         print('Saving figure to ' + filename + '.ext')

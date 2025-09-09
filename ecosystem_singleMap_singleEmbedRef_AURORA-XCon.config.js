@@ -48,7 +48,7 @@ module.exports = {
       cron_restart: '0 * * * *', // every * hours
       increment_var : 'PORT',
       env: {
-        "PORT": 61051,
+        "PORT": 31051,
       }
     }
     ,
@@ -88,17 +88,17 @@ module.exports = {
       }
     }
     ,
-    // {
-    //   name   : "kromosynth-controller",
-    //   script : "cli-app/kromosynth.js",
-    //   args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_single-map.jsonc",
-    //   instances : 1,
-    //   // exec_mode : "fork",
-    //   max_memory_restart: '4G',
-    //   cron_restart: '0 * * * *' // every * hours
-    //   // cron_restart: '*/30 * * * *' // every 30 minutes
-    //   // cron restart every three hours
-    //   // cron_restart: '0 */3 * * *'
-    // }
+    {
+      name   : "kromosynth-controller",
+      script : "cli-app/kromosynth.js",
+      args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_AURORA-XCon.jsonc",
+      instances : 1,
+      // exec_mode : "fork",
+      max_memory_restart: '4G',
+      cron_restart: '0 * * * *' // every * hours
+      // cron_restart: '*/30 * * * *' // every 30 minutes
+      // cron restart every three hours
+      // cron_restart: '0 */3 * * *'
+    }
   ]
 }

@@ -87,11 +87,11 @@ module.exports = {
         "PORT": 33051,
       }
     }
-    ,
+    // ,
     // {
     //   name   : "kromosynth-controller",
     //   script : "cli-app/kromosynth.js",
-    //   args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_single-map.jsonc",
+    //   args: "evolution-runs --max-old-space-size=4096 --evolution-runs-config-json-file /Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evolution-runs_single-map_Trace-Elites.jsonc",
     //   instances : 1,
     //   // exec_mode : "fork",
     //   max_memory_restart: '4G',

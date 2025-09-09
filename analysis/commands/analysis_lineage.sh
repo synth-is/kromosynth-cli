@@ -7,6 +7,6 @@
     --step-size 1 \
     --data-path "lineage" \
     --skip-if-exists \
-    --terrain-name ALL \
+#    --terrain-name ALL \
 
 # --terrain-name "customRef1" \

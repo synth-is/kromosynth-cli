@@ -40,8 +40,17 @@ for( const file of files ) {
       dimensionLabel = dimensionLabels.join('X');
     } else {
       // set dimensionLabel as the part of the file name after the last "_" and before ".json"
-      const parts = file.split("_");
-      dimensionLabel = parts[parts.length - 1].replace(".json", "");
+      // const parts = file.split("_");
+      // dimensionLabel = parts[parts.length - 1].replace(".json", "");
+
+      const startIndex = file.indexOf("singleMap_") + "singleMap_".length;
+      const endIndex = file.lastIndexOf("_spectral_rolloffXspectral_slope.json");
+      dimensionLabel = file.substring(startIndex, endIndex);
+      // append the id:
+      const idStartIndex = file.indexOf("elites_") + "elites_".length;
+      const idEndIndex = file.indexOf("_evoConf");
+      const id = file.substring(idStartIndex, idEndIndex);
+      dimensionLabel += `__${id}`;
     }
     scoreMatrixes["evoRuns"][0]["iterations"][0]["id"] = eliteMap._id;
     scoreMatrixes["evoRuns"][0]["iterations"][0]["coveragePercentage"][dimensionLabel] = eliteMap.coveragePercentage;

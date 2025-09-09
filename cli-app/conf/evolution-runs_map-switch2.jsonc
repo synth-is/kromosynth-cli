@@ -23,16 +23,55 @@
       ]
     },
     {
+      "label": "evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XConSimFoc",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XConSimFoc.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JS1NT133ZZN1QMKE1BTFZ8V7_evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XConSimFoc"
+        },
+        {
+          "id": "01JS4FYK1SK52GMTQ3T4B21E5J_evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XConSimFoc"
+        }
+      ]
+    },
+    {
       "label": "evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain",
       "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XCon.jsonc",
       "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
       "iterations": [
         {
           "id": "01JRXXHB07HC7RM6CMMN51B203_evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain"
+        },
+        {
+          "id": "01JSBEDPTMWB2CJNPTSXXRN7SE_evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA_XCon_afterModelPerMap",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA-XCon.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JSEY5XDNVGC4TP3E8G1T0TZ4_evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA_XCon_afterModelPerMap"
+        },
+        {
+          "id": "01JSPFF4QGF3BCKJ3V2D6ZPSJ5_evoConf_singleMap_refSingleEmb_featFocusSwitch_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain_AURORA_XCon_afterModelPerMap"
+        }
+      ]
+    },
+    {
+      "label": "evoConf_singleMap_refSingleEmb_featFocusSwitchNoEnergy_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain",
+      "diffEvolutionRunConfigFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evoConf_singleMap_refSingleEmb_featFocusSwitchNoEnergy_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain.jsonc",
+      "diffEvolutionaryHyperparametersFile": "/Users/bjornpjo/Developer/apps/kromosynth-cli/cli-app/conf/evoRunDiffs/evolutionary-hyperparameters_noOsc.jsonc",
+      "iterations": [
+        {
+          "id": "01JSZADXSGH7MB6C83ARJ5JMP5_evoConf_singleMap_refSingleEmb_featFocusSwitchNoEnergy_x100_mfcc-statistics_pca_retrainIncr50_zscoreNSynthTrain"
         }
       ]
     }
   ],
-  "currentEvolutionRunIndex": 2,
+  "currentEvolutionRunIndex": 5,
   "currentEvolutionRunIteration": 0
 }
