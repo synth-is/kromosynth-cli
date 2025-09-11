@@ -50,9 +50,9 @@ import {
 } from './kromosynth-analysis.js';
 import {
 	qdAnalysis_evoRunsFromDir,
-	evoRunsDirAnalysisAggregate,
-	qdAnalysis_evoRunsPopulateKuzuDB
+	evoRunsDirAnalysisAggregate
 } from './kromosynth-analysis-dir.js';
+import { populateKuzuDBForEvoRunsDir } from './kromosynth-analysis-dir.js';
 import {
 
 	renderEliteMapsTimeline
@@ -201,8 +201,7 @@ const cli = meow(`
 			Aggregate previously analyzed evolution runs data by folder type (grouped by naming pattern)
 
 		evo-runs-populate-kuzudb
-			Populate KuzuDB databases with lineage and feature data for all evolution runs in a directory
-			--concurrency-limit  Number of parallel analysis tasks to run (default: 1 for sequential processing)
+			Populate (or initialize) a KuzuDB database for every evolution run under a directory (uses lineage + features)
 
 	Options
 		Commands: <new-genome, mutate-genome, render-audio or classify-genome>
@@ -338,8 +337,6 @@ const cli = meow(`
 		$ kromosynth evo-run-lineage --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100
 		$ kromosynth evo-run-duration-pitch-delta-velocity-combinations --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 100 --unique-genomes true
 		$ kromosynth evo-run-populate-kuzudb --evolution-run-config-json-file conf/evolution-run-config.jsonc --evolution-run-id 01GWS4J7CGBWXF5GNDMFVTV0BP_3dur-7ndelt-4vel --step-size 1
-		
-		$ kromosynth evo-runs-populate-kuzudb --evo-runs-dir-path /Volumes/kromosynth2/kromosynth/evoruns/supervised_and_unsupervised_singleMapBDs --concurrency-limit 8
 		
 		$ kromosynth evo-runs-analysis --evolution-runs-config-json-file config/evolution-runs.jsonc --analysis-operations qd-scores,grid-mean-fitness,cell-scores,coverage,score-matrix,score-matrices,new-elite-count,elite-generations,genome-statistics,genome-sets,genome-sets-through-rendering-variations,variance,elites-energy,goal-switches,goal-switches-through-lineages,lineage,duration-pitch-delta-velocity-combinations,diversity-from-embeddings,diversity-at-last-iteration,diversity-measures,populate-kuzudb --step-size 100 --unique-genomes true --exclude-empty-cells true --class-restriction '["Narration, monologue"]' --max-iteration-index 300000
 		
@@ -764,7 +761,7 @@ async function executeEvolutionTask() {
 			evoRunsDirAnalysisAggregate( cli );
 			break;
 		case "evo-runs-populate-kuzudb":
-			qdAnalysis_evoRunsPopulateKuzuDB( cli );
+			populateKuzuDBForEvoRunsDir( cli );
 			break;
 
 		case "evo-run-play-class":

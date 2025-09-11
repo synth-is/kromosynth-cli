@@ -258,6 +258,7 @@ export async function qdAnalysis_evoRunPopulateKuzuDB( cli ) {
       // Initialize and populate KuzuDB
       const dbPath = `${evoRunConfig.evoRunsDirPath}${evolutionRunId}/${evolutionRunId}.kuzu`;
       console.log(`Initializing KuzuDB at: ${dbPath}`);
+  await initializeKuzuDBWithFeatures(dbPath);
   // Populate handles initialization + schema extension internally
   const populateResult = await populateKuzuDBWithLineageAndFeatures(evoRunConfig, evolutionRunId, lineageData, { dbPath });
       

@@ -61,11 +61,10 @@ import {
   trackDiversityOverTime
 } from './qd-run-analysis-enhanced.js';
 
-import { populateKuzuDBWithLineageAndFeatures } from './kuzu-db-integration.js';
-
 import { yamnetTags_non_musical, yamnetTags_musical } from './util/classificationTags.js';
 import { readCompressedOrPlainJSON, writeCompressedJSON } from './util/qd-common-elite-map-persistence.js';
 import { getEvolutionRunsConfig } from './kromosynth-common.js';
+import { initializeKuzuDBWithFeatures, populateKuzuDBWithLineageAndFeatures } from './kuzu-db-integration.js';
 
 // Helper function to get compressed and plain file paths
 function getCompressedAndPlainPaths(basePath, fileName) {
@@ -1246,6 +1245,154 @@ export async function qdAnalysis_evoRunsFromDir(cli) {
   }
 }
 
+// Populate KuzuDB databases for every evolution run directory found under --evo-runs-dir-path
+// Similar traversal / concurrency pattern as qdAnalysis_evoRunsFromDir but focused solely on DB population.
+export async function populateKuzuDBForEvoRunsDir(cli) {
+  const { evoRunsDirPath, stepSize, concurrencyLimit, forceProcessing } = cli.flags;
+  if (!evoRunsDirPath) {
+    console.error('No evoRunsDirPath provided');
+    process.exit(1);
+  }
+
+  const errorLogPath = path.join(evoRunsDirPath, 'kuzu_population_error_log.txt');
+  fs.writeFileSync(errorLogPath, `KuzuDB population started at ${new Date().toISOString()}\n`);
+  function logError(msg) {
+    const line = `[${new Date().toISOString()}] ${msg}\n`;
+    console.error(line.trim());
+    fs.appendFileSync(errorLogPath, line);
+  }
+
+  let evoRunFolders;
+  try {
+    evoRunFolders = fs.readdirSync(evoRunsDirPath)
+      .filter(item => fs.statSync(path.join(evoRunsDirPath, item)).isDirectory());
+  } catch (err) {
+    logError(`Failed to read directory ${evoRunsDirPath}: ${err.message}`);
+    process.exit(1);
+  }
+  console.log(`Found ${evoRunFolders.length} evolution run folders. Starting KuzuDB population (stepSize=${stepSize}).`);
+
+  const results = [];
+
+  async function processOne(evoRunFolder) {
+    const fullPath = path.join(evoRunsDirPath, evoRunFolder);
+    console.log(`\n▶ Processing ${evoRunFolder}`);
+
+    // Detect existing DB
+    const expectedDbPath = path.join(fullPath, `${evoRunFolder}.kuzu`);
+    if (fs.existsSync(expectedDbPath) && !forceProcessing) {
+      console.log(`Skipping ${evoRunFolder}: KuzuDB already exists (use --force-processing to overwrite)`);
+      results.push({ evolutionRunId: evoRunFolder, skipped: true, reason: 'exists', dbPath: expectedDbPath });
+      return;
+    }
+
+    // Find an elites file to extract evoRunConfig
+    let eliteFiles = [];
+    try {
+      eliteFiles = fs.readdirSync(fullPath)
+        .filter(f => f.startsWith('elites_') && (f.endsWith('.json') || f.endsWith('.json.gz')))
+        .sort();
+    } catch (err) {
+      logError(`(${evoRunFolder}) Unable to list elites files: ${err.message}`);
+      results.push({ evolutionRunId: evoRunFolder, success: false, error: err.message });
+      return;
+    }
+    if (!eliteFiles.length) {
+      logError(`(${evoRunFolder}) No elites_*.json(.gz) file found.`);
+      results.push({ evolutionRunId: evoRunFolder, success: false, error: 'no-elite-map' });
+      return;
+    }
+    const eliteFileName = eliteFiles[0];
+    const eliteFilePath = path.join(fullPath, eliteFileName);
+    let eliteMap;
+    try {
+      if (eliteFileName.endsWith('.json.gz')) {
+        const plainPath = eliteFilePath.replace('.json.gz', '.json');
+        eliteMap = readCompressedOrPlainJSON(eliteFilePath, plainPath);
+      } else {
+        eliteMap = JSON.parse(fs.readFileSync(eliteFilePath, 'utf8'));
+      }
+    } catch (err) {
+      logError(`(${evoRunFolder}) Failed parsing elite map: ${err.message}`);
+      results.push({ evolutionRunId: evoRunFolder, success: false, error: 'elite-map-parse-failed' });
+      return;
+    }
+    if (!eliteMap || !eliteMap.evolutionRunConfig) {
+      logError(`(${evoRunFolder}) elite map missing evolutionRunConfig.`);
+      results.push({ evolutionRunId: evoRunFolder, success: false, error: 'no-evolution-run-config' });
+      return;
+    }
+    const evoRunConfig = eliteMap.evolutionRunConfig;
+    // ensure trailing slash like other code paths expect
+    evoRunConfig.evoRunsDirPath = evoRunsDirPath.endsWith('/') ? evoRunsDirPath : evoRunsDirPath + '/';
+
+    try {
+      console.log(`Collecting lineage for ${evoRunFolder} ...`);
+      const lineage = await getLineageGraphData(evoRunConfig, evoRunFolder, stepSize);
+      console.log(`Lineage entries: ${Array.isArray(lineage) ? lineage.length : (lineage ? Object.keys(lineage).length : 0)}`);
+
+  console.log(`Initializing KuzuDB schema at ${expectedDbPath} ...`);
+  await initializeKuzuDBWithFeatures(expectedDbPath);
+
+  console.log(`Populating KuzuDB at ${expectedDbPath} ...`);
+      const populateResult = await populateKuzuDBWithLineageAndFeatures(
+        evoRunConfig, evoRunFolder, lineage, { dbPath: expectedDbPath }
+      );
+      console.log(`✅ ${evoRunFolder}: sounds=${populateResult.stats.total_sounds}, relationships=${populateResult.stats.total_parent_relationships}`);
+  results.push({
+        evolutionRunId: evoRunFolder,
+        success: true,
+        dbPath: populateResult.dbPath,
+        stats: populateResult.stats,
+        timestamp: new Date().toISOString()
+      });
+  // Small yield to allow GC/native cleanup before next heavy run
+  await new Promise(r => setTimeout(r, 25));
+    } catch (err) {
+      logError(`(${evoRunFolder}) Population failed: ${err.message}`);
+      results.push({ evolutionRunId: evoRunFolder, success: false, error: err.message });
+    }
+  }
+
+  if (concurrencyLimit && concurrencyLimit > 1) {
+    console.log(`Using concurrency limit ${concurrencyLimit}`);
+    await new Promise(resolve => {
+      const queue = async.queue((folder, done) => {
+        processOne(folder).then(() => done()).catch(e => { logError(e.message); done(); });
+      }, concurrencyLimit);
+      queue.push(evoRunFolders);
+      queue.drain(() => resolve());
+    });
+  } else {
+    for (const folder of evoRunFolders) {
+      await processOne(folder);
+    }
+  }
+
+  const summary = {
+    startedAt: fs.statSync(errorLogPath).birthtime || new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+    evoRunsDirPath,
+    stepSize,
+    concurrencyLimit,
+    forceProcessing,
+    totals: {
+      processed: results.length,
+      success: results.filter(r => r.success).length,
+      skipped: results.filter(r => r.skipped).length,
+      failed: results.filter(r => r.success === false && !r.skipped).length
+    },
+    results
+  };
+
+  const outFile = path.join(evoRunsDirPath, `kuzu_population_summary_step-${stepSize}_${Date.now()}.json`);
+  fs.writeFileSync(outFile, JSON.stringify(summary, null, 2));
+  console.log(`\nKuzuDB population summary written to ${outFile}`);
+  console.log(`Successful: ${summary.totals.success}, Skipped: ${summary.totals.skipped}, Failed: ${summary.totals.failed}`);
+
+  return summary;
+}
+
 export async function evoRunsDirAnalysisAggregate(cli) {
   const { 
     evoRunsDirPath, 
@@ -2250,220 +2397,4 @@ function aggregatePhylogeneticTree(iterationsWithData) {
   }
   
   return aggregates;
-}
-
-/**
- * Populate KuzuDB databases for multiple evolution runs in a directory
- */
-export async function qdAnalysis_evoRunsPopulateKuzuDB(cli) {
-  const { 
-    evoRunsDirPath, 
-    concurrencyLimit,
-    forceProcessing
-  } = cli.flags;
-  
-  if (!evoRunsDirPath) {
-    console.error("No evoRunsDirPath provided");
-    process.exit(1);
-  }
-
-  console.log(`Starting KuzuDB population for evolution runs in: ${evoRunsDirPath}`);
-  
-  // Ensure the evoRunsDirPath exists
-  if (!fs.existsSync(evoRunsDirPath)) {
-    console.error(`Directory does not exist: ${evoRunsDirPath}`);
-    process.exit(1);
-  }
-  
-  // Create error log file
-  const errorLogPath = path.join(evoRunsDirPath, 'kuzudb_population_error_log.txt');
-  fs.writeFileSync(errorLogPath, `KuzuDB population started at ${new Date().toISOString()}\n`);
-  
-  function logError(message) {
-    const timestamp = new Date().toISOString();
-    const formattedMessage = `[${timestamp}] ${message}\n`;
-    console.error(formattedMessage);
-    fs.appendFileSync(errorLogPath, formattedMessage);
-  }
-  
-  // Get all directories in the evoRunsDirPath
-  let evoRunFolders;
-  try {
-    evoRunFolders = fs.readdirSync(evoRunsDirPath)
-      .filter(item => fs.statSync(path.join(evoRunsDirPath, item)).isDirectory());
-  } catch (err) {
-    logError(`Failed to read directory: ${evoRunsDirPath}. Error: ${err.message}`);
-    process.exit(1);
-  }
-  
-  console.log(`Found ${evoRunFolders.length} potential evolution run folders`);
-
-  // Track results
-  const results = {
-    successful: 0,
-    failed: 0,
-    skipped: 0,
-    details: []
-  };
-
-  // If concurrency limit is set, use parallel processing
-  if (concurrencyLimit && concurrencyLimit > 1) {
-    console.log(`Using parallel processing with concurrency limit: ${concurrencyLimit}`);
-    await processEvoRunsInParallel(evoRunFolders, concurrencyLimit);
-  } else {
-    // Use sequential processing
-    await processEvoRunsSequentially(evoRunFolders);
-  }
-  
-  console.log(`\nKuzuDB population complete. Processed ${evoRunFolders.length} evolution run folders.`);
-  console.log(`Results: ${results.successful} successful, ${results.failed} failed, ${results.skipped} skipped`);
-  console.log(`Error log available at: ${errorLogPath}`);
-
-  // Helper function for parallel processing
-  async function processEvoRunsInParallel(folders, limit) {
-    return new Promise((resolve, reject) => {
-      // Create a queue with concurrency limit
-      const queue = async.queue((evoRunFolder, callback) => {
-        processOneEvoRunForKuzuDB(evoRunFolder)
-          .then(() => callback())
-          .catch(err => {
-            logError(`Error in parallel processing of ${evoRunFolder}: ${err.message}\n${err.stack}`);
-            callback(); // Continue processing other items
-          });
-      }, limit);
-
-      // Error handling for the queue
-      queue.error((err, evoRunFolder) => {
-        logError(`Queue error processing ${evoRunFolder}: ${err.message}`);
-        // Continue processing other items
-      });
-
-      // Add all folders to the queue
-      for (const folder of folders) {
-        queue.push(folder);
-      }
-
-      // When all tasks are done
-      queue.drain(() => {
-        resolve();
-      });
-    });
-  }
-
-  // Helper function for sequential processing
-  async function processEvoRunsSequentially(folders) {
-    for (const evoRunFolder of folders) {
-      try {
-        await processOneEvoRunForKuzuDB(evoRunFolder);
-      } catch (err) {
-        logError(`Error processing evolution run folder ${evoRunFolder}: ${err.message}\n${err.stack}`);
-      }
-    }
-  }
-
-  // Processing logic for a single evolution run folder
-  async function processOneEvoRunForKuzuDB(evoRunFolder) {
-    const fullEvoRunPath = path.join(evoRunsDirPath, evoRunFolder);
-    console.log(`Processing KuzuDB population for: ${evoRunFolder}`);
-    
-    const resultDetail = {
-      folder: evoRunFolder,
-      status: 'processing',
-      timestamp: new Date().toISOString()
-    };
-    
-    try {
-      // Check if KuzuDB already exists and we're not forcing
-      const expectedDbPath = path.join(fullEvoRunPath, `${evoRunFolder}.kuzu`);
-      if (fs.existsSync(expectedDbPath) && !forceProcessing) {
-        console.log(`KuzuDB already exists for ${evoRunFolder}, skipping (use --force-processing to overwrite)`);
-        resultDetail.status = 'skipped';
-        resultDetail.reason = 'database_exists';
-        results.skipped++;
-        results.details.push(resultDetail);
-        return;
-      }
-
-      // Check if this looks like a valid evolution run directory
-      // Look for elite map files instead of config file
-      const eliteFiles = fs.readdirSync(fullEvoRunPath)
-        .filter(file => file.startsWith('elites_') && (file.endsWith('.json') || file.endsWith('.json.gz')));
-      
-      if (eliteFiles.length === 0) {
-        logError(`No elite map files found in ${evoRunFolder}, skipping`);
-        resultDetail.status = 'skipped';
-        resultDetail.reason = 'no_elite_files';
-        results.skipped++;
-        results.details.push(resultDetail);
-        return;
-      }
-      
-      // Create a minimal evolution run config for the lineage extraction
-      // This is all that getLineageGraphData needs
-      const evoRunConfig = {
-        evoRunsDirPath: evoRunsDirPath + '/'
-      };
-      
-      const evolutionRunId = evoRunFolder;
-      
-      console.log(`  Extracting lineage data for ${evolutionRunId}...`);
-      
-      // Extract lineage data (use stepSize = 1 for complete data)
-      const lineageData = await getLineageGraphData(evoRunConfig, evolutionRunId, 1);
-      
-      if (!lineageData || lineageData.length === 0) {
-        logError(`No lineage data found for ${evolutionRunId}`);
-        resultDetail.status = 'failed';
-        resultDetail.reason = 'no_lineage_data';
-        results.failed++;
-        results.details.push(resultDetail);
-        return;
-      }
-      
-      console.log(`  Populating KuzuDB for ${evolutionRunId}...`);
-      
-      // Initialize and populate KuzuDB
-      const populateResult = await populateKuzuDBWithLineageAndFeatures(
-        evoRunConfig, 
-        evolutionRunId, 
-        lineageData, 
-        { dbPath: expectedDbPath }
-      );
-      
-      console.log(`  ✅ KuzuDB populated successfully for ${evolutionRunId}`);
-      console.log(`     Database: ${populateResult.dbPath}`);
-      console.log(`     Sounds: ${populateResult.stats.total_sounds}`);
-      console.log(`     Relationships: ${populateResult.stats.total_parent_relationships}`);
-      if (populateResult.stats && populateResult.stats.feature_vectors) {
-        console.log(`     Feature vectors:`, populateResult.stats.feature_vectors);
-      }
-      
-      resultDetail.status = 'success';
-      resultDetail.dbPath = populateResult.dbPath;
-      resultDetail.stats = populateResult.stats;
-      results.successful++;
-      results.details.push(resultDetail);
-      
-    } catch (error) {
-      logError(`Failed to populate KuzuDB for ${evoRunFolder}: ${error.message}\n${error.stack}`);
-      resultDetail.status = 'failed';
-      resultDetail.error = error.message;
-      results.failed++;
-      results.details.push(resultDetail);
-    }
-  }
-
-  // Write summary results
-  const summaryPath = path.join(evoRunsDirPath, 'kuzudb_population_summary.json');
-  fs.writeFileSync(summaryPath, JSON.stringify({
-    summary: results,
-    timestamp: new Date().toISOString(),
-    settings: {
-      evoRunsDirPath,
-      concurrencyLimit,
-      forceProcessing
-    }
-  }, null, 2));
-  
-  console.log(`Summary written to: ${summaryPath}`);
 }
